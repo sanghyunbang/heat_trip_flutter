@@ -1,218 +1,221 @@
 import 'package:flutter/material.dart';
+import 'feed_create_screen.dart';
+import 'package:intl/intl.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
 
   @override
-  _FeedScreenState createState() => _FeedScreenState();
+  State<FeedScreen> createState() => _FeedScreenState();
 }
 
 class _FeedScreenState extends State<FeedScreen> {
-  final _formKey = GlobalKey<FormState>();
-  String title = '';
-  String author = '';
-  String content = '';
+  String selectedFilter = '감정별보기';
+  String? selectedSubFilter;
 
-  String? primaryMood; // 기본 기분 선택
-  List<Map<String, String?>> extraMoodInputs = [];
+  final Map<String, List<String>> subFilters = {
+    '감정별보기': ['신나요', '평온해요', '따뜻해요', '포근해요'],
+    '지역별보기': ['제주도', '강원도', '서울', '부산'],
+    '게시물보기': ['최신순', '인기순'],
+    '피드만보기': ['나의 피드', '팔로우 피드'],
+  };
 
-  final List<Map<String, String>> moodOptions = [
-    {'label': '슬픔', 'emoji': '😢'},
-    {'label': '기쁨', 'emoji': '😊'},
-    {'label': '심심함', 'emoji': '😐'},
-    {'label': '평온함', 'emoji': '😌'},
-    {'label': '신남', 'emoji': '🤩'},
+  final List<Map<String, dynamic>> posts = [
+    {
+      'title': '행복한 여행!',
+      'author': '홍길동',
+      'mood': '😊',
+      'content': '정말 즐거운 여행이었어요!',
+      'location': '제주도',
+      'likes': 12,
+      'date': DateTime(2025, 7, 28),
+      'imageUrl': 'https://cdn.pixabay.com/photo/2024/05/31/12/16/bridge-8800485_1280.jpg',
+    },
+    {
+      'title': '조용한 휴식',
+      'author': '김철수',
+      'mood': '😌',
+      'content': '한적한 시골에서 마음을 달래다 왔어요.',
+      'location': '강원도',
+      'likes': 5,
+      'date': DateTime(2025, 7, 25),
+      'imageUrl': 'https://cdn.pixabay.com/photo/2024/08/29/10/01/nature-9006428_1280.jpg',
+    },
   ];
-
-  void addMoodInput() {
-    setState(() {
-      extraMoodInputs.add({'mood': null, 'detail': ''});
-    });
-  }
-
-  void removeMoodInput(int index) {
-    setState(() {
-      extraMoodInputs.removeAt(index);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
+    final DateFormat formatter = DateFormat('yyyy-MM-dd');
+
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 255, 186, 209),
+      backgroundColor: const Color.fromARGB(255, 255, 186, 215),
       appBar: AppBar(
+        title: const Text('모두의 여행'),
         backgroundColor: const Color.fromARGB(255, 255, 186, 215),
-        title: const Text('피드 작성'),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const FeedCreateScreen()),
+              );
+            },
+            icon: const Icon(Icons.edit, color: Colors.white),
+            label: const Text('피드 작성', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextFormField(
-                decoration: const InputDecoration(labelText: '제목'),
-                onSaved: (value) => title = value ?? '',
-                validator: (value) =>
-                    value == null || value.isEmpty ? '제목을 입력하세요' : null,
-              ),
-              TextFormField(
-                decoration: const InputDecoration(labelText: '글쓴이'),
-                onSaved: (value) => author = value ?? '',
-                validator: (value) =>
-                    value == null || value.isEmpty ? '글쓴이를 입력하세요' : null,
-              ),
-
-              const SizedBox(height: 16),
-              const Text('기분', style: TextStyle(fontSize: 16)),
-
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 10,
-                children: moodOptions.map((mood) {
-                  final isSelected = primaryMood == mood['label'];
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        primaryMood = mood['label'];
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 8, horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? Colors.blueAccent.withOpacity(0.2)
-                            : Colors.grey.shade200,
-                        border: Border.all(
-                          color: isSelected ? Colors.blue : Colors.grey,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '📌 상위 필터',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  children: subFilters.keys.map((filter) {
+                    final isSelected = selectedFilter == filter;
+                    return ChoiceChip(
+                      label: Text(
+                        filter,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : Colors.black87,
                         ),
-                        borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(mood['emoji']!, style: const TextStyle(fontSize: 18)),
-                          const SizedBox(width: 6),
-                          Text(mood['label']!, style: const TextStyle(fontSize: 16)),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('기분 추가 입력', style: TextStyle(fontSize: 16)),
-                  IconButton(
-                    icon: const Icon(Icons.add_circle_outline),
-                    onPressed: addMoodInput,
+                      selected: isSelected,
+                      selectedColor: Colors.pinkAccent,
+                      backgroundColor: Colors.grey[200],
+                      onSelected: (_) {
+                        setState(() {
+                          selectedFilter = filter;
+                          selectedSubFilter = null;
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 20),
+                if (subFilters[selectedFilter] != null) ...[
+                  const Text(
+                    '📂 하위 필터',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: subFilters[selectedFilter]!.map((sub) {
+                      final isSelected = selectedSubFilter == sub;
+                      return ChoiceChip(
+                        label: Text(
+                          sub,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                        selected: isSelected,
+                        selectedColor: Colors.deepPurpleAccent,
+                        backgroundColor: Colors.grey[100],
+                        onSelected: (_) {
+                          setState(() {
+                            selectedSubFilter = sub;
+                          });
+                        },
+                      );
+                    }).toList(),
                   ),
                 ],
-              ),
+              ],
+            ),
+          ),
+          const Divider(),
 
-              ...extraMoodInputs.asMap().entries.map((entry) {
-                int index = entry.key;
-                String? selectedMood = entry.value['mood'];
-                String? detail = entry.value['detail'];
+          // 게시물 리스트
+          Expanded(
+            child: ListView.builder(
+              itemCount: posts.length,
+              itemBuilder: (context, index) {
+                final post = posts[index];
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Wrap(
-                        spacing: 10,
-                        children: moodOptions.map((mood) {
-                          final isSelected = selectedMood == mood['label'];
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                extraMoodInputs[index]['mood'] = mood['label'];
-                              });
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 8, horizontal: 12),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? Colors.blueAccent.withOpacity(0.2)
-                                    : Colors.grey.shade200,
-                                border: Border.all(
-                                  color: isSelected ? Colors.blue : Colors.grey,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(mood['emoji']!, style: const TextStyle(fontSize: 18)),
-                                  const SizedBox(width: 6),
-                                  Text(mood['label']!, style: const TextStyle(fontSize: 16)),
-                                ],
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        decoration: const InputDecoration(labelText: '기분 설명'),
-                        initialValue: detail,
-                        onChanged: (value) {
-                          extraMoodInputs[index]['detail'] = value;
-                        },
-                      ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          onPressed: () => removeMoodInput(index),
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          label: const Text('삭제', style: TextStyle(color: Colors.red)),
+                // 필터링 예시 (감정별보기일 때만 적용됨 — 실제 로직은 필요한 조건으로 확장 가능)
+                if (selectedFilter == '감정별보기' && selectedSubFilter != null) {
+                  if (!post['title'].toString().contains(selectedSubFilter!)) {
+                    return const SizedBox.shrink();
+                  }
+                }
+
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(post['author'],
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 14)),
+                            Text(formatter.format(post['date']),
+                                style: const TextStyle(
+                                    fontSize: 12, color: Colors.grey)),
+                          ],
                         ),
-                      ),
-                      const Divider(),
-                    ],
+                        const SizedBox(height: 8),
+                        Text(
+                          '${post['mood']} ${post['title']}',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(height: 16),
+                        if (post['imageUrl'] != null &&
+                            (post['imageUrl'] as String).isNotEmpty)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              post['imageUrl'],
+                              height: 240,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        else
+                          Container(
+                            height: 240,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Center(child: Text('이미지 없음')),
+                          ),
+                        const SizedBox(height: 16),
+                        Text(post['content'] ?? '',
+                            style: const TextStyle(fontSize: 14)),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            const Icon(Icons.favorite, color: Colors.red, size: 20),
+                            const SizedBox(width: 4),
+                            Text('${post['likes']}',
+                                style: const TextStyle(fontSize: 14)),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 );
-              }),
-
-              const SizedBox(height: 16),
-              TextFormField(
-                decoration: const InputDecoration(labelText: '내용'),
-                maxLines: 5,
-                onSaved: (value) => content = value ?? '',
-                validator: (value) =>
-                    value == null || value.isEmpty ? '내용을 입력하세요' : null,
-              ),
-              const SizedBox(height: 80),
-            ],
+              },
+            ),
           ),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          if (_formKey.currentState?.validate() ?? false) {
-            _formKey.currentState?.save();
-
-            print('제목: $title');
-            print('글쓴이: $author');
-            print('기본 기분: $primaryMood');
-            print('추가 기분들:');
-            for (var mood in extraMoodInputs) {
-              print(' - ${mood['mood']} : ${mood['detail']}');
-            }
-            print('내용: $content');
-
-            // 여기에 서버 전송 함수 호출
-          }
-        },
-        label: const Text('피드 등록'),
-        icon: const Icon(Icons.send),
+        ],
       ),
     );
   }
