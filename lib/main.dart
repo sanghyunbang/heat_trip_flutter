@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:heat_trip_flutter/theme.dart';
-import 'package:heat_trip_flutter/home/home_screen.dart';
+import 'package:heat_trip_flutter/home/start_screen.dart';
+import 'package:heat_trip_flutter/home/recommendation_screen.dart';
 import 'package:heat_trip_flutter/record/schedule_list_screen.dart';
 import 'package:heat_trip_flutter/social/feed_screen.dart';
 import 'package:heat_trip_flutter/social/bookmark_screen.dart';
@@ -18,7 +19,7 @@ class HeatTrip extends StatelessWidget {
     return MaterialApp(
       title: '여행의 온도',
       debugShowCheckedModeBanner: true,  // 디버그 태그 보려면 true, 보지 않으려면 false
-      home: HeatTripLayout(),
+      home: StartScreen(),
       theme: theme(),
       /*
        * <컴포넌트 자체에서 route없이 이동시키는 방법>
@@ -48,7 +49,7 @@ class HeatTripLayout extends StatefulWidget {
 }
 
 class _HeatTripLayoutState extends State<HeatTripLayout> {
-  int _selectedIndex = 0;
+  int _selectedIndex = 2;
 
   void _onTabTapped(int index) {
     setState(() {
@@ -62,16 +63,16 @@ class _HeatTripLayoutState extends State<HeatTripLayout> {
       body: IndexedStack(
         index: _selectedIndex,
         children: [
-          HomeScreen(), // index 0 : 홈 화면
-          ScheduleListScreen(), // index 1 : 스케줄러 화면
-          FeedScreen(), // index 2 : 피드 화면
+          ScheduleListScreen(), // index 0 : 여행 스케줄러 화면
+          FeedScreen(), // index 1 : 피드 화면
+          RecommendationScreen(), // index 2 : 관광지 추천 화면
           BookmarkScreen(), // index 3 : 북마크 화면
           ProfileScreen(), // index 4 : 마이페이지 화면
         ],
       ),
 
       /* 하단 메뉴바 */
-      // 가운데 피드 버튼 디자인
+      // 가운데 버튼 디자인 : 관광지 추천 화면
       floatingActionButton: Container(
         width: 68,
         height: 68,
@@ -83,10 +84,10 @@ class _HeatTripLayoutState extends State<HeatTripLayout> {
           backgroundColor: Colors.indigo,
           shape: const CircleBorder(),
           onPressed: () {
-            _onTabTapped(2); // 피드
+            _onTabTapped(2); // 추천 관광지
           },
           elevation: 4.0,
-          child: Icon(Icons.dynamic_feed, color: Colors.white),
+          child: Icon(Icons.travel_explore, color: Colors.white),
         ),
       ),
       // 흰색 부분 메뉴 디자인
@@ -99,16 +100,16 @@ class _HeatTripLayoutState extends State<HeatTripLayout> {
           },
           items: const [
             BottomNavigationBarItem(
-              icon: Icon(Icons.home),
-              label: 'home',
-            ),
-            BottomNavigationBarItem(
               icon: Icon(Icons.list),
               label: 'record',
             ),
             BottomNavigationBarItem(
-              icon: Opacity(opacity: 0.0, child: Icon(Icons.feed)), // 아이콘 위치 유지하면서 보이지 않게 설정
+              icon: Icon(Icons.dynamic_feed),
               label: 'feed',
+            ),
+            BottomNavigationBarItem(
+              icon: Opacity(opacity: 0.0, child: Icon(Icons.travel_explore)), // 아이콘 위치 유지하면서 보이지 않게 설정
+              label: 'for you',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.bookmark),
