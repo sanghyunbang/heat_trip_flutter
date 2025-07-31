@@ -22,30 +22,118 @@ class _FeedScreenState extends State<FeedScreen> {
 
   final List<Map<String, dynamic>> posts = [
     {
-      'title': '행복한 여행!',
-      'author': '홍길동',
-      'mood': '😊',
-      'content': '정말 즐거운 여행이었어요!',
-      'location': '제주도',
-      'likes': 12,
-      'date': DateTime(2025, 7, 28),
-      'imageUrl': 'https://cdn.pixabay.com/photo/2024/05/31/12/16/bridge-8800485_1280.jpg',
-    },
-    {
       'title': '조용한 휴식',
       'author': '김철수',
       'mood': '😌',
+      'moodLabel': '평온해요',
+      'moodTemperature': 5,
       'content': '한적한 시골에서 마음을 달래다 왔어요.',
       'location': '강원도',
       'likes': 5,
       'date': DateTime(2025, 7, 25),
-      'imageUrl': 'https://cdn.pixabay.com/photo/2024/08/29/10/01/nature-9006428_1280.jpg',
+      'imageUrl':
+          'https://cdn.pixabay.com/photo/2024/08/29/10/01/nature-9006428_1280.jpg',
+    },
+    {
+      'title': '따뜻한 카페 데이트',
+      'author': '이영희',
+      'mood': '😊',
+      'moodLabel': '따뜻해요',
+      'moodTemperature': 6,
+      'content': '조용한 카페에서 친구와 좋은 시간을 보냈어요.',
+      'location': '서울',
+      'likes': 8,
+      'date': DateTime(2025, 7, 30),
+      'imageUrl':
+          'https://cdn.pixabay.com/photo/2021/08/12/05/19/cathedral-6539937_1280.jpg',
+    },
+    {
+      'title': '포근한 바닷가 산책',
+      'author': '박민수',
+      'mood': '🥰',
+      'moodLabel': '포근해요',
+      'moodTemperature': 4,
+      'content': '바닷가에서 산책하며 힐링했어요.',
+      'location': '부산',
+      'likes': 15,
+      'date': DateTime(2025, 7, 27),
+      'imageUrl':
+          'https://cdn.pixabay.com/photo/2017/08/06/18/29/woman-2594934_1280.jpg',
+    },
+    {
+      'title': '서울 야경 감상',
+      'author': '최지우',
+      'mood': '😌',
+      'moodLabel': '평온해요',
+      'moodTemperature': 5,
+      'content': '서울의 멋진 야경을 감상했어요.',
+      'location': '서울',
+      'likes': 20,
+      'date': DateTime(2025, 7, 26),
+      'imageUrl':
+          'https://cdn.pixabay.com/photo/2019/08/10/03/15/bridge-4396131_1280.jpg',
+    },
+    {
+      'title': '강원도 산속 힐링',
+      'author': '한예슬',
+      'mood': '🥰',
+      'moodLabel': '포근해요',
+      'moodTemperature': 6,
+      'content': '강원도 산속에서 마음이 평화로워졌어요.',
+      'location': '강원도',
+      'likes': 9,
+      'date': DateTime(2025, 7, 29),
+      'imageUrl':
+          'https://cdn.pixabay.com/photo/2021/12/14/16/15/city-6870803_1280.jpg',
     },
   ];
 
+  final DateFormat formatter = DateFormat('yyyy-MM-dd');
+
+  Color moodColor(String moodLabel) {
+    switch (moodLabel) {
+      case '신나요':
+        return Colors.pink.shade400;
+      case '평온해요':
+        return Colors.blue.shade400;
+      case '따뜻해요':
+        return Colors.orange.shade400;
+      case '포근해요':
+        return Colors.green.shade400;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Widget moodTemperatureBar(int value, Color color) {
+    return Row(
+      children: List.generate(10, (index) {
+        final isFilled = index < value;
+        return Container(
+          width: 8,
+          height: 16,
+          margin: const EdgeInsets.symmetric(horizontal: 1),
+          decoration: BoxDecoration(
+            color: isFilled ? color.withOpacity(0.9) : color.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(3),
+          ),
+        );
+      }),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final DateFormat formatter = DateFormat('yyyy-MM-dd');
+    // 필터링된 데이터 리스트
+    List<Map<String, dynamic>> filteredPosts = posts.where((post) {
+      if (selectedFilter == '감정별보기' && selectedSubFilter != null) {
+        return post['moodLabel'] == selectedSubFilter;
+      }
+      if (selectedFilter == '지역별보기' && selectedSubFilter != null) {
+        return post['location'] == selectedSubFilter;
+      }
+      return true;
+    }).toList();
 
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 255, 186, 215),
@@ -57,7 +145,9 @@ class _FeedScreenState extends State<FeedScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const FeedCreateScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const FeedCreateScreen(),
+                ),
               );
             },
             icon: const Icon(Icons.edit, color: Colors.white),
@@ -137,82 +227,137 @@ class _FeedScreenState extends State<FeedScreen> {
           ),
           const Divider(),
 
-          // 게시물 리스트
+          /// 게시물 리스트
           Expanded(
-            child: ListView.builder(
-              itemCount: posts.length,
-              itemBuilder: (context, index) {
-                final post = posts[index];
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: GridView.builder(
+                itemCount: filteredPosts.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 0.65,
+                ),
+                itemBuilder: (context, index) {
+                  final post = filteredPosts[index];
+                  final color = moodColor(post['moodLabel']);
 
-                // 필터링 예시 (감정별보기일 때만 적용됨 — 실제 로직은 필요한 조건으로 확장 가능)
-                if (selectedFilter == '감정별보기' && selectedSubFilter != null) {
-                  if (!post['title'].toString().contains(selectedSubFilter!)) {
-                    return const SizedBox.shrink();
-                  }
-                }
-
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
+                  return Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 4,
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(post['author'],
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 14)),
-                            Text(formatter.format(post['date']),
-                                style: const TextStyle(
-                                    fontSize: 12, color: Colors.grey)),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '${post['mood']} ${post['title']}',
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                        const SizedBox(height: 16),
-                        if (post['imageUrl'] != null &&
-                            (post['imageUrl'] as String).isNotEmpty)
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              post['imageUrl'],
-                              height: 240,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        else
-                          Container(
-                            height: 240,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[300],
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Center(child: Text('이미지 없음')),
+                        ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(12),
                           ),
-                        const SizedBox(height: 16),
-                        Text(post['content'] ?? '',
-                            style: const TextStyle(fontSize: 14)),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            const Icon(Icons.favorite, color: Colors.red, size: 20),
-                            const SizedBox(width: 4),
-                            Text('${post['likes']}',
-                                style: const TextStyle(fontSize: 14)),
-                          ],
+                          child: Image.network(
+                            post['imageUrl'],
+                            height: 140,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        // 내용 영역을 감정색 배경으로 감싸기
+                        Container(
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.15), // 감정 컬러 배경 (연하게)
+                            borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(12),
+                            ),
+                          ),
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // 위치 + 좋아요
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Text(
+                                      post['location'],
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.favorite,
+                                        color: Colors.red,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        '${post['likes']}',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+
+                              // 감정 라벨
+                              Row(
+                                children: [
+                                  Text(
+                                    post['mood'],
+                                    style: const TextStyle(fontSize: 24),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    post['moodLabel'],
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors
+                                          .white, // 필요시 custom extension으로
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+
+                              // 감정 온도계
+                              moodTemperatureBar(
+                                post['moodTemperature'],
+                                color,
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              // 제목
+                              Text(
+                                post['title'],
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ],
