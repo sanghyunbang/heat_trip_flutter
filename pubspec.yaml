@@ -39,6 +39,10 @@ dependencies:
   google_fonts: ^6.2.1
   flutter_svg: ^2.2.0
 
+  # 소셜 로그인 관련
+  flutter_web_auth_2: ^4.1.0
+  shared_preferences: ^2.5.3
+
 
 dev_dependencies:
   flutter_test:
