@@ -13,6 +13,9 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
 
   String? _selectedLocation;
   DateTimeRange? _selectedRange;
+  String? _selectedPurpose;
+  final List<String> _purposes = ['x1', 'x2', 'x3']; // 예시 목적 리스트
+
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
 
@@ -75,8 +78,7 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
               onChanged: (value) {
                 selected = value;
               },
-              validator: (value) =>
-                  value == null ? '여행지를 선택해주세요.' : null,
+              validator: (value) => value == null ? '여행지를 선택해주세요.' : null,
             ),
             const SizedBox(height: 10),
             TextField(
@@ -130,9 +132,9 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
 
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('모든 항목을 입력해주세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('모든 항목을 입력해주세요.')));
     }
   }
 
@@ -148,10 +150,7 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: child,
-      ),
+      child: Padding(padding: const EdgeInsets.all(16.0), child: child),
     );
   }
 
@@ -183,8 +182,7 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
                       _selectedLocation = value;
                     });
                   },
-                  validator: (value) =>
-                      value == null ? '지역을 선택해주세요.' : null,
+                  validator: (value) => value == null ? '지역을 선택해주세요.' : null,
                 ),
               ),
 
@@ -221,76 +219,103 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
                       value == null || value.isEmpty ? '제목을 입력해주세요.' : null,
                 ),
               ),
+              _buildSectionCard(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedPurpose,
+                  decoration: const InputDecoration(
+                    labelText: '여행 목적',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _purposes.map((purpose) {
+                    return DropdownMenuItem<String>(
+                      value: purpose,
+                      child: Text(purpose),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedPurpose = value;
+                    });
+                  },
+                  validator: (value) => value == null ? '여행 목적을 선택해주세요.' : null,
+                ),
+              ),
 
               // 여행지 추가 영역 카드
               // 여행지 추가 버튼 + 여행지 리스트 영역 (Card 없이 심플하게)
-Padding(
-  padding: const EdgeInsets.symmetric(vertical: 12),
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          backgroundColor: const Color.fromARGB(255, 255, 141, 179),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          textStyle: const TextStyle(fontSize: 18),
-        ),
-        onPressed: _showAddPlaceDialog,
-        icon: const Icon(Icons.add, size: 24),
-        label: const Text('여행지 추가'),
-      ),
-      const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: const Color.fromARGB(
+                          255,
+                          255,
+                          141,
+                          179,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        textStyle: const TextStyle(fontSize: 18),
+                      ),
+                      onPressed: _showAddPlaceDialog,
+                      icon: const Icon(Icons.add, size: 24),
+                      label: const Text('여행지 추가'),
+                    ),
+                    const SizedBox(height: 16),
 
-      if (_places.isEmpty)
-        Center(
-          child: Text(
-            '여행지를 추가해주세요.',
-            style: TextStyle(
-              color: Colors.pink[300],
-              fontStyle: FontStyle.italic,
-              fontSize: 16,
-            ),
-          ),
-        ),
+                    if (_places.isEmpty)
+                      Center(
+                        child: Text(
+                          '여행지를 추가해주세요.',
+                          style: TextStyle(
+                            color: Colors.pink[300],
+                            fontStyle: FontStyle.italic,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
 
-      if (_places.isNotEmpty)
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _places.length,
-          separatorBuilder: (_, __) => const Divider(),
-          itemBuilder: (context, index) {
-            final place = _places[index];
-            return ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                place['location'] ?? '',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
+                    if (_places.isNotEmpty)
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _places.length,
+                        separatorBuilder: (_, __) => const Divider(),
+                        itemBuilder: (context, index) {
+                          final place = _places[index];
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              place['location'] ?? '',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                              ),
+                            ),
+                            subtitle:
+                                (place['memo'] != null &&
+                                    place['memo']!.isNotEmpty)
+                                ? Text(place['memo']!)
+                                : null,
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () {
+                                setState(() {
+                                  _places.removeAt(index);
+                                });
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                  ],
                 ),
               ),
-              subtitle: (place['memo'] != null && place['memo']!.isNotEmpty)
-                  ? Text(place['memo']!)
-                  : null,
-              trailing: IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: () {
-                  setState(() {
-                    _places.removeAt(index);
-                  });
-                },
-              ),
-            );
-          },
-        ),
-    ],
-  ),
-),
-
 
               _buildSectionCard(
                 child: TextFormField(
