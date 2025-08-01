@@ -155,212 +155,234 @@ class _FeedScreenState extends State<FeedScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '📌 상위 필터',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
-                  children: subFilters.keys.map((filter) {
-                    final isSelected = selectedFilter == filter;
-                    return ChoiceChip(
-                      label: Text(
-                        filter,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                      selected: isSelected,
-                      selectedColor: Colors.pinkAccent,
-                      backgroundColor: Colors.grey[200],
-                      onSelected: (_) {
-                        setState(() {
-                          selectedFilter = filter;
-                          selectedSubFilter = null;
-                        });
-                      },
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 20),
-                if (subFilters[selectedFilter] != null) ...[
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   const Text(
-                    '📂 하위 필터',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    '📌 상위 필터',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: subFilters[selectedFilter]!.map((sub) {
-                      final isSelected = selectedSubFilter == sub;
-                      return ChoiceChip(
-                        label: Text(
-                          sub,
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black87,
-                          ),
-                        ),
-                        selected: isSelected,
-                        selectedColor: Colors.deepPurpleAccent,
-                        backgroundColor: Colors.grey[100],
-                        onSelected: (_) {
-                          setState(() {
-                            selectedSubFilter = sub;
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const Divider(),
-
-          /// 게시물 리스트
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: GridView.builder(
-                itemCount: filteredPosts.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 0.65,
-                ),
-                itemBuilder: (context, index) {
-                  final post = filteredPosts[index];
-                  final color = moodColor(post['moodLabel']);
-
-                  return Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 4,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        ClipRRect(
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(12),
-                          ),
-                          child: Image.network(
-                            post['imageUrl'],
-                            height: 140,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        // 내용 영역을 감정색 배경으로 감싸기
-                        Container(
-                          decoration: BoxDecoration(
-                            color: color.withOpacity(0.15), // 감정 컬러 배경 (연하게)
-                            borderRadius: const BorderRadius.vertical(
-                              bottom: Radius.circular(12),
+                  // 고정 높이 + 내부 스크롤
+                  SizedBox(
+                    height: 40,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: subFilters.keys.map((filter) {
+                        final isSelected = selectedFilter == filter;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(
+                              filter,
+                              style: TextStyle(
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.black87,
+                              ),
                             ),
+                            selected: isSelected,
+                            selectedColor: Colors.pinkAccent,
+                            backgroundColor: Colors.grey[200],
+                            onSelected: (_) {
+                              setState(() {
+                                selectedFilter = filter;
+                                selectedSubFilter = null;
+                              });
+                            },
                           ),
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // 위치 + 좋아요
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Text(
-                                      post['location'],
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.favorite,
-                                        color: Colors.red,
-                                        size: 18,
-                                      ),
-                                      const SizedBox(width: 2),
-                                      Text(
-                                        '${post['likes']}',
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
+                        );
+                      }).toList(),
+                    ),
+                  ),
 
-                              // 감정 라벨
-                              Row(
-                                children: [
-                                  Text(
-                                    post['mood'],
-                                    style: const TextStyle(fontSize: 24),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    post['moodLabel'],
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors
-                                          .white, // 필요시 custom extension으로
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-
-                              // 감정 온도계
-                              moodTemperatureBar(
-                                post['moodTemperature'],
-                                color,
-                              ),
-
-                              const SizedBox(height: 12),
-
-                              // 제목
-                              Text(
-                                post['title'],
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                  const SizedBox(height: 12),
+                  if (subFilters[selectedFilter] != null) ...[
+                    const Text(
+                      '📂 하위 필터',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      height: 40,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: subFilters[selectedFilter]!.map((sub) {
+                          final isSelected = selectedSubFilter == sub;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: ChoiceChip(
+                              label: Text(
+                                sub,
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.black87,
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                      ],
+                              selected: isSelected,
+                              selectedColor: Colors.deepPurpleAccent,
+                              backgroundColor: Colors.grey[100],
+                              onSelected: (_) {
+                                setState(() {
+                                  selectedSubFilter = sub;
+                                });
+                              },
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ),
-                  );
-                },
+                  ],
+                ],
               ),
             ),
-          ),
-        ],
+
+            const Divider(height: 1),
+
+            /// 게시물 리스트
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: GridView.builder(
+                  itemCount: filteredPosts.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 0.72, // 카드 비율 확대 (기존보다 높이 확보)
+                  ),
+                  itemBuilder: (context, index) {
+                    final post = filteredPosts[index];
+                    final color = moodColor(post['moodLabel']);
+
+                    return Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 4,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ClipRRect(
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(12),
+                            ),
+                            child: Image.network(
+                              post['imageUrl'],
+                              height: 130, // 기존 140보다 살짝 줄임
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.15),
+                              borderRadius: const BorderRadius.vertical(
+                                bottom: Radius.circular(12),
+                              ),
+                            ),
+                            padding: const EdgeInsets.all(10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 위치 + 좋아요
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 3,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: Text(
+                                        post['location'],
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.favorite,
+                                          color: Colors.red,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          '${post['likes']}',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+
+                                // 감정 라벨
+                                Row(
+                                  children: [
+                                    Text(
+                                      post['mood'],
+                                      style: const TextStyle(fontSize: 20),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      post['moodLabel'],
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+
+                                // 감정 온도
+                                moodTemperatureBar(
+                                  post['moodTemperature'],
+                                  color,
+                                ),
+                                const SizedBox(height: 4),
+
+                                // 제목
+                                Text(
+                                  post['title'],
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

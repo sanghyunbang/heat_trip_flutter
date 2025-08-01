@@ -13,7 +13,9 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
   String author = '';
   String content = '';
 
-  String? primaryMood; // 기본 기분 선택
+  String? primaryMood;
+  int primaryMoodTemperature = 5;
+
   List<Map<String, String?>> extraMoodInputs = [];
 
   final List<Map<String, String>> moodOptions = [
@@ -34,6 +36,40 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
     setState(() {
       extraMoodInputs.removeAt(index);
     });
+  }
+
+  Color moodColor(String moodLabel) {
+    switch (moodLabel) {
+      case '슬픔':
+        return Colors.blueGrey;
+      case '기쁨':
+        return Colors.orange;
+      case '심심함':
+        return Colors.grey;
+      case '평온함':
+        return Colors.lightBlue;
+      case '신남':
+        return Colors.pinkAccent;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Widget moodTemperatureBar(int value, Color color) {
+    return Row(
+      children: List.generate(10, (index) {
+        final isFilled = index < value;
+        return Container(
+          width: 12,
+          height: 12,
+          margin: const EdgeInsets.symmetric(horizontal: 1),
+          decoration: BoxDecoration(
+            color: isFilled ? color.withOpacity(0.9) : color.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        );
+      }),
+    );
   }
 
   @override
@@ -63,10 +99,8 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
                 validator: (value) =>
                     value == null || value.isEmpty ? '글쓴이를 입력하세요' : null,
               ),
-
               const SizedBox(height: 16),
               const Text('기분', style: TextStyle(fontSize: 16)),
-
               const SizedBox(height: 8),
               Wrap(
                 spacing: 10,
@@ -80,7 +114,9 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          vertical: 8, horizontal: 12),
+                        vertical: 8,
+                        horizontal: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? Colors.blueAccent.withOpacity(0.2)
@@ -93,15 +129,53 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(mood['emoji']!, style: const TextStyle(fontSize: 18)),
+                          Text(
+                            mood['emoji']!,
+                            style: const TextStyle(fontSize: 18),
+                          ),
                           const SizedBox(width: 6),
-                          Text(mood['label']!, style: const TextStyle(fontSize: 16)),
+                          Text(
+                            mood['label']!,
+                            style: const TextStyle(fontSize: 16),
+                          ),
                         ],
                       ),
                     ),
                   );
                 }).toList(),
               ),
+              if (primaryMood != null) ...[
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Text(
+                      '감정 온도',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    moodTemperatureBar(
+                      primaryMoodTemperature,
+                      moodColor(primaryMood!),
+                    ),
+                  ],
+                ),
+                Slider(
+                  value: primaryMoodTemperature.toDouble(),
+                  min: 1,
+                  max: 10,
+                  divisions: 9,
+                  label: primaryMoodTemperature.toString(),
+                  activeColor: moodColor(primaryMood!),
+                  onChanged: (value) {
+                    setState(() {
+                      primaryMoodTemperature = value.toInt();
+                    });
+                  },
+                ),
+              ],
 
               const SizedBox(height: 24),
               Row(
@@ -114,7 +188,6 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
                   ),
                 ],
               ),
-
               ...extraMoodInputs.asMap().entries.map((entry) {
                 int index = entry.key;
                 String? selectedMood = entry.value['mood'];
@@ -137,7 +210,9 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
                             },
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  vertical: 8, horizontal: 12),
+                                vertical: 8,
+                                horizontal: 12,
+                              ),
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? Colors.blueAccent.withOpacity(0.2)
@@ -150,9 +225,15 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(mood['emoji']!, style: const TextStyle(fontSize: 18)),
+                                  Text(
+                                    mood['emoji']!,
+                                    style: const TextStyle(fontSize: 18),
+                                  ),
                                   const SizedBox(width: 6),
-                                  Text(mood['label']!, style: const TextStyle(fontSize: 16)),
+                                  Text(
+                                    mood['label']!,
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
                                 ],
                               ),
                             ),
@@ -172,7 +253,10 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
                         child: TextButton.icon(
                           onPressed: () => removeMoodInput(index),
                           icon: const Icon(Icons.delete, color: Colors.red),
-                          label: const Text('삭제', style: TextStyle(color: Colors.red)),
+                          label: const Text(
+                            '삭제',
+                            style: TextStyle(color: Colors.red),
+                          ),
                         ),
                       ),
                       const Divider(),
@@ -180,7 +264,6 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
                   ),
                 );
               }),
-
               const SizedBox(height: 16),
               TextFormField(
                 decoration: const InputDecoration(labelText: '내용'),
@@ -202,13 +285,13 @@ class _FeedCreateScreenState extends State<FeedCreateScreen> {
             print('제목: $title');
             print('글쓴이: $author');
             print('기본 기분: $primaryMood');
+            print('감정 온도: $primaryMoodTemperature');
             print('추가 기분들:');
             for (var mood in extraMoodInputs) {
               print(' - ${mood['mood']} : ${mood['detail']}');
             }
             print('내용: $content');
 
-            // 예: 서버 전송 후 뒤로 이동
             Navigator.pop(context);
           }
         },

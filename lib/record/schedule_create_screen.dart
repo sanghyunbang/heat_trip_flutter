@@ -11,74 +11,54 @@ class ScheduleCreateScreen extends StatefulWidget {
 class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  String? _selectedLocation;
-  DateTimeRange? _selectedRange;
-  String? _selectedPurpose;
-  final List<String> _purposes = ['x1', 'x2', 'x3']; // 예시 목적 리스트
-
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
 
   final List<String> _locations = ['평택', '파주', '안산', '양주', '이천'];
+  final List<String> _purposes = ['a1', 'a2', 'a3'];
   final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
 
+  String? _selectedLocation;
+  String? _selectedPurpose;
+  DateTimeRange? _selectedRange;
   final List<Map<String, String>> _places = [];
 
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickDateRange() async {
-    final DateTimeRange? picked = await showDateRangePicker(
+    final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
       initialDateRange: _selectedRange,
-      helpText: '기간을 선택하세요',
-      saveText: '선택 완료',
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Colors.pinkAccent,
-              onPrimary: Colors.white,
-              onSurface: Colors.black87,
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(foregroundColor: Colors.pink),
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
-
     if (picked != null) {
-      setState(() {
-        _selectedRange = picked;
-      });
+      setState(() => _selectedRange = picked);
     }
   }
 
   void _showAddPlaceDialog() {
-    String? selected;
     final memoController = TextEditingController();
+    final locationController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('여행지 추가'),
+        title: const Text('목적지 추가'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(labelText: '여행지 선택'),
-              items: _locations.map((location) {
-                return DropdownMenuItem<String>(
-                  value: location,
-                  child: Text(location),
-                );
-              }).toList(),
-              onChanged: (value) {
-                selected = value;
-              },
-              validator: (value) => value == null ? '여행지를 선택해주세요.' : null,
+            TextField(
+              controller: locationController,
+              decoration: const InputDecoration(
+                labelText: '장소 이름',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 10),
             TextField(
@@ -98,16 +78,14 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              if (selected != null) {
+              if (locationController.text.trim().isNotEmpty) {
                 setState(() {
                   _places.add({
-                    'location': selected!,
+                    'location': locationController.text.trim(),
                     'memo': memoController.text.trim(),
                   });
                 });
                 Navigator.pop(context);
-              } else {
-                // 선택 안 했을 때 처리 가능
               }
             },
             child: const Text('추가'),
@@ -121,15 +99,9 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
     if (_formKey.currentState!.validate() &&
         _selectedRange != null &&
         _selectedLocation != null) {
-      final snackBar = SnackBar(
-        content: Text(
-          '저장됨: ${_selectedLocation!}, ${_dateFormat.format(_selectedRange!.start)} ~ ${_dateFormat.format(_selectedRange!.end)}, ${_titleController.text}, 여행지 ${_places.length}개',
-        ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('저장 완료: ${_titleController.text}')),
       );
-      ScaffoldMessenger.of(context).showSnackBar(snackBar);
-
-      // TODO: 서버 전송 가능
-
       Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(
@@ -139,214 +111,216 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
   }
 
   @override
-  void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
-  Widget _buildSectionCard({required Widget child}) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(padding: const EdgeInsets.all(16.0), child: child),
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('스케쥴 작성')),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              _buildSectionCard(
-                child: DropdownButtonFormField<String>(
-                  value: _selectedLocation,
-                  decoration: const InputDecoration(
-                    labelText: '지역 선택',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _locations.map((location) {
-                    return DropdownMenuItem<String>(
-                      value: location,
-                      child: Text(location),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedLocation = value;
-                    });
-                  },
-                  validator: (value) => value == null ? '지역을 선택해주세요.' : null,
+      appBar: AppBar(title: const Text('스케줄 작성')),
+      body: Column(
+        children: [
+          // ✅ 상단 여행 제목 입력 영역
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+            decoration: BoxDecoration(
+              color: Colors.pink[50],
+              border: const Border(
+                bottom: BorderSide(color: Colors.pinkAccent, width: 0.6),
+              ),
+            ),
+            child: TextFormField(
+              controller: _titleController,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              decoration: InputDecoration(
+                labelText: '여행 제목',
+                labelStyle: const TextStyle(color: Colors.black54),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.grey),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 18,
                 ),
               ),
+              validator: (value) =>
+                  value == null || value.isEmpty ? '여행 제목을 입력해주세요.' : null,
+            ),
+          ),
 
-              _buildSectionCard(
-                child: GestureDetector(
-                  onTap: _pickDateRange,
-                  child: AbsorbPointer(
-                    child: TextFormField(
-                      decoration: const InputDecoration(
-                        labelText: '기간 선택',
-                        border: OutlineInputBorder(),
-                        suffixIcon: Icon(Icons.calendar_today),
+          const SizedBox(height: 8),
+
+          // ✅ 나머지 입력 폼 스크롤 영역
+          Expanded(
+            child: Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  const SizedBox(height: 16),
+
+                  // 지역 선택
+                  DropdownButtonFormField<String>(
+                    value: _selectedLocation,
+                    decoration: const InputDecoration(
+                      labelText: '지역 선택',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _locations
+                        .map(
+                          (loc) =>
+                              DropdownMenuItem(value: loc, child: Text(loc)),
+                        )
+                        .toList(),
+                    onChanged: (value) =>
+                        setState(() => _selectedLocation = value),
+                    validator: (value) => value == null ? '지역을 선택해주세요.' : null,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // 기간 선택
+                  GestureDetector(
+                    onTap: _pickDateRange,
+                    child: AbsorbPointer(
+                      child: TextFormField(
+                        decoration: const InputDecoration(
+                          labelText: '여행 기간',
+                          border: OutlineInputBorder(),
+                          suffixIcon: Icon(Icons.calendar_today),
+                        ),
+                        controller: TextEditingController(
+                          text: _selectedRange != null
+                              ? '${_dateFormat.format(_selectedRange!.start)} ~ ${_dateFormat.format(_selectedRange!.end)}'
+                              : '',
+                        ),
+                        validator: (_) =>
+                            _selectedRange == null ? '기간을 선택해주세요.' : null,
                       ),
-                      controller: TextEditingController(
-                        text: _selectedRange != null
-                            ? '${_dateFormat.format(_selectedRange!.start)} ~ ${_dateFormat.format(_selectedRange!.end)}'
-                            : '',
-                      ),
-                      validator: (_) =>
-                          _selectedRange == null ? '기간을 선택해주세요.' : null,
                     ),
                   ),
-                ),
-              ),
 
-              _buildSectionCard(
-                child: TextFormField(
-                  controller: _titleController,
-                  decoration: const InputDecoration(
-                    labelText: '여행 이름',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) =>
-                      value == null || value.isEmpty ? '제목을 입력해주세요.' : null,
-                ),
-              ),
-              _buildSectionCard(
-                child: DropdownButtonFormField<String>(
-                  value: _selectedPurpose,
-                  decoration: const InputDecoration(
-                    labelText: '여행 목적',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _purposes.map((purpose) {
-                    return DropdownMenuItem<String>(
-                      value: purpose,
-                      child: Text(purpose),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedPurpose = value;
-                    });
-                  },
-                  validator: (value) => value == null ? '여행 목적을 선택해주세요.' : null,
-                ),
-              ),
+                  const SizedBox(height: 16),
 
-              // 여행지 추가 영역 카드
-              // 여행지 추가 버튼 + 여행지 리스트 영역 (Card 없이 심플하게)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: const Color.fromARGB(
-                          255,
-                          255,
-                          141,
-                          179,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        textStyle: const TextStyle(fontSize: 18),
-                      ),
-                      onPressed: _showAddPlaceDialog,
-                      icon: const Icon(Icons.add, size: 24),
-                      label: const Text('여행지 추가'),
+                  // 목적 선택
+                  DropdownButtonFormField<String>(
+                    value: _selectedPurpose,
+                    decoration: const InputDecoration(
+                      labelText: '여행 목적',
+                      border: OutlineInputBorder(),
                     ),
-                    const SizedBox(height: 16),
+                    items: _purposes
+                        .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                        .toList(),
+                    onChanged: (value) =>
+                        setState(() => _selectedPurpose = value),
+                    validator: (value) => value == null ? '목적을 선택해주세요.' : null,
+                  ),
 
-                    if (_places.isEmpty)
-                      Center(
-                        child: Text(
-                          '여행지를 추가해주세요.',
+                  const SizedBox(height: 28),
+
+                  // 목적지 추가 영역
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          '🗺️ 목적지 상세 추가',
                           style: TextStyle(
-                            color: Colors.pink[300],
-                            fontStyle: FontStyle.italic,
                             fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ),
-
-                    if (_places.isNotEmpty)
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _places.length,
-                        separatorBuilder: (_, __) => const Divider(),
-                        itemBuilder: (context, index) {
-                          final place = _places[index];
-                          return ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(
-                              place['location'] ?? '',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
-                              ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: _showAddPlaceDialog,
+                          icon: const Icon(Icons.add),
+                          label: const Text('장소 추가'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.pink[200],
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        if (_places.isEmpty)
+                          const Center(
+                            child: Text(
+                              '추가된 장소가 없습니다.',
+                              style: TextStyle(color: Colors.grey),
                             ),
-                            subtitle:
-                                (place['memo'] != null &&
-                                    place['memo']!.isNotEmpty)
-                                ? Text(place['memo']!)
-                                : null,
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () {
-                                setState(() {
-                                  _places.removeAt(index);
-                                });
-                              },
-                            ),
-                          );
-                        },
+                          )
+                        else
+                          ListView.separated(
+                            itemCount: _places.length,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            separatorBuilder: (_, __) => const Divider(),
+                            itemBuilder: (context, index) {
+                              final place = _places[index];
+                              return ListTile(
+                                title: Text(place['location'] ?? ''),
+                                subtitle: (place['memo']?.isNotEmpty ?? false)
+                                    ? Text(place['memo']!)
+                                    : null,
+                                trailing: IconButton(
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () {
+                                    setState(() => _places.removeAt(index));
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // 기타 메모
+                  TextFormField(
+                    controller: _descriptionController,
+                    maxLines: 5,
+                    decoration: const InputDecoration(
+                      labelText: '기타 메모',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) =>
+                        value == null || value.isEmpty ? '내용을 입력해주세요.' : null,
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  // 저장 버튼
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _submitForm,
+                      icon: const Icon(Icons.save),
+                      label: const Text('저장하기'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        textStyle: const TextStyle(fontSize: 18),
+                        backgroundColor: Colors.pink,
+                        foregroundColor: Colors.white,
                       ),
-                  ],
-                ),
-              ),
-
-              _buildSectionCard(
-                child: TextFormField(
-                  controller: _descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: '내용',
-                    border: OutlineInputBorder(),
+                    ),
                   ),
-                  maxLines: 5,
-                  validator: (value) =>
-                      value == null || value.isEmpty ? '내용을 입력해주세요.' : null,
-                ),
-              ),
 
-              const SizedBox(height: 24),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.save),
-                  label: const Text('저장하기'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    textStyle: const TextStyle(fontSize: 18),
-                  ),
-                  onPressed: _submitForm,
-                ),
+                  const SizedBox(height: 30),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

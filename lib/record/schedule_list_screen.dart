@@ -18,7 +18,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
         end: DateTime(2025, 7, 29),
       ),
       'image':
-          'https://media.istockphoto.com/id/2206475453/ko/%EC%82%AC%EC%A7%84/sunset.jpg?s=1024x1024&w=is&k=20&c=8Q5VIUclm0kSyi4jHhOGK-cVu5PpIG0i_YuSJagG7Gk='
+          'https://media.istockphoto.com/id/2206475453/ko/%EC%82%AC%EC%A7%84/sunset.jpg?s=1024x1024&w=is&k=20&c=8Q5VIUclm0kSyi4jHhOGK-cVu5PpIG0i_YuSJagG7Gk=',
     },
     {
       'title': '템플 스테이',
@@ -27,7 +27,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
         end: DateTime(2025, 7, 30),
       ),
       'image':
-          'https://cdn.pixabay.com/photo/2020/07/19/14/15/sky-5420151_1280.jpg'
+          'https://cdn.pixabay.com/photo/2020/07/19/14/15/sky-5420151_1280.jpg',
     },
     {
       'title': '카페투어',
@@ -36,7 +36,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
         end: DateTime(2025, 8, 2),
       ),
       'image':
-          'https://cdn.pixabay.com/photo/2024/05/15/16/15/sky-8763986_1280.jpg'
+          'https://cdn.pixabay.com/photo/2024/05/15/16/15/sky-8763986_1280.jpg',
     },
     {
       'title': '대부도 힐링',
@@ -45,7 +45,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
         end: DateTime(2025, 8, 4),
       ),
       'image':
-          'https://cdn.pixabay.com/photo/2019/05/11/17/31/lamps-4196132_1280.jpg'
+          'https://cdn.pixabay.com/photo/2019/05/11/17/31/lamps-4196132_1280.jpg',
     },
   ];
 
@@ -70,23 +70,34 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   @override
   Widget build(BuildContext context) {
     final DateFormat formatter = DateFormat('yyyy-MM-dd');
+    final now = DateTime.now();
+
+    final ongoingSchedules = _schedules.where((schedule) {
+      final dateRange = schedule['dateRange'] as DateTimeRange;
+      return now.isAfter(dateRange.start.subtract(const Duration(days: 1))) &&
+          now.isBefore(dateRange.end.add(const Duration(days: 1)));
+    }).toList();
 
     final filteredSchedules = _schedules.where((schedule) {
-      final titleMatch = schedule['title']
-          .toString()
-          .toLowerCase()
-          .contains(_searchTitle.toLowerCase());
+      final titleMatch = schedule['title'].toString().toLowerCase().contains(
+        _searchTitle.toLowerCase(),
+      );
 
       final dateRange = schedule['dateRange'] as DateTimeRange;
-      final dateMatch = _searchDate == null ||
-          (_searchDate!.isAfter(dateRange.start.subtract(const Duration(days: 1))) &&
-              _searchDate!.isBefore(dateRange.end.add(const Duration(days: 1))));
+      final dateMatch =
+          _searchDate == null ||
+          (_searchDate!.isAfter(
+                dateRange.start.subtract(const Duration(days: 1)),
+              ) &&
+              _searchDate!.isBefore(
+                dateRange.end.add(const Duration(days: 1)),
+              ));
 
-      final now = DateTime.now();
       final isPast = dateRange.end.isBefore(now);
       final isFuture = dateRange.start.isAfter(now);
 
-      final filterMatch = _filterType == '전체' ||
+      final filterMatch =
+          _filterType == '전체' ||
           (_filterType == '지나간' && isPast) ||
           (_filterType == '앞으로' && isFuture);
 
@@ -128,7 +139,6 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // 좌측 정렬된 필터 버튼
             Align(
               alignment: Alignment.centerLeft,
               child: Wrap(
@@ -153,8 +163,6 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
               ),
             ),
             const SizedBox(height: 12),
-
-            // 검색 필터
             Row(
               children: [
                 Expanded(
@@ -191,77 +199,127 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
               ],
             ),
             const SizedBox(height: 20),
-
-            // 리스트 출력
             Expanded(
-              child: ListView.builder(
-                itemCount: filteredSchedules.length,
-                itemBuilder: (context, index) {
-                  final schedule = filteredSchedules[index];
-                  final dateRange = schedule['dateRange'] as DateTimeRange;
-                  return Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    clipBehavior: Clip.hardEdge,
-                    child: Container(
-                      height: 100,
-                      decoration: BoxDecoration(
-                        image: DecorationImage(
-                          image: NetworkImage(schedule['image']),
-                          fit: BoxFit.cover,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (ongoingSchedules.isNotEmpty) ...[
+                      const Text(
+                        '📌 현재 진행 중인 스케쥴',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
-                      child: Container(
-                        color: Colors.black.withOpacity(0.3),
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // 텍스트
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  schedule['title'],
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    shadows: [
-                                      Shadow(blurRadius: 2, color: Colors.black),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${formatter.format(dateRange.start)} ~ ${formatter.format(dateRange.end)}',
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 13,
-                                    shadows: [
-                                      Shadow(blurRadius: 2, color: Colors.black),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.white),
-                              onPressed: () {
-                                // TODO: 수정 기능 연결
-                              },
-                            ),
-                          ],
-                        ),
+                      const SizedBox(height: 8),
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: ongoingSchedules.length,
+                        itemBuilder: (context, index) {
+                          final schedule = ongoingSchedules[index];
+                          final dateRange =
+                              schedule['dateRange'] as DateTimeRange;
+                          return buildScheduleCard(
+                            schedule,
+                            dateRange,
+                            formatter,
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    const Text(
+                      '📅 전체 스케쥴',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
-                  );
-                },
+                    const SizedBox(height: 8),
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: filteredSchedules.length,
+                      itemBuilder: (context, index) {
+                        final schedule = filteredSchedules[index];
+                        final dateRange =
+                            schedule['dateRange'] as DateTimeRange;
+                        return buildScheduleCard(
+                          schedule,
+                          dateRange,
+                          formatter,
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildScheduleCard(
+    Map<String, dynamic> schedule,
+    DateTimeRange dateRange,
+    DateFormat formatter,
+  ) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      clipBehavior: Clip.hardEdge,
+      child: Container(
+        height: 100,
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: NetworkImage(schedule['image']),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Container(
+          color: Colors.black.withOpacity(0.3),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // 텍스트
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    schedule['title'],
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      shadows: [Shadow(blurRadius: 2, color: Colors.black)],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${formatter.format(dateRange.start)} ~ ${formatter.format(dateRange.end)}',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      shadows: [Shadow(blurRadius: 2, color: Colors.black)],
+                    ),
+                  ),
+                ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit, color: Colors.white),
+                onPressed: () {
+                  // TODO: 수정 기능 연결
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
