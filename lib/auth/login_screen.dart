@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:heat_trip_flutter/home/start_screen.dart';
 import 'social_login_service.dart';
 import '../home/recommendation_screen.dart';
 
@@ -23,7 +24,7 @@ class LoginScreen extends StatelessWidget {
       // 로그인 성공하면 홈 화면으로 이동
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const RecommendationScreen()),
+        MaterialPageRoute(builder: (_) => const StartScreen()),
       );
     }
   }

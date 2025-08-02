@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:heat_trip_flutter/auth/auth_flow_manager.dart';
+import 'package:heat_trip_flutter/auth/login_screen.dart';
 import 'package:heat_trip_flutter/theme.dart';
 import 'package:heat_trip_flutter/home/start_screen.dart';
 import 'package:heat_trip_flutter/home/recommendation_screen.dart';
@@ -7,7 +10,9 @@ import 'package:heat_trip_flutter/social/feed_screen.dart';
 import 'package:heat_trip_flutter/social/bookmark_screen.dart';
 import 'package:heat_trip_flutter/profile/profile_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // 비동기 작업 전 필수
+  await dotenv.load(); // dotenv 초기화
   runApp(const HeatTrip());
 }
 
@@ -18,8 +23,13 @@ class HeatTrip extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: '여행의 온도',
-      debugShowCheckedModeBanner: true,  // 디버그 태그 보려면 true, 보지 않으려면 false
-      home: StartScreen(),
+      debugShowCheckedModeBanner: true, // 디버그 태그 보려면 true, 보지 않으려면 false
+      // 로그인 화면이 먼저 뜨고, 로그인 돼 있으면 home으로 아니면 로그인 화면으로
+      // home: AuthFlowManager(
+      //   homeScreen: const StartScreen(),
+      //   loginScreen: LoginScreen(),
+      // ),
+      home: const StartScreen(),
       theme: theme(),
       /*
        * <컴포넌트 자체에서 route없이 이동시키는 방법>
@@ -38,7 +48,6 @@ class HeatTrip extends StatelessWidget {
     );
   }
 }
-
 
 /* main Layout 화면 구현 : 하단 메뉴바 */
 class HeatTripLayout extends StatefulWidget {
@@ -93,33 +102,30 @@ class _HeatTripLayoutState extends State<HeatTripLayout> {
       // 흰색 부분 메뉴 디자인
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          currentIndex: _selectedIndex,
-          onTap: (index) {
-            _onTabTapped(index);
-          },
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.list),
-              label: 'record',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dynamic_feed),
-              label: 'feed',
-            ),
-            BottomNavigationBarItem(
-              icon: Opacity(opacity: 0.0, child: Icon(Icons.travel_explore)), // 아이콘 위치 유지하면서 보이지 않게 설정
-              label: 'for you',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bookmark),
-              label: 'bookmark',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person),
-              label: 'profile',
-            ),
-          ],
+        type: BottomNavigationBarType.fixed,
+        currentIndex: _selectedIndex,
+        onTap: (index) {
+          _onTabTapped(index);
+        },
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.list), label: 'record'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dynamic_feed),
+            label: 'feed',
+          ),
+          BottomNavigationBarItem(
+            icon: Opacity(
+              opacity: 0.0,
+              child: Icon(Icons.travel_explore),
+            ), // 아이콘 위치 유지하면서 보이지 않게 설정
+            label: 'for you',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bookmark),
+            label: 'bookmark',
+          ),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'profile'),
+        ],
       ),
     );
   }
