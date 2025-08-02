@@ -13,13 +13,16 @@ class TokenStorage {
   static Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_jwtKey, token);
+    print('[TokenStorage] 토큰 저장 완료: $token');
   }
 
   /// 저장된 JWT 토큰을 불러오는 메서드
   /// 반환값은 JWT 문자열이며, 저장된 토큰이 없으면 null을 반환
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_jwtKey);
+    final token = prefs.getString(_jwtKey);
+    print('[TokenStorage] 저장된 토큰 불러오기: $token');
+    return token;
   }
 
   /// JWT 토큰을 삭제하는 메서드
