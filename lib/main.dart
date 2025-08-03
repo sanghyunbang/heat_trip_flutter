@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:heat_trip_flutter/auth/auth_flow_manager.dart';
-import 'package:heat_trip_flutter/auth/login_screen.dart';
+import 'package:heat_trip_flutter/auth/presentation/login_screen.dart';
+import 'package:heat_trip_flutter/auth/service/auth_flow_manager.dart';
 import 'package:heat_trip_flutter/theme.dart';
 import 'package:heat_trip_flutter/home/start_screen.dart';
 import 'package:heat_trip_flutter/home/recommendation_screen.dart';
@@ -25,11 +25,11 @@ class HeatTrip extends StatelessWidget {
       title: '여행의 온도',
       debugShowCheckedModeBanner: true, // 디버그 태그 보려면 true, 보지 않으려면 false
       // 로그인 화면이 먼저 뜨고, 로그인 돼 있으면 home으로 아니면 로그인 화면으로
-      // home: AuthFlowManager(
-      //   homeScreen: const StartScreen(),
-      //   loginScreen: LoginScreen(),
-      // ),
-      home: const StartScreen(),
+      home: AuthFlowManager(
+        homeScreen: const StartScreen(),
+        loginScreen: LoginScreen(),
+      ),
+      // home: const StartScreen(),
       theme: theme(),
       /*
        * <컴포넌트 자체에서 route없이 이동시키는 방법>

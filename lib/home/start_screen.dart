@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:heat_trip_flutter/auth/presentation/sign_up_screen.dart';
 import 'package:heat_trip_flutter/main.dart';
-import 'package:heat_trip_flutter/social/membership.dart';
 
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});
