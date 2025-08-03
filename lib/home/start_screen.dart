@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:heat_trip_flutter/main.dart';
+import 'package:heat_trip_flutter/social/membership.dart';
 
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});
 
   static const List<Map<String, dynamic>> feelings = [
-    {"label": "Happy", "icon": Icons.emoji_emotions, "color": Color(0xFF90AEBB)},
+    {
+      "label": "Happy",
+      "icon": Icons.emoji_emotions,
+      "color": Color(0xFF90AEBB),
+    },
     {"label": "Calm", "icon": Icons.waves, "color": Color(0xDED6A4A4)},
     {"label": "Excited", "icon": Icons.star, "color": Color(0xFFF1A979)},
     {"label": "Sad", "icon": Icons.water_drop, "color": Color(0xFF9881B8)},
-    {"label": "Tired", "icon": Icons.nightlight_round, "color": Color(0xFF4A5D6C)},
+    {
+      "label": "Tired",
+      "icon": Icons.nightlight_round,
+      "color": Color(0xFF4A5D6C),
+    },
   ];
 
   @override
@@ -24,10 +33,7 @@ class StartScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SizedBox(height: 50),
-              SvgPicture.asset(
-                "assets/sampleLogo.svg",
-                height: 100,
-              ),
+              SvgPicture.asset("assets/sampleLogo.svg", height: 100),
               SizedBox(height: 50),
               const Text(
                 'How are you feeling\nright now?',
@@ -69,7 +75,7 @@ class StartScreen extends StatelessWidget {
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
                               ),
-                            )
+                            ),
                           ],
                         ),
                       ),
@@ -79,17 +85,38 @@ class StartScreen extends StatelessWidget {
               ),
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (context) => HeatTripLayout()),
-                    );
-                  },
-                  child: const Text(
-                    'Skip',
-                    style: TextStyle(fontSize: 16, color: Colors.black54),
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SignUpScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        '회원가입',
+                        style: TextStyle(fontSize: 16, color: Colors.black54),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => HeatTripLayout(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        'Skip',
+                        style: TextStyle(fontSize: 16, color: Colors.black54),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -99,4 +126,3 @@ class StartScreen extends StatelessWidget {
     );
   }
 }
-
