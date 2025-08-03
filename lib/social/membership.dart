@@ -11,9 +11,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordContorller = TextEditingController();
   final TextEditingController _nicknameController = TextEditingController();
-  final TextEditingController _firstNameController = TextEditingController();
-  final TextEditingController _lastNameController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
   String _gender = 'male';
 
   bool _isLoading = false;
@@ -25,16 +25,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
       _isLoading = true;
     });
 
-    final url = Uri.parse(' '); // ← 실제 API 주소로 변경하세요
+    final url = Uri.parse(
+      'http://10.0.2.2:8080/auth/signup',
+    ); // ← 실제 API 주소로 변경하세요
 
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'email': _emailController.text.trim(),
+        'password': _passwordContorller.text.trim(),
         'nickname': _nicknameController.text.trim(),
-        'first_name': _firstNameController.text.trim(),
-        'last_name': _lastNameController.text.trim(),
+        'name': _nameController.text.trim(),
         'gender': _gender,
       }),
     );
@@ -81,24 +83,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       },
                     ),
                     TextFormField(
+                      controller: _passwordContorller,
+                      decoration: InputDecoration(labelText: '비밀번호'),
+                      obscureText: true, // 비밀번호 입력시 입력값 안보이게
+                      validator: (value) => value == null || value.length < 8
+                          ? '8자 이상 입력하세요'
+                          : null,
+                    ),
+                    TextFormField(
                       controller: _nicknameController,
                       decoration: InputDecoration(labelText: '닉네임'),
                       validator: (value) =>
                           value == null || value.isEmpty ? '닉네임을 입력하세요' : null,
                     ),
                     TextFormField(
-                      controller: _firstNameController,
+                      controller: _nameController,
                       decoration: InputDecoration(labelText: '이름'),
                       validator: (value) =>
                           value == null || value.isEmpty ? '이름을 입력하세요' : null,
                     ),
-                    TextFormField(
-                      controller: _lastNameController,
-                      decoration: InputDecoration(labelText: '성'),
-                      validator: (value) =>
-                          value == null || value.isEmpty ? '성을 입력하세요' : null,
-                    ),
-                    SizedBox(height: 10),
                     Text('성별'),
                     Row(
                       children: [
