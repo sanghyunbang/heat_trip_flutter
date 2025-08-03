@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:heat_trip_flutter/auth/data/auth_repository_impl.dart';
+import 'package:heat_trip_flutter/auth/data/dto/register_request.dart';
 
 class SignUpScreen extends StatefulWidget {
   @override
@@ -10,52 +10,57 @@ class SignUpScreen extends StatefulWidget {
 class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
 
+  // TextFormField와 연결된 컨트롤러들
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordContorller = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _nicknameController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
+
+  // 성별은 기본값을 'male'로 설정
   String _gender = 'male';
 
+  // 로딩 상태 관리
   bool _isLoading = false;
 
+  // AuthRepositoryImpl 인스턴스 생성 (HTTP 요청 처리 위임)
+  final AuthRepositoryImpl _authRepository = AuthRepositoryImpl();
+
+  /// 폼 제출 시 호출되는 메서드
   Future<void> _submitForm() async {
+    // 유효성 검사 실패 시 중단
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _isLoading = true;
     });
 
-    final url = Uri.parse(
-      'http://10.0.2.2:8080/auth/signup',
-    ); // ← 실제 API 주소로 변경하세요
-
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': _emailController.text.trim(),
-        'password': _passwordContorller.text.trim(),
-        'nickname': _nicknameController.text.trim(),
-        'name': _nameController.text.trim(),
-        'gender': _gender,
-      }),
+    // RegisterRequest 객체 생성
+    final request = RegisterRequest(
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+      nickname: _nicknameController.text.trim(),
+      name: _nameController.text.trim(),
+      gender: _gender,
     );
+
+    // 실제 HTTP 요청을 AuthRepository를 통해 전송
+    final success = await _authRepository.register(request);
 
     setState(() {
       _isLoading = false;
     });
 
-    if (response.statusCode == 200) {
-      // 성공 처리
+    if (success) {
+      // 성공 메시지 및 이전 화면으로 이동
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('회원가입 완료')));
       Navigator.pop(context);
     } else {
-      // 실패 처리
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('회원가입 실패: ${response.statusCode}')),
-      );
+      // 실패 메시지 출력
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('회원가입 실패. 다시 시도해주세요.')));
     }
   }
 
@@ -83,9 +88,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       },
                     ),
                     TextFormField(
-                      controller: _passwordContorller,
+                      controller: _passwordController,
                       decoration: InputDecoration(labelText: '비밀번호'),
-                      obscureText: true, // 비밀번호 입력시 입력값 안보이게
+                      obscureText: true,
                       validator: (value) => value == null || value.length < 8
                           ? '8자 이상 입력하세요'
                           : null,
@@ -102,6 +107,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       validator: (value) =>
                           value == null || value.isEmpty ? '이름을 입력하세요' : null,
                     ),
+                    SizedBox(height: 10),
                     Text('성별'),
                     Row(
                       children: [
