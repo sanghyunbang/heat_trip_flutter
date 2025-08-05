@@ -63,4 +63,26 @@ class AuthRepositoryImpl {
       return false;
     }
   }
+
+  Future<List<Map<String, dynamic>>?> getUserProfiles() async {
+    final url = Uri.parse('$baseUrl/public/getuser');
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        print('[X] 유저 정보 불러오기 실패: ${response.statusCode} / ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('[X] 유저 정보 요청 중 에러: $e');
+      return null;
+    }
+  }
 }
