@@ -64,18 +64,20 @@ class AuthRepositoryImpl {
     }
   }
 
-  Future<List<Map<String, dynamic>>?> getUserProfiles() async {
+  Future<Map<String, dynamic>?> getMyProfile(String token) async {
     final url = Uri.parse('$baseUrl/public/getuser');
 
     try {
       final response = await http.get(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        return data.cast<Map<String, dynamic>>();
+        return jsonDecode(response.body);
       } else {
         print('[X] 유저 정보 불러오기 실패: ${response.statusCode} / ${response.body}');
         return null;
