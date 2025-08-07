@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class TokenStorage {
   // SharedPreferences에 저장될 키 값 (고정 문자열)
-  static const _jwtKey = 'jwt';
+  static const _jwtKey = 'jwt_token';
 
   /// JWT 토큰을 저장하는 메서드
   /// [token] 매개변수는 서버에서 발급받은 JWT 문자열
