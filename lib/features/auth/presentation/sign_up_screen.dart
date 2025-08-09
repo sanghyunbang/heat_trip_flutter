@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:heat_trip_flutter/auth/data/auth_repository_impl.dart';
-import 'package:heat_trip_flutter/auth/data/dto/register_request.dart';
+import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
+import 'package:heat_trip_flutter/features/auth/data/dto/register_request.dart';
 
 class SignUpScreen extends StatefulWidget {
   @override
