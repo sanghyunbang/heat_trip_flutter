@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:heat_trip_flutter/home/start_screen.dart';
-import 'package:heat_trip_flutter/profile/expense_history_screen.dart';
-import 'package:heat_trip_flutter/auth/data/auth_repository_impl.dart';
-import 'package:heat_trip_flutter/auth/service/token_storage.dart';
+import 'package:heat_trip_flutter/presentation/screens/start_screen.dart';
+import 'package:heat_trip_flutter/features/profile/expense_history_screen.dart';
+import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
+import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});

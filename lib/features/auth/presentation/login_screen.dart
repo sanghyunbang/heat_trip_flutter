@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:heat_trip_flutter/auth/data/auth_repository_impl.dart';
-import 'package:heat_trip_flutter/auth/data/dto/login_request.dart';
-import 'package:heat_trip_flutter/auth/presentation/widgets/social_login_button.dart';
-import 'package:heat_trip_flutter/auth/service/social_login_service.dart';
-import 'package:heat_trip_flutter/home/start_screen.dart';
+import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
+import 'package:heat_trip_flutter/features/auth/data/dto/login_request.dart';
+import 'package:heat_trip_flutter/features/auth/presentation/widgets/social_login_button.dart';
+import 'package:heat_trip_flutter/features/auth/service/social_login_service.dart';
+import 'package:heat_trip_flutter/presentation/screens/start_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:heat_trip_flutter/auth/presentation/sign_up_screen.dart';
-import 'package:heat_trip_flutter/main.dart';
+import 'package:heat_trip_flutter/core/widgets/layout/main_nav_layout.dart';
+import 'package:heat_trip_flutter/features/auth/presentation/sign_up_screen.dart';
 
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});
@@ -107,7 +107,7 @@ class StartScreen extends StatelessWidget {
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => HeatTripLayout(),
+                            builder: (context) => MainNavLayout(),
                           ),
                         );
                       },

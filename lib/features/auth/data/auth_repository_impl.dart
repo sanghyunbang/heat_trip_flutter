@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:heat_trip_flutter/auth/data/dto/login_request.dart';
-import 'package:heat_trip_flutter/auth/data/dto/register_request.dart';
+import 'package:heat_trip_flutter/features/auth/data/dto/login_request.dart';
+import 'package:heat_trip_flutter/features/auth/data/dto/register_request.dart';
 import 'package:http/http.dart' as http;
 
 /// 실제 HTTP 요청을 통해 백엔드와 통신하는 클래스
