@@ -1,8 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
 
 class ScheduleCreateScreen extends StatefulWidget {
   const ScheduleCreateScreen({super.key});
@@ -20,11 +22,57 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
   final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
   DateTimeRange? _selectedRange;
 
+  String? _authorName;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAuthorFromToken();
+  }
+
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadAuthorFromToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+    if (token != null) {
+      try {
+        final decoded = _decodeJWT(token);
+        setState(() {
+          _authorName = decoded['sub'] ?? '알 수 없음';
+          print('[DEBUG] _authorName: $_authorName');
+        });
+      } catch (e) {
+        debugPrint('JWT 디코딩 실패: $e');
+        setState(() {
+          _authorName = '알 수 없음';
+        });
+      }
+    } else {
+      setState(() {
+        _authorName = '알 수 없음';
+      });
+    }
+  }
+
+  Map<String, dynamic> _decodeJWT(String token) {
+    final parts = token.split('.');
+    if (parts.length != 3) {
+      throw Exception('Invalid JWT token');
+    }
+    final payload = parts[1];
+    final normalized = base64Url.normalize(payload);
+    final payloadBytes = base64Url.decode(normalized);
+    final payloadMap = json.decode(utf8.decode(payloadBytes));
+    if (payloadMap is! Map<String, dynamic>) {
+      throw Exception('Invalid payload');
+    }
+    return payloadMap;
   }
 
   Future<void> _pickDateRange() async {
@@ -49,6 +97,7 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
         "dateFrom": _dateFormat.format(_selectedRange!.start),
         "dateTo": _dateFormat.format(_selectedRange!.end),
         "description": _descriptionController.text,
+        "author": _authorName,
       });
 
       try {
@@ -90,6 +139,17 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
           key: _formKey,
           child: ListView(
             children: [
+              // 작성자 (읽기전용)
+              TextFormField(
+                initialValue: _authorName ?? '',
+                decoration: const InputDecoration(
+                  labelText: '작성자',
+                  border: OutlineInputBorder(),
+                ),
+                enabled: false,
+              ),
+              const SizedBox(height: 16),
+
               // 제목
               TextFormField(
                 controller: _titleController,
