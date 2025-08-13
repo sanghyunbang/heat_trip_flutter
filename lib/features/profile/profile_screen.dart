@@ -162,13 +162,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const Text('⚙️ 계정 설정', style: TextStyle(fontSize: 16)),
                   const SizedBox(height: 8),
                   _buildMenuTile('로그아웃', Icons.logout, () async {
-                    await TokenStorage.clearToken(); // ✅ 토큰 삭제
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const StartScreen(),
-                      ),
-                    );
+                      await TokenStorage.clearToken(); // ✅ 토큰 삭제
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const StartScreen(),
+                        ),
+                      );
                   }),
                   _buildMenuTile('회원 탈퇴', Icons.delete_forever, () {
                     print('회원 탈퇴 클릭됨');

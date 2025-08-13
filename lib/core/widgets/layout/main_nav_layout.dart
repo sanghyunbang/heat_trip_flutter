@@ -5,7 +5,7 @@ import 'package:heat_trip_flutter/features/curation/presentation/screens/select_
 import 'package:heat_trip_flutter/features/explore/presentation/screens/explore_screen.dart';
 import 'package:heat_trip_flutter/features/record/schedule_list_screen.dart';
 import 'package:heat_trip_flutter/features/journey/presentation/screens/journey_screen.dart';
-import 'package:heat_trip_flutter/features/profile/profile_screen.dart';
+import 'package:heat_trip_flutter/features/profile/presentation/screens/profile_screen.dart';
 
 class MainNavLayout extends StatefulWidget {
   const MainNavLayout({super.key});

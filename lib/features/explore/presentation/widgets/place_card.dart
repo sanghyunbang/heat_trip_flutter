@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:heat_trip_flutter/features/explore/domain/entities/place_item.dart';
+import 'package:heat_trip_flutter/features/explore/presentation/screens/explore_detail_screen.dart';
 
 class PlaceCard extends StatelessWidget {
   final PlaceItem data;
@@ -22,12 +23,21 @@ class PlaceCard extends StatelessWidget {
       child: InkWell(
         onTap: () {
           // TODO: 상세 화면 이동
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ExploreDetailScreen(data: data),
+            ),
+          );
         },
         child: Stack(
           children: [
             // 1) 카드 전체를 채우는 이미지
             Positioned.fill(
-              child: Image.network(
+        child: Hero(
+        tag: 'place:${data.contentid}', // ✅ 디테일 화면의 Hero tag와 일치해야 함
+
+          child: Image.network(
                 data.firstimage,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
@@ -38,7 +48,7 @@ class PlaceCard extends StatelessWidget {
                 },
               ),
             ),
-
+            ),
             // 2) 하단 가독성용 그라데이션
             Positioned(
               left: 0,
@@ -74,7 +84,11 @@ class PlaceCard extends StatelessWidget {
                   onTap: () {
                     // TODO: 북마크 처리
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('북마크에 추가했어요! (mock)')),
+                      const SnackBar(
+                        content: Text('북마크에 저장완료! (mock)'),
+                        behavior: SnackBarBehavior.floating,
+                        // margin: EdgeInsets.fromLTRB(16, 0, 16, 0),
+                      ),
                     );
                   },
                   child: const SizedBox(
