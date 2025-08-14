@@ -79,6 +79,7 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
   }
 
   Future<void> _submitForm() async {
+    final token = await TokenStorage.getToken();
     if (_formKey.currentState!.validate() && _selectedRange != null) {
       final baseUrl = dotenv.env['API_BASE_URL'];
       final url = Uri.parse('$baseUrl/public/schedules');
@@ -87,14 +88,19 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
         "title": _titleController.text,
         "dateFrom": _dateFormat.format(_selectedRange!.start),
         "dateTo": _dateFormat.format(_selectedRange!.end),
-        "description": _descriptionController.text,
+        "content": _descriptionController.text,
         "author": _authorName,
       });
+
+      print('         저장하기버튼 패키지 요청 Body: $body');
 
       try {
         final response = await http.post(
           url,
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
           body: body,
         );
 
