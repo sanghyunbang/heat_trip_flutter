@@ -55,7 +55,7 @@ class ScheduleRepositoryImpl {
       },
     );
 
-    if (response.statusCode == 200) {
+    if (response.statusCode == 200 || response.statusCode == 201) {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((item) => ScheduleResponse.fromJson(item)).toList();
     } else {
