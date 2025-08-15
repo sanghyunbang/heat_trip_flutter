@@ -55,7 +55,7 @@ class AuthRepositoryImpl {
       body: jsonEncode(request.toJson()), //요청 바디를 JSON 문자열로
     );
     // 응답코드가 201(Created)이면 회원 가입 성공
-    if (response.statusCode == 201) {
+    if (response.statusCode == 200 || response.statusCode == 201) {
       return true;
     } else {
       // 실패한 경우에 콘솔에 사태 코드 및 응답 출력
