@@ -1,14 +1,15 @@
+// lib/features/record/schedule_list_screen.dart
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart'; // ✅ 추가
 import 'package:intl/intl.dart';
 import 'package:heat_trip_flutter/features/record/data/model/schedule_response.dart';
-import 'package:heat_trip_flutter/features/record/schedule_create_screen.dart';
 import 'package:heat_trip_flutter/features/record/data/schedule_repository_impl.dart';
 
 class ScheduleListScreen extends StatefulWidget {
   const ScheduleListScreen({super.key});
 
   @override
-  _ScheduleListScreenState createState() => _ScheduleListScreenState();
+  State<ScheduleListScreen> createState() => _ScheduleListScreenState();
 }
 
 class _ScheduleListScreenState extends State<ScheduleListScreen> {
@@ -31,17 +32,11 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
 
     try {
       final schedules = await _repository.fetchSchedules();
-      setState(() {
-        _schedules = schedules;
-      });
+      setState(() => _schedules = schedules);
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-      });
+      setState(() => _errorMessage = e.toString());
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
@@ -59,11 +54,10 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ScheduleCreateScreen()),
-              ).then((_) => _loadSchedules()); // 작성 후 새로고침
+            onPressed: () async {
+              // ✅ go_router로 push하고, 결과(true)면 새로고침
+              final created = await context.pushNamed<bool>('scheduleCreate');
+              if (created == true) _loadSchedules();
             },
           ),
         ],
@@ -77,23 +71,22 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
           : ListView.builder(
               itemCount: _schedules.length,
               itemBuilder: (context, index) {
-                final schedule = _schedules[index];
+                final s = _schedules[index];
                 return Card(
                   margin: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 8,
                   ),
                   child: ListTile(
-                    title: Text(schedule.title),
+                    title: Text(s.title),
                     subtitle: Text(
-                      '${formatter.format(schedule.dateFrom)} ~ ${formatter.format(schedule.dateTo)}\n'
-                      '작성자: ${schedule.user?.nickname ?? '알 수 없음'}',
+                      '${formatter.format(s.dateFrom)} ~ ${formatter.format(s.dateTo)}\n'
+                      '작성자: ${s.user?.nickname ?? '알 수 없음'}',
                     ),
-
                     isThreeLine: true,
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
-                      // TODO: 상세 화면 연결 가능
+                      // TODO: 상세 화면 이동 (ex: context.pushNamed('scheduleDetail', pathParameters: {'id': '${s.scheduleId}'}))
                     },
                   ),
                 );
