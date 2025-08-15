@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:heat_trip_flutter/core/widgets/nav/bottom_nav_bar.dart';
 import 'package:heat_trip_flutter/core/widgets/nav/tab_navigator.dart';
-import 'package:heat_trip_flutter/features/curation/presentation/screens/select_emotion_screen.dart';
+// import 'package:heat_trip_flutter/features/curation/presentation/screens/select_emotion_screen.dart';
 import 'package:heat_trip_flutter/features/explore/presentation/screens/explore_screen.dart';
 import 'package:heat_trip_flutter/features/record/schedule_list_screen.dart';
 import 'package:heat_trip_flutter/features/journey/presentation/screens/journey_screen.dart';
@@ -29,28 +29,42 @@ class _MainNavLayoutState extends State<MainNavLayout> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(children: [
-        Offstage(
-          offstage: _selectedIndex != 0,
-          child: TabNavigator(navigatorKey: _navigatorKeys[0], child: const ExploreScreen()),
-        ),
-        Offstage(
-          offstage: _selectedIndex != 1,
-          child: TabNavigator(navigatorKey: _navigatorKeys[1], child: const ScheduleListScreen()),
-        ),
-        Offstage(
-          offstage: _selectedIndex != 2,
-          child: TabNavigator(navigatorKey: _navigatorKeys[2], child: const SelectEmotionScreen()),
-        ),
-        Offstage(
-          offstage: _selectedIndex != 3,
-          child: TabNavigator(navigatorKey: _navigatorKeys[3], child: const JourneyScreen()),
-        ),
-        Offstage(
-          offstage: _selectedIndex != 4,
-          child: TabNavigator(navigatorKey: _navigatorKeys[4], child: const ProfileScreen()),
-        ),
-      ]),
+      body: Stack(
+        children: [
+          Offstage(
+            offstage: _selectedIndex != 0,
+            child: TabNavigator(
+              navigatorKey: _navigatorKeys[0],
+              child: const ExploreScreen(),
+            ),
+          ),
+          Offstage(
+            offstage: _selectedIndex != 1,
+            child: TabNavigator(
+              navigatorKey: _navigatorKeys[1],
+              child: const ScheduleListScreen(),
+            ),
+          ),
+          // Offstage(
+          //   offstage: _selectedIndex != 2,
+          //   child: TabNavigator(navigatorKey: _navigatorKeys[2], child: const SelectEmotionScreen()),
+          // ),
+          Offstage(
+            offstage: _selectedIndex != 3,
+            child: TabNavigator(
+              navigatorKey: _navigatorKeys[3],
+              child: const JourneyScreen(),
+            ),
+          ),
+          Offstage(
+            offstage: _selectedIndex != 4,
+            child: TabNavigator(
+              navigatorKey: _navigatorKeys[4],
+              child: const ProfileScreen(),
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: Container(
         width: 68,
         height: 68,
