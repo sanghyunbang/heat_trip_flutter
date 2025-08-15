@@ -4,6 +4,14 @@ import 'package:go_router/go_router.dart'; // ✅ go_router 네비게이션
 import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
 import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
 
+// 🔽 슬라이드 메뉴 패널(우측에서 열리는 패널) — 실제 위치에 맞게 경로 수정하세요.
+import 'package:heat_trip_flutter/features/profile/presentation/widgets/right_side_menu_panel.dart';
+
+/// ProfileScreen
+/// - JWT가 있으면 사용자 정보(이름/닉네임)를 조회해 상단 영역에 표시
+/// - "여행 지출 내역" 등 목록형 메뉴 제공
+/// - AppBar 우측의 햄버거 버튼으로 RightSideMenuPanel 열기
+/// - 로그아웃 시 SharedPreferences에서 토큰 삭제 후 `go_router`로 로그인 화면으로 이동
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -12,28 +20,31 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  // === 의존성 ===
   final authRepository = AuthRepositoryImpl();
 
+  // === 상태 ===
   String realName = '';
   String nickname = '';
   String profileImageUrl =
       'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSnRCDEVIMXXel2QFByCN48ls28VRkE7GneTg&s';
-
   bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
+    _loadUserProfile(); // 앱 진입 시 사용자 정보 로딩
   }
 
   /// ✅ SharedPreferences에 저장된 JWT로 사용자 정보를 불러오는 로직
+  /// - 토큰 없으면 게스트 상태로 렌더링
+  /// - 토큰 있으면 /public/getuser 호출 → 이름/닉네임 표시
   Future<void> _loadUserProfile() async {
     final token = await TokenStorage.getToken();
     if (!mounted) return;
 
     if (token == null) {
-      // 토큰이 없으면 게스트 상태로 렌더링
+      // 토큰이 없으면 게스트 상태로 렌더링(스피너 해제)
       setState(() => isLoading = false);
       return;
     }
@@ -41,6 +52,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final userInfo = await authRepository.getMyProfile(token);
       if (!mounted) return;
+
       if (userInfo != null) {
         setState(() {
           realName = userInfo['name'] ?? '';
@@ -55,7 +67,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  /// ✅ 로그아웃: 토큰 삭제 → 로그인 라우트로 교체 이동
+  /// ✅ 우측 슬라이드 메뉴 열기
+  /// showGeneralDialog + SlideTransition을 사용해 오른쪽에서 부드럽게 등장
+  void _openRightMenuSheet() {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Profile Menu',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 280),
+      pageBuilder: (ctx, a1, a2) => const SizedBox.shrink(),
+      transitionBuilder: (ctx, anim, _, __) {
+        final curved = CurvedAnimation(
+          parent: anim,
+          curve: Curves.easeOutCubic,
+        );
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).animate(curved),
+          child: Align(
+            alignment: Alignment.centerRight,
+            // 닫기는 다이얼로그 컨텍스트(ctx)로 pop → 현재 페이지가 pop되지 않도록 주의
+            child: RightSideMenuPanel(onClose: () => Navigator.of(ctx).pop()),
+          ),
+        );
+      },
+    );
+  }
+
+  /// ✅ 로그아웃: 토큰 삭제 → go_router로 로그인 화면으로
+  /// - push/pop 사용하지 않고 goNamed로 현재 라우트를 교체 → 스택 정리
   Future<void> _logout() async {
     await TokenStorage.clearToken();
     if (!mounted) return;
@@ -66,7 +109,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.blue[50],
-      appBar: AppBar(title: const Text('My Profile'), centerTitle: true),
+      appBar: AppBar(
+        title: const Text('My Profile'),
+        centerTitle: true,
+        actions: [
+          // ✅ 우측 햄버거(메뉴) 버튼
+          IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: _openRightMenuSheet,
+            tooltip: 'Menu',
+          ),
+        ],
+      ),
+
+      // ===== 본문 =====
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -75,20 +131,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 16),
+
                   // ===== 상단 프로필 영역 =====
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // 아바타
                       CircleAvatar(
                         radius: 35,
                         backgroundImage: NetworkImage(profileImageUrl),
                         backgroundColor: Colors.grey[300],
                       ),
                       const SizedBox(width: 16),
+
+                      // 이름/닉네임/편집버튼
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // 실명(혹은 백엔드가 내려주는 다른 표기)
                             Text(
                               realName,
                               style: TextStyle(
@@ -103,6 +164,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: Colors.grey.withOpacity(.3),
                             ),
                             const SizedBox(height: 2),
+
+                            // 닉네임 + 프로필 편집
                             Row(
                               children: [
                                 Text(
@@ -116,6 +179,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 OutlinedButton.icon(
                                   onPressed: () {
                                     // TODO: 프로필 편집 화면으로 push
+                                    // ex) context.pushNamed('profileEdit');
                                   },
                                   icon: const Icon(Icons.edit, size: 14),
                                   label: const Text(
@@ -162,22 +226,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 8),
                   _buildMenuTile('내가 작성한 게시물 통계보기', Icons.article, () {
                     // TODO: 추후 라우팅
+                    // ex) context.pushNamed('myPostStats');
                   }),
                   _buildMenuTile('좋아요 누른 게시물', Icons.favorite_border, () {
                     // TODO: 추후 라우팅
+                    // ex) context.pushNamed('likedPosts');
                   }),
                   _buildMenuTile('여행 지출 내역', Icons.receipt_long, () {
                     // ✅ go_router로 하위 상세 화면 push
+                    // '/profile' 브랜치의 child 라우트로 등록되어 있어야 합니다. (name: 'expenseHistory')
                     context.pushNamed('expenseHistory');
                   }),
 
                   const SizedBox(height: 20),
 
-                  // ===== 메뉴 그룹 2: 소셜 =====
+                  // ===== 메뉴 그룹 2: 소셜 / 커뮤니티 =====
                   const Text('👥 소셜 / 커뮤니티', style: TextStyle(fontSize: 16)),
                   const SizedBox(height: 8),
                   _buildMenuTile('숨김/차단 관리', Icons.visibility_off, () {
                     // TODO
+                    // ex) context.pushNamed('blockList');
                   }),
 
                   const SizedBox(height: 20),
@@ -188,6 +256,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildMenuTile('로그아웃', Icons.logout, _logout),
                   _buildMenuTile('회원 탈퇴', Icons.delete_forever, () {
                     // TODO: 회원탈퇴 플로우
+                    // ex) context.pushNamed('accountDelete');
                   }),
                 ],
               ),
@@ -195,6 +264,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// 요약 수치 컴포넌트(간단한 텍스트 묶음)
   Widget _buildSummaryItem(String label, String count) {
     return Column(
       children: [
@@ -208,6 +278,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// 공통 메뉴 타일
   Widget _buildMenuTile(String title, IconData icon, VoidCallback onTap) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
@@ -219,147 +290,3 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
-
-// import 'package:flutter/material.dart';
-// import 'package:go_router/go_router.dart'; //  추가
-// import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
-// import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
-// import '../profile.dart';
-
-// class ProfileScreen extends StatefulWidget {
-//   const ProfileScreen({super.key});
-//   @override
-//   State<ProfileScreen> createState() => _ProfileScreenState();
-// }
-
-// class _ProfileScreenState extends State<ProfileScreen>
-//     with SingleTickerProviderStateMixin {
-//   final authRepository = AuthRepositoryImpl();
-//   String realName = '';
-//   String nickname = '';
-//   late final TabController _tabController;
-//   bool isLoading = true;
-
-//   @override
-//   void initState() {
-//     super.initState();
-//     _tabController = TabController(length: 2, vsync: this);
-//     _loadUserProfile();
-//   }
-
-//   @override
-//   void dispose() {
-//     _tabController.dispose();
-//     super.dispose();
-//   }
-
-//   Future<void> _loadUserProfile() async {
-//     final token = await TokenStorage.getToken();
-//     if (!mounted) return;
-
-//     if (token == null) {
-//       setState(() => isLoading = false);
-//       return;
-//     }
-
-//     try {
-//       final userInfo = await authRepository.getMyProfile(token);
-//       if (!mounted) return;
-//       if (userInfo != null) {
-//         setState(() {
-//           realName = userInfo['name'] ?? '';
-//           nickname = userInfo['nickname'] ?? '이름없음';
-//           isLoading = false;
-//         });
-//       } else {
-//         setState(() => isLoading = false);
-//       }
-//     } catch (_) {
-//       setState(() => isLoading = false);
-//     }
-//   }
-
-//   void _openRightMenuSheet() {
-//     showGeneralDialog(
-//       context: context,
-//       barrierDismissible: true,
-//       barrierLabel: 'Profile Menu',
-//       barrierColor: Colors.black54,
-//       transitionDuration: const Duration(milliseconds: 280),
-//       pageBuilder: (ctx, a1, a2) => const SizedBox.shrink(),
-//       transitionBuilder: (ctx, anim, _, __) {
-//         return SlideTransition(
-//           position: Tween(
-//             begin: const Offset(1, 0),
-//             end: Offset.zero,
-//           ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
-//           child: Align(
-//             alignment: Alignment.centerRight,
-//             child: RightSideMenuPanel(onClose: () => Navigator.of(ctx).pop()),
-//           ),
-//         );
-//       },
-//     );
-//   }
-
-//   Future<void> _logout() async {
-//     await TokenStorage.clearToken();
-
-//     // 팝업만 닫아주고
-//     final rootNav = Navigator.of(context, rootNavigator: true);
-//     rootNav.popUntil((route) => route is! PopupRoute);
-
-//     // go_router로 Start로 복귀 (스택 정리는 go_router가 담당)
-//     if (!mounted) return;
-//     context.go('/start'); // or: context.goNamed('start');
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     // ... 생략: 기존 UI 그대로 ...
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: const Text(
-//           'My Profile',
-//           style: TextStyle(fontWeight: FontWeight.w600),
-//         ),
-//         centerTitle: true,
-//         actions: [
-//           IconButton(
-//             icon: const Icon(Icons.menu),
-//             onPressed: _openRightMenuSheet,
-//           ),
-//         ],
-//       ),
-//       body: Center(
-//         child: isLoading
-//             ? const CircularProgressIndicator()
-//             : Column(
-//                 mainAxisAlignment: MainAxisAlignment.center,
-//                 children: [
-//                   Text('이름: $realName', style: const TextStyle(fontSize: 20)),
-//                   const SizedBox(height: 8),
-//                   Text('닉네임: $nickname', style: const TextStyle(fontSize: 18)),
-//                   const SizedBox(height: 24),
-//                   TabBar(
-//                     controller: _tabController,
-//                     tabs: const [
-//                       Tab(text: '정보'),
-//                       Tab(text: '설정'),
-//                     ],
-//                   ),
-//                   Expanded(
-//                     child: TabBarView(
-//                       controller: _tabController,
-//                       children: [
-//                         Center(child: Text('정보 탭 내용')),
-//                         Center(child: Text('설정 탭 내용')),
-//                       ],
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//       ),
-//     );
-//   }
-// }
