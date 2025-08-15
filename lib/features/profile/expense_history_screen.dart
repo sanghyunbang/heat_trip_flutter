@@ -1,3 +1,4 @@
+// lib/features/profile/expense_history_screen.dart
 import 'package:flutter/material.dart';
 
 class ExpenseHistoryScreen extends StatelessWidget {
@@ -24,7 +25,6 @@ class ExpenseHistoryScreen extends StatelessWidget {
     },
   ];
 
-  //총액 계산하는 부분
   int _calculateTotalAmount() {
     return dummyExpenses.fold(0, (sum, item) => sum + (item['amount'] as int));
   }
