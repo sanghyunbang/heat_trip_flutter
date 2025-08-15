@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
 import 'package:heat_trip_flutter/features/auth/data/dto/register_request.dart';
+import 'package:go_router/go_router.dart'; // 추가 [0816]
 
 class SignUpScreen extends StatefulWidget {
+  const SignUpScreen({super.key}); //
   @override
   _SignUpScreenState createState() => _SignUpScreenState();
 }
@@ -55,7 +57,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('회원가입 완료')));
-      Navigator.pop(context);
+      await Future.delayed(const Duration(milliseconds: 250));
+      context.goNamed('login'); // 명시적으로 로그인 화면으로
     } else {
       // 실패 메시지 출력
       ScaffoldMessenger.of(
@@ -67,7 +70,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('회원가입')),
+      appBar: AppBar(
+        title: Text('회원가입'),
+        leading: IconButton(
+          onPressed: () => context.pop(), // 뒤로가기 보장
+          icon: const Icon(Icons.arrow_back),
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: _isLoading
