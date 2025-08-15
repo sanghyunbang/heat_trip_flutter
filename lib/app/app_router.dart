@@ -1,11 +1,128 @@
+// lib/app/app_router.dart
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../features/curation/presentation/routes/curation_routes.dart'
-    as curation;
 
-/// 전역 라우터: 각 기능(Feature)이 export한 라우트를 단순 병합
-/// WHY: 기능별 라우트가 자기 파일에서만 변경되므로 Git 충돌이 적음
+// 탭 루트들
+import 'package:heat_trip_flutter/features/explore/presentation/screens/explore_screen.dart';
+import 'package:heat_trip_flutter/features/profile/expense_history_screen.dart';
+import 'package:heat_trip_flutter/features/record/schedule_create_screen.dart';
+import 'package:heat_trip_flutter/features/record/schedule_list_screen.dart';
+import 'package:heat_trip_flutter/features/journey/presentation/screens/journey_screen.dart';
+import 'package:heat_trip_flutter/features/profile/presentation/screens/profile_screen.dart';
+import 'package:heat_trip_flutter/features/auth/presentation/login_screen.dart';
+
+// 큐레이션 (감정 선택)
+import 'package:heat_trip_flutter/features/curation/presentation/screens/curation_screen.dart';
+import 'package:heat_trip_flutter/features/curation/presentation/screens/curation_result_screen.dart';
+
+// 온보딩/인증
+import 'package:heat_trip_flutter/features/auth/presentation/sign_up_screen.dart';
+import 'package:heat_trip_flutter/features/start/start_screen.dart'; // 아래 리팩토링한 StartScreen 경로
+
+// 탭 쉘(바텀바+FAB) UI
+import 'package:heat_trip_flutter/core/widgets/layout/main_nav_shell.dart';
+
 final GoRouter appRouter = GoRouter(
+  // 앱을 켜면 먼저 온보딩으로 진입
+  initialLocation: '/start',
   routes: [
-    ...curation.routes, // 큐레이션 기능 라우트 묶음
+    // Start (탭 밖)
+    GoRoute(
+      path: '/start',
+      name: 'start',
+      builder: (context, state) => const StartScreen(),
+    ),
+
+    // SignUp (탭 밖)
+    GoRoute(
+      path: '/auth/sign-up',
+      name: 'signUp',
+      builder: (context, state) => SignUpScreen(),
+    ),
+
+    // 로그인 추가
+    GoRoute(
+      path: '/auth/login',
+      name: 'login',
+      builder: (context, state) => const LoginScreen(),
+    ),
+
+    // 탭 전역 (탭 안에서만 돌아다님)
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, navigationShell) =>
+          MainNavShell(navigationShell: navigationShell),
+      branches: [
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/explore',
+              name: 'explore',
+              builder: (context, state) => const ExploreScreen(),
+            ),
+          ],
+        ),
+
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/record',
+              name: 'record',
+              builder: (context, state) => const ScheduleListScreen(),
+              routes: [
+                // ✅ 작성 화면 (하위 라우트)
+                GoRoute(
+                  path: 'create',
+                  name: 'scheduleCreate',
+                  builder: (context, state) => const ScheduleCreateScreen(),
+                ),
+              ],
+            ),
+          ],
+        ),
+
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/curation',
+              name: 'curation',
+              builder: (context, state) => const CurationScreen(),
+              routes: [
+                GoRoute(
+                  path: 'result',
+                  name: 'curationResult',
+                  builder: (context, state) => const CurationResultScreen(),
+                ),
+              ],
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/journey',
+              name: 'journey',
+              builder: (context, state) => const JourneyScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/profile',
+              name: 'profile',
+              builder: (context, state) => const ProfileScreen(),
+              routes: [
+                // ✅ 프로필 상세: 지출 내역
+                GoRoute(
+                  path: 'expense-history',
+                  name: 'expenseHistory',
+                  builder: (context, state) => const ExpenseHistoryScreen(),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    ),
   ],
 );
