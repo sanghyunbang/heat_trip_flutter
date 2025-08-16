@@ -25,7 +25,7 @@ class PadSelectionGroup extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('1. 러셀의 PAD 감정', style: Theme.of(context).textTheme.titleMedium),
+        Text('러셀의 PAD 감정', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         Text(
           '아래 버튼을 선택하여 현재 감정의 정도를 나타내세요.',
@@ -35,10 +35,10 @@ class PadSelectionGroup extends StatelessWidget {
         _PadRow(
           label: '불쾌해요 ↔️ 즐거워요',
           options: const [
-            _PadOpt('😢', '매우 불쾌', -2),
-            _PadOpt('🙁', '불쾌', -1),
-            _PadOpt('🙂', '즐거움', 1),
-            _PadOpt('😁', '매우 즐거움', 2),
+            _PadOpt('😢', '-2', -2),
+            _PadOpt('🙁', '-1', -1),
+            _PadOpt('🙂', '+1', 1),
+            _PadOpt('😁', '+2', 2),
           ],
           selected: pleasure,
           onSelect: onSelectPleasure,
@@ -47,22 +47,22 @@ class PadSelectionGroup extends StatelessWidget {
         _PadRow(
           label: '침착해요 ↔️ 활기차요',
           options: const [
-            _PadOpt('😴', '매우 침착', -2),
-            _PadOpt('😌', '침착', -1),
-            _PadOpt('⚡', '활기', 1),
-            _PadOpt('🔥', '매우 활기', 2),
+            _PadOpt('😴', '-2', -2),
+            _PadOpt('😌', '-1', -1),
+            _PadOpt('⚡', '+1', 1),
+            _PadOpt('🔥', '+2', 2),
           ],
           selected: arousal,
           onSelect: onSelectArousal,
         ),
         const SizedBox(height: 12),
         _PadRow(
-          label: '세상에 지배당해요 ↔️ 세상을 통제해요',
+          label: '세상에 압도당해요 ↔️ 세상을 통제해요',
           options: const [
-            _PadOpt('🥺', '매우불능', -2),
-            _PadOpt('😥', '불능', -1),
-            _PadOpt('💪', '통제', 1),
-            _PadOpt('👑', '매우통제', 2),
+            _PadOpt('🥺', '-2', -2),
+            _PadOpt('😥', '-1', -1),
+            _PadOpt('💪', '+1', 1),
+            _PadOpt('👑', '+2', 2),
           ],
           selected: dominance,
           onSelect: onSelectDominance,
@@ -97,12 +97,32 @@ class _PadRow extends StatelessWidget {
         children: [
           Text(label, style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 10,
-            children: options
-                .map(
-                  (o) => _padButton(
+
+          // Wrap(
+          //   alignment: WrapAlignment.center,
+          //   spacing: 10,
+          //   children: options
+          //       .map(
+          //         (o) => _padButton(
+          //           context,
+          //           emoji: o.emoji,
+          //           text: o.label,
+          //           value: o.value,
+          //           isSelected: selected == o.value,
+          //           onTap: () => onSelect(o.value),
+          //         ),
+          //       )
+          //       .toList(),
+          // ),
+
+          //여기부터 교체 (Wrap 제거)
+          Row(
+            children: List.generate(options.length, (i) {
+              final o = options[i];
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(left: i == 0 ? 0 : 10),
+                  child: _padButton(
                     context,
                     emoji: o.emoji,
                     text: o.label,
@@ -110,9 +130,12 @@ class _PadRow extends StatelessWidget {
                     isSelected: selected == o.value,
                     onTap: () => onSelect(o.value),
                   ),
-                )
-                .toList(),
+                ),
+              );
+            }),
           ),
+
+          // 여기까지 교체
         ],
       ),
     );
