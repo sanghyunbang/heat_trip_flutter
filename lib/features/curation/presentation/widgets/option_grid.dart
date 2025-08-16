@@ -32,6 +32,8 @@ class OptionGrid extends StatelessWidget {
           crossAxisCount: 2,
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
+          childAspectRatio: 1.6, // 가로/세로 비율 ↑ (1.6~2.0 사이로 취향 조정)
+
           children: items
               .map(
                 (e) => _SelectableCard(
