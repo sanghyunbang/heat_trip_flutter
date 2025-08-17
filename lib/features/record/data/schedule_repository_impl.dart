@@ -54,12 +54,36 @@ class ScheduleRepositoryImpl {
         'Content-Type': 'application/json',
       },
     );
+    print("받은 JSOM : ${response.body}");
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((item) => ScheduleResponse.fromJson(item)).toList();
     } else {
       throw Exception('스케줄 가져오기 실패: ${response.statusCode}');
+    }
+  }
+
+  // ----------------삭제하기
+  Future<String?> deleteSchedule(int scheduleId) async {
+    final token = await TokenStorage.getToken();
+    if (token == null) return '[deleteSchedule] 인증 정보가 없습니다.';
+
+    final url = Uri.parse('$baseUrl/public/schedules/$scheduleId');
+
+    final response = await http.delete(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      return null; // 성공
+    } else {
+      print('[X] 삭제 실패: ${response.statusCode} / ${response.body}');
+      return '삭제 실패 (${response.statusCode})';
     }
   }
 }
