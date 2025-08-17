@@ -1,19 +1,26 @@
-// lib/features/record/schedule_create_screen.dart
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart'; // ✅ 추가
 import 'package:intl/intl.dart';
+import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
 import 'package:heat_trip_flutter/features/record/data/schedule_repository_impl.dart';
-import 'package:heat_trip_flutter/features/record/data/dto/schedule_request.dart';
+import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:heat_trip_flutter/features/record/data/model/schedule_response.dart';
 
 class ScheduleCreateScreen extends StatefulWidget {
-  const ScheduleCreateScreen({super.key});
+  final ScheduleResponse? schedule; // 수정 모드 확인용
+
+  const ScheduleCreateScreen({super.key, this.schedule});
 
   @override
   State<ScheduleCreateScreen> createState() => _ScheduleCreateScreenState();
 }
 
 class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
-  final scheduleRepository = ScheduleRepositoryImpl(); // ✅ 저장은 레포지토리 사용
+  final authRepository = AuthRepositoryImpl();
+  final scheduleRepository = ScheduleRepositoryImpl();
   final _formKey = GlobalKey<FormState>();
 
   final _titleController = TextEditingController();
@@ -21,6 +28,50 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
 
   final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
   DateTimeRange? _selectedRange;
+
+  String? _authorName;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserInfo();
+    _initializeFormIfEditing();
+  }
+
+  void _initializeFormIfEditing() {
+    if (widget.schedule != null) {
+      _titleController.text = widget.schedule!.title;
+      _descriptionController.text = widget.schedule!.content ?? '';
+      _selectedRange = DateTimeRange(
+        start: widget.schedule!.dateFrom,
+        end: widget.schedule!.dateTo,
+      );
+    }
+  }
+
+  Future<void> _fetchUserInfo() async {
+    try {
+      final token = await TokenStorage.getToken();
+
+      if (token == null) {
+        setState(() => _authorName = '알 수 없음');
+        return;
+      }
+
+      final userInfo = await authRepository.getMyProfile(token);
+
+      if (userInfo != null) {
+        setState(() {
+          _authorName = userInfo['name'] ?? '알 수 없음';
+        });
+      } else {
+        setState(() => _authorName = '알 수 없음');
+      }
+    } catch (e) {
+      debugPrint('유저 정보 불러오기 실패: $e');
+      setState(() => _authorName = '알 수 없음');
+    }
+  }
 
   @override
   void dispose() {
@@ -36,64 +87,120 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
       lastDate: DateTime(2030),
       initialDateRange: _selectedRange,
     );
-    if (picked != null) setState(() => _selectedRange = picked);
+    if (picked != null) {
+      setState(() => _selectedRange = picked);
+    }
   }
 
   Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate() || _selectedRange == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('모든 항목을 입력해주세요.')));
-      return;
-    }
+    final token = await TokenStorage.getToken();
+    if (_formKey.currentState!.validate() && _selectedRange != null) {
+      final baseUrl = dotenv.env['API_BASE_URL'];
+      final isEditing = widget.schedule != null;
 
-    // ✅ 레포지토리의 요청 DTO와 서버 필드명에 맞춤
-    final req = ScheduleRequest(
-      title: _titleController.text.trim(),
-      content: _descriptionController.text.trim(),
-      datefrom: _dateFormat.format(_selectedRange!.start),
-      dateto: _dateFormat.format(_selectedRange!.end),
-    );
+      final url = isEditing
+          ? Uri.parse(
+              '$baseUrl/public/schedules/${widget.schedule!.scheduleId}',
+            )
+          : Uri.parse('$baseUrl/public/schedules');
 
-    final err = await scheduleRepository.schedulepost(req);
+      final body = jsonEncode({
+        "title": _titleController.text,
+        "dateFrom": _dateFormat.format(_selectedRange!.start),
+        "dateTo": _dateFormat.format(_selectedRange!.end),
+        "content": _descriptionController.text,
+      });
 
-    if (!mounted) return;
-    if (err == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('서버에 저장 완료: ${_titleController.text}')),
-      );
-      // ✅ 호출자(List)로 "성공" 신호를 돌려줌 → List 화면에서 새로고침
-      context.pop(true);
+      try {
+        final response = await (isEditing
+            ? http.put(
+                url,
+                headers: {
+                  'Authorization': 'Bearer $token',
+                  'Content-Type': 'application/json',
+                },
+                body: body,
+              )
+            : http.post(
+                url,
+                headers: {
+                  'Authorization': 'Bearer $token',
+                  'Content-Type': 'application/json',
+                },
+                body: body,
+              ));
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(isEditing ? '스케줄이 수정되었습니다.' : '스케줄이 저장되었습니다.'),
+              backgroundColor: Colors.pink.shade300,
+            ),
+          );
+          Navigator.pop(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('저장 실패: ${response.statusCode}')),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('서버 오류: $e')));
+      }
     } else {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('저장 실패: $err')));
+      ).showSnackBar(const SnackBar(content: Text('모든 항목을 입력해주세요.')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final rangeText = _selectedRange == null
-        ? ''
-        : '${_dateFormat.format(_selectedRange!.start)} ~ ${_dateFormat.format(_selectedRange!.end)}';
+    final isEditing = widget.schedule != null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('스케줄 작성')),
+      appBar: AppBar(
+        title: Text(isEditing ? '스케줄 수정' : '스케줄 작성'),
+        backgroundColor: Colors.pink,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: ListView(
             children: [
+              // 작성자 (읽기 전용)
+              TextFormField(
+                initialValue: _authorName ?? '',
+                decoration: InputDecoration(
+                  labelText: '작성자',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  filled: true,
+                  fillColor: Colors.pink.shade50,
+                ),
+                enabled: false,
+                style: const TextStyle(color: Colors.black87),
+              ),
+              const SizedBox(height: 16),
+
               // 제목
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: '여행 제목',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.pink.shade300),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-                validator: (v) =>
-                    (v == null || v.isEmpty) ? '여행 제목을 입력해주세요.' : null,
+                validator: (value) =>
+                    value == null || value.isEmpty ? '여행 제목을 입력해주세요.' : null,
               ),
               const SizedBox(height: 16),
 
@@ -102,29 +209,50 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
                 onTap: _pickDateRange,
                 child: AbsorbPointer(
                   child: TextFormField(
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: '여행 기간',
-                      border: OutlineInputBorder(),
-                      suffixIcon: Icon(Icons.calendar_today),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      suffixIcon: Icon(
+                        Icons.calendar_today,
+                        color: Colors.pink,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.pink.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    controller: TextEditingController(text: rangeText),
+                    controller: TextEditingController(
+                      text: _selectedRange != null
+                          ? '${_dateFormat.format(_selectedRange!.start)} ~ ${_dateFormat.format(_selectedRange!.end)}'
+                          : '',
+                    ),
                     validator: (_) =>
                         _selectedRange == null ? '기간을 선택해주세요.' : null,
+                    style: const TextStyle(color: Colors.black87),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
 
-              // 내용 (기타 메모)
+              // 내용
               TextFormField(
                 controller: _descriptionController,
                 maxLines: 5,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: '기타 메모',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.pink.shade300),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-                validator: (v) =>
-                    (v == null || v.isEmpty) ? '내용을 입력해주세요.' : null,
+                validator: (value) =>
+                    value == null || value.isEmpty ? '내용을 입력해주세요.' : null,
+                style: const TextStyle(color: Colors.black87),
               ),
               const SizedBox(height: 30),
 
@@ -134,12 +262,16 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
                 child: ElevatedButton.icon(
                   onPressed: _submitForm,
                   icon: const Icon(Icons.save),
-                  label: const Text('저장하기'),
+                  label: Text(isEditing ? '수정하기' : '저장하기'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     textStyle: const TextStyle(fontSize: 18),
                     backgroundColor: Colors.pink,
                     foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    elevation: 4,
                   ),
                 ),
               ),
