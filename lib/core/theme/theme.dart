@@ -19,7 +19,7 @@ AppBarTheme appBarTheme() {
 
 BottomNavigationBarThemeData bottomNavigationTheme() {
   return BottomNavigationBarThemeData(
-    selectedItemColor: Color(0xFF003F8F),
+    selectedItemColor: Color(0xFFEB9C64),
     unselectedItemColor: Colors.grey,
     showUnselectedLabels: true,
   );

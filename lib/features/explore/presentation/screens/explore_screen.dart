@@ -61,7 +61,7 @@ class _ExploreScreenState extends State<ExploreScreen> with SingleTickerProvider
     return items.where((p) {
       // addr1(주소)에서 앞 2글자만 추출해 지역 비교
       final region =
-        p.addr1.isNotEmpty ? String.fromCharCodes(p.addr1.runes.take(2)) : '';
+      p.addr1.isNotEmpty ? String.fromCharCodes(p.addr1.runes.take(2)) : '';
       return region == _selectedRegion;
     }).toList();
   }
@@ -70,6 +70,7 @@ class _ExploreScreenState extends State<ExploreScreen> with SingleTickerProvider
   Future<void> _openRegionSelect() async {
     final result = await showModalBottomSheet<String>(
       context: context,
+      backgroundColor: const Color(0xFFF5ECD7),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -96,9 +97,10 @@ class _ExploreScreenState extends State<ExploreScreen> with SingleTickerProvider
         title: const Text('Explore'),
         bottom: TabBar(
           controller: _tab, // 직접 생성한 TabController 사용 (DefaultTabController 혼용 ❌)
-          labelColor: Theme.of(context).colorScheme.primary,
+          labelColor: Color(0xFF346145),//Theme.of(context).colorScheme.primary,
           unselectedLabelColor: Colors.black45,
-          indicatorSize: TabBarIndicatorSize.label,
+          indicatorSize: TabBarIndicatorSize.tab,
+          indicatorColor: Color(0xFF346145),
           tabs: const [
             Tab(text: '관광지'),
             Tab(text: '축제'),
@@ -107,8 +109,15 @@ class _ExploreScreenState extends State<ExploreScreen> with SingleTickerProvider
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: () {
-              // TODO: 검색 기능 연결
+            onPressed: () async {
+              // Flutter 기본 SearchDelegate 사용 예시
+              final result = await showSearch<String>(
+                context: context,
+                delegate: CustomSearchDelegate(),
+              );
+              if (result != null) {
+                print('검색 결과: $result'); // TODO: 검색 결과 처리
+              }
             },
           ),
         ],
@@ -145,7 +154,7 @@ class _ExploreScreenState extends State<ExploreScreen> with SingleTickerProvider
               ),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
 
           /// 데이터 목록
           Expanded(
@@ -184,6 +193,65 @@ class _ExploreScreenState extends State<ExploreScreen> with SingleTickerProvider
           ),
         ],
       ),
+    );
+  }
+}
+
+///
+class CustomSearchDelegate extends SearchDelegate<String> {
+  // 검색창 오른쪽 액션 버튼
+  @override
+  List<Widget> buildActions(BuildContext context) {
+    return [
+      TextButton(
+        onPressed: () {
+          query = ''; // 입력 내용 초기화
+        },
+        child: const Text('모두 지우기'),
+      ),
+    ];
+  }
+
+  // 검색창 왼쪽 뒤로가기 버튼
+  @override
+  Widget buildLeading(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () {
+        close(context, ''); // 검색창 닫기
+      },
+    );
+  }
+
+  // 검색 결과 표시
+  @override
+  Widget buildResults(BuildContext context) {
+    return Center(
+      child: Text('검색 결과: $query'),
+    );
+  }
+
+  // 검색 제안 표시
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    final suggestions = [
+      '서울',
+      '부산',
+      '제주',
+      '강릉',
+    ].where((item) => item.contains(query)).toList();
+
+    return ListView.builder(
+      itemCount: suggestions.length,
+      itemBuilder: (context, index) {
+        return ListTile(
+          title: Text(suggestions[index]),
+          onTap: () {
+            query = suggestions[index];
+            showResults(context); // 선택 시 결과 화면으로
+          },
+        );
+      },
     );
   }
 }
