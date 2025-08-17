@@ -234,6 +234,7 @@ class CustomSearchDelegate extends SearchDelegate<String> {
   // 검색 제안 표시
   @override
   Widget buildSuggestions(BuildContext context) {
+    // 예시)
     final suggestions = [
       '서울',
       '부산',

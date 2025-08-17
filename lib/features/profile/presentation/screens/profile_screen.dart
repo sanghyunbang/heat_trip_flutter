@@ -1,17 +1,15 @@
-// lib/features/profile/presentation/screens/profile_screen.dart
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart'; // ✅ go_router 네비게이션
+import 'package:go_router/go_router.dart';                        // ✅ go_router 네비게이션
 import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
 import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
 
-// 🔽 슬라이드 메뉴 패널(우측에서 열리는 패널) — 실제 위치에 맞게 경로 수정하세요.
-import 'package:heat_trip_flutter/features/profile/presentation/widgets/right_side_menu_panel.dart';
+// 프로필 feature 내부 재사용 위젯 export (ProfileHeader, LineChartPainter, 등)
+import '../profile.dart';
 
-/// ProfileScreen
-/// - JWT가 있으면 사용자 정보(이름/닉네임)를 조회해 상단 영역에 표시
-/// - "여행 지출 내역" 등 목록형 메뉴 제공
-/// - AppBar 우측의 햄버거 버튼으로 RightSideMenuPanel 열기
-/// - 로그아웃 시 SharedPreferences에서 토큰 삭제 후 `go_router`로 로그인 화면으로 이동
+/// 시안 기반 Profile 화면
+/// - 로그인 상태에 따라 헤더의 액션이 달라짐(로그인: Edit/Logout, 비로그인: Login/Sign up)
+/// - 로그인 시 사용자 정보 조회 후 닉네임/아바타 바인딩
+/// - 비로그인 시: 헤더만 표시 + 안내 문구, TabBar/TabBarView 숨김
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -19,56 +17,79 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen>
+    with SingleTickerProviderStateMixin {
   // === 의존성 ===
   final authRepository = AuthRepositoryImpl();
 
   // === 상태 ===
-  String realName = '';
-  String nickname = '';
-  String profileImageUrl =
-      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSnRCDEVIMXXel2QFByCN48ls28VRkE7GneTg&s';
-  bool isLoading = true;
+  bool isLoading = true;                      // 화면 로딩 스피너 제어
+  bool isLoggedIn = false;                    // ✅ 로그인 여부
+  String realName = '';                       // 실명(옵션)
+  String nickname = '';                       // 닉네임(로그인 시 표시)
+  String avatarUrl =
+      'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png'; // 기본 아바타(비로그인도 사용)
+
+  // 탭 제어용 컨트롤러 (statics, bookmark)
+  late final TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _loadUserProfile(); // 앱 진입 시 사용자 정보 로딩
+    _tabController = TabController(length: 2, vsync: this);
+    _loadUserProfile();                      // ✅ 사용자 정보 로드(로그인 판단)
   }
 
-  /// ✅ SharedPreferences에 저장된 JWT로 사용자 정보를 불러오는 로직
-  /// - 토큰 없으면 게스트 상태로 렌더링
-  /// - 토큰 있으면 /public/getuser 호출 → 이름/닉네임 표시
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  /// ✅ 토큰 존재 여부로 로그인 판단 → 로그인 시 사용자 정보 로드
   Future<void> _loadUserProfile() async {
-    final token = await TokenStorage.getToken();
-    if (!mounted) return;
-
-    if (token == null) {
-      // 토큰이 없으면 게스트 상태로 렌더링(스피너 해제)
-      setState(() => isLoading = false);
-      return;
-    }
-
     try {
+      final token = await TokenStorage.getToken(); // SharedPreferences 토큰 조회
+      if (!mounted) return;
+
+      if (token == null) {
+        // ⭕ 비로그인: 스피너 해제만
+        setState(() {
+          isLoggedIn = false;
+          isLoading = false;
+        });
+        return;
+      }
+
+      // ⭕ 로그인: 프로필 API 조회
       final userInfo = await authRepository.getMyProfile(token);
       if (!mounted) return;
 
       if (userInfo != null) {
         setState(() {
+          isLoggedIn = true;
           realName = userInfo['name'] ?? '';
           nickname = userInfo['nickname'] ?? '';
+          // avatarUrl = userInfo['avatarUrl'] ?? avatarUrl; // 서버가 내려주면 사용
           isLoading = false;
         });
       } else {
-        setState(() => isLoading = false);
+        // 토큰은 있으나 프로필 조회 실패 → 비로그인 처리
+        setState(() {
+          isLoggedIn = false;
+        });
       }
     } catch (_) {
-      setState(() => isLoading = false);
+      // 에러 시에도 비로그인 처리로 폴백
+      if (!mounted) return;
+      setState(() {
+        isLoggedIn = false;
+        isLoading = false;
+      });
     }
   }
 
-  /// ✅ 우측 슬라이드 메뉴 열기
-  /// showGeneralDialog + SlideTransition을 사용해 오른쪽에서 부드럽게 등장
+  /// ✅ 우측에서 슬라이드 메뉴 시트 열기 (선택 기능: 기존과 동일)
   void _openRightMenuSheet() {
     showGeneralDialog(
       context: context,
@@ -78,42 +99,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
       transitionDuration: const Duration(milliseconds: 280),
       pageBuilder: (ctx, a1, a2) => const SizedBox.shrink(),
       transitionBuilder: (ctx, anim, _, __) {
-        final curved = CurvedAnimation(
-          parent: anim,
-          curve: Curves.easeOutCubic,
-        );
+        final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
         return SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(1, 0),
-            end: Offset.zero,
-          ).animate(curved),
+          position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
+              .animate(curved),
           child: Align(
             alignment: Alignment.centerRight,
-            // 닫기는 다이얼로그 컨텍스트(ctx)로 pop → 현재 페이지가 pop되지 않도록 주의
-            child: RightSideMenuPanel(onClose: () => Navigator.of(ctx).pop()),
+            child: RightSideMenuPanel(
+              onClose: () => Navigator.of(ctx).pop(), // 다이얼로그 컨텍스트로 닫기
+            ),
           ),
         );
       },
     );
   }
 
-  /// ✅ 로그아웃: 토큰 삭제 → go_router로 로그인 화면으로
-  /// - push/pop 사용하지 않고 goNamed로 현재 라우트를 교체 → 스택 정리
+  /// ✅ 로그아웃: 토큰 삭제 → 라우터로 로그인 화면 이동(스택 정리)
   Future<void> _logout() async {
-    await TokenStorage.clearToken();
+    await TokenStorage.clearToken();         // 토큰/세션 정리
     if (!mounted) return;
-    context.goNamed('login'); // 라우터에 '/auth/login'이 등록되어 있어야 함
+    context.goNamed('login');                // 라우터 설정에 'login' 네임이 있어야 함
+  }
+
+  /// ✅ 로그인 버튼 동작: 로그인 화면으로 이동
+  void _goLogin() {
+    context.goNamed('login');                // '/auth/login' 등 네임드 라우트 필요
+  }
+
+  /// ✅ 회원가입 버튼 동작: 회원가입 화면으로 이동
+  void _goSignUp() {
+    context.goNamed('signUp');               // '/auth/signup' 등 네임드 라우트 필요
   }
 
   @override
   Widget build(BuildContext context) {
+    const headerBg = Color(0xFFEBE2CD);      // 상단 베이지 톤
+
     return Scaffold(
-      backgroundColor: Colors.blue[50],
       appBar: AppBar(
-        title: const Text('My Profile'),
+        title: const Text('My Profile', style: TextStyle(fontWeight: FontWeight.w600)),
         centerTitle: true,
         actions: [
-          // ✅ 우측 햄버거(메뉴) 버튼
           IconButton(
             icon: const Icon(Icons.menu),
             onPressed: _openRightMenuSheet,
@@ -121,172 +147,162 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-
-      // ===== 본문 =====
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
+          : SafeArea(
+        child: Column(
+          children: [
+            // ===== 상단 헤더 (로그인 분기 전달) =====
+            ProfileHeader(
+              backgroundColor: const Color(0xFFEBE2CD),
+              tabController: _tabController,
+              avatarUrl: avatarUrl,
+              nickname: nickname,
+              isLoggedIn: isLoggedIn,   // ✅ 헤더가 TabBar 표시 여부를 판단
+              onEdit: () {
+                // TODO: 프로필 편집 화면 이동
+              },
+              onLogout: _logout,
+              onLogin: _goLogin,        // ✅ 비로그인일 때 Login 버튼 콜백
+              onSignUp: _goSignUp,      // ✅ 비로그인일 때 Sign up 버튼 콜백
+              guestLabel: '게스트',
+            ),
 
-                  // ===== 상단 프로필 영역 =====
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 아바타
-                      CircleAvatar(
-                        radius: 35,
-                        backgroundImage: NetworkImage(profileImageUrl),
-                        backgroundColor: Colors.grey[300],
-                      ),
-                      const SizedBox(width: 16),
-
-                      // 이름/닉네임/편집버튼
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // 실명(혹은 백엔드가 내려주는 다른 표기)
-                            Text(
-                              realName,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Container(
-                              height: 1,
-                              width: 100,
-                              color: Colors.grey.withOpacity(.3),
-                            ),
-                            const SizedBox(height: 2),
-
-                            // 닉네임 + 프로필 편집
-                            Row(
+            // ===== 아래 컨텐츠: ✅ 로그인된 경우에만 탭 내용 표시 =====
+            if (isLoggedIn)
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // 1) Statics 탭
+                    ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                      children: [
+                        Card(
+                          elevation: 0,
+                          color: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  nickname.isEmpty ? '이름없음' : nickname,
-                                  style: const TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                OutlinedButton.icon(
-                                  onPressed: () {
-                                    // TODO: 프로필 편집 화면으로 push
-                                    // ex) context.pushNamed('profileEdit');
-                                  },
-                                  icon: const Icon(Icons.edit, size: 14),
-                                  label: const Text(
-                                    '프로필 편집',
-                                    style: TextStyle(fontSize: 10),
-                                  ),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 2,
-                                      horizontal: 6,
-                                    ),
-                                    minimumSize: Size.zero,
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                    side: const BorderSide(width: 0.5),
+                                Text('나의 감정 그래프',
+                                    style: TextStyle(
+                                        fontSize: 16, fontWeight: FontWeight.w700)),
+                                SizedBox(height: 6),
+                                Text('Monthly Emotion Trends',
+                                    style: TextStyle(
+                                        fontSize: 12, color: Colors.black54)),
+                                SizedBox(height: 12),
+                                SizedBox(
+                                  height: 140,
+                                  width: double.infinity,
+                                  child: CustomPaint(
+                                    painter: LineChartPainter(),
                                   ),
                                 ),
                               ],
                             ),
+                          ),
+                        ),
+                        SizedBox(height: 20),
+                        Text('Continue watching',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 16)),
+                        SizedBox(height: 12),
+                        CourseItem(
+                          icon: Icons.security_outlined,
+                          title: 'Intro to Cyber-security',
+                          author: 'Paul Newman',
+                          progress: 0.70,
+                        ),
+                        SizedBox(height: 12),
+                        CourseItem(
+                          icon: Icons.hexagon_outlined,
+                          title: 'Intro to Polymer',
+                          author: 'Zahir Khan',
+                          progress: 0.45,
+                        ),
+                      ],
+                    ),
+
+                    // 2) Bookmark 탭 - (지금은 스켈레톤 예시)
+                    ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                      children: const [
+                        Wrap(
+                          spacing: 16,
+                          runSpacing: 16,
+                          children: [
+                            SkeletonBox(height: 110, width: 160),
+                            SkeletonBox(height: 110, width: 200),
+                            SkeletonBox(height: 140, width: double.infinity),
                           ],
                         ),
-                      ),
-                    ],
+                        SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(child: SkeletonBox(height: 60)),
+                            SizedBox(width: 16),
+                            Expanded(child: SkeletonBox(height: 60)),
+                          ],
+                        ),
+                        SizedBox(height: 16),
+                        SkeletonBox(height: 60),
+                      ],
+                    ),
+                  ],
+                ),
+              )
+            else
+            // ✅ 비로그인 상태: 안내 문구(아이콘 + 텍스트)만 노출
+              Expanded(
+                child: Center(
+                  // 가로로 아이콘 + 텍스트를 나란히 배치
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20), // 좌우 여백
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min, // 내용물만큼만 가로 차지
+                      children: [
+                        // 원 안에 느낌표 아이콘
+                        Container(
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,                             // 동그란 배경
+                            border: Border.all(color: Colors.black54), // 테두리 색상
+                          ),
+                          child: const Icon(
+                            Icons.priority_high_rounded, // 느낌표 아이콘
+                            size: 12,                    // 아이콘 크기
+                            color: Colors.black54,
+                          ),
+                        ),
+                        const SizedBox(width: 10), // 아이콘과 텍스트 간격
+
+                        // 안내 문구
+                        const Flexible(
+                          child: Text(
+                            '로그인하면 더 많은 기능을 사용할 수 있어요',
+                            textAlign: TextAlign.center,       // 가운데 정렬
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black54,           // 살짝 옅은 톤
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // ===== 요약 수치(예시) =====
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildSummaryItem('게시물', '23'),
-                      _buildSummaryItem('좋아요', '87'),
-                      _buildSummaryItem('팔로워', '9'),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-                  const Divider(),
-                  const SizedBox(height: 20),
-
-                  // ===== 메뉴 그룹 1: 활동 =====
-                  const Text('📌 내 활동', style: TextStyle(fontSize: 16)),
-                  const SizedBox(height: 8),
-                  _buildMenuTile('내가 작성한 게시물 통계보기', Icons.article, () {
-                    // TODO: 추후 라우팅
-                    // ex) context.pushNamed('myPostStats');
-                  }),
-                  _buildMenuTile('좋아요 누른 게시물', Icons.favorite_border, () {
-                    // TODO: 추후 라우팅
-                    // ex) context.pushNamed('likedPosts');
-                  }),
-                  _buildMenuTile('여행 지출 내역', Icons.receipt_long, () {
-                    // ✅ go_router로 하위 상세 화면 push
-                    // '/profile' 브랜치의 child 라우트로 등록되어 있어야 합니다. (name: 'expenseHistory')
-                    context.pushNamed('expenseHistory');
-                  }),
-
-                  const SizedBox(height: 20),
-
-                  // ===== 메뉴 그룹 2: 소셜 / 커뮤니티 =====
-                  const Text('👥 소셜 / 커뮤니티', style: TextStyle(fontSize: 16)),
-                  const SizedBox(height: 8),
-                  _buildMenuTile('숨김/차단 관리', Icons.visibility_off, () {
-                    // TODO
-                    // ex) context.pushNamed('blockList');
-                  }),
-
-                  const SizedBox(height: 20),
-
-                  // ===== 메뉴 그룹 3: 계정 설정 =====
-                  const Text('⚙️ 계정 설정', style: TextStyle(fontSize: 16)),
-                  const SizedBox(height: 8),
-                  _buildMenuTile('로그아웃', Icons.logout, _logout),
-                  _buildMenuTile('회원 탈퇴', Icons.delete_forever, () {
-                    // TODO: 회원탈퇴 플로우
-                    // ex) context.pushNamed('accountDelete');
-                  }),
-                ],
+                ),
               ),
-            ),
-    );
-  }
-
-  /// 요약 수치 컴포넌트(간단한 텍스트 묶음)
-  Widget _buildSummaryItem(String label, String count) {
-    return Column(
-      children: [
-        Text(
-          count,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 14)),
-      ],
-    );
-  }
-
-  /// 공통 메뉴 타일
-  Widget _buildMenuTile(String title, IconData icon, VoidCallback onTap) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      dense: true,
-      leading: Icon(icon, color: Colors.black54),
-      title: Text(title),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
+      ),
     );
   }
 }

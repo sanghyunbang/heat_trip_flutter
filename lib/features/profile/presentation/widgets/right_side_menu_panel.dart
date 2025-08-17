@@ -1,11 +1,37 @@
 import 'package:flutter/material.dart';
 
+// 각 메뉴 클릭 시 이동할 화면들
+import 'package:heat_trip_flutter/features/profile/presentation/screens/menu/theme_mode_setting_screen.dart';
+import 'package:heat_trip_flutter/features/profile/presentation/screens/menu/explore_view_setting_screen.dart';
+import 'package:heat_trip_flutter/features/profile/presentation/screens/menu/feedback_screen.dart';
+import 'package:heat_trip_flutter/features/profile/presentation/screens/menu/share_app_screen.dart';
+import 'package:heat_trip_flutter/features/profile/presentation/screens/menu/terms_screen.dart';
+import 'package:heat_trip_flutter/features/profile/presentation/screens/menu/privacy_policy_screen.dart';
+import 'package:heat_trip_flutter/features/profile/presentation/screens/menu/about_screen.dart';
+import 'package:heat_trip_flutter/features/profile/presentation/screens/menu/account_delete_screen.dart';
+
+/// 현재 앱이 go_router를 쓰고 있어도,
+/// 위 패널은 오버레이 다이얼로그 위에서 push 해야 하므로
+/// Navigator.of(context, rootNavigator: true).push(...) 를 사용
+
 /// 우측에서 슬라이드 인되는 사이드 메뉴 패널
-/// - showGeneralDialog의 child로 사용
+/// - showGeneralDialog 의 child 로 사용
+/// - "테마설정", "약관 및 정책"은 드롭다운(ExpansionTile)로 2차 메뉴 표시
 class RightSideMenuPanel extends StatelessWidget {
-  final VoidCallback onClose;
+  final VoidCallback onClose; // 패널 닫기 콜백(보통 Navigator.pop)
 
   const RightSideMenuPanel({super.key, required this.onClose});
+
+  /// 패널을 닫은 뒤, 하위 화면으로 네비게이션
+  /// - 다이얼로그(pop)가 끝난 다음 push 해야 하기 때문에 microtask로 스케줄
+  void _closeThenPush(BuildContext context, Widget screen) {
+    Navigator.of(context).pop(); // 패널 먼저 닫기
+    Future.microtask(() {
+      Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(builder: (_) => screen),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +59,7 @@ class RightSideMenuPanel extends StatelessWidget {
         child: SafeArea(
           child: Column(
             children: [
-              // 헤더(타이틀 + X 버튼)
+              // ===== 헤더: 타이틀 + X 버튼 =====
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
                 child: Row(
@@ -54,40 +80,183 @@ class RightSideMenuPanel extends StatelessWidget {
               ),
               const Divider(height: 1),
 
-              // 메뉴 리스트(예시)
+              // ===== 메뉴 리스트 =====
               Expanded(
-                child: ListView.separated(
+                child: ListView(
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: 9,
-                  separatorBuilder: (_, __) => const SizedBox(height: 4),
-                  itemBuilder: (context, i) {
-                    final selected = i == 5; // 예시 강조
-                    return InkWell(
-                      onTap: onClose, // 탭하면 닫기
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 18,
+                  children: [
+                    // 1) 테마설정 (드롭다운)
+                    _MenuExpansion(
+                      leading: const Icon(Icons.color_lens_outlined),
+                      title: '테마설정',
+                      children: [
+                        _MenuLeaf(
+                          title: '라이트/다크 모드 설정',
+                          onTap: () => _closeThenPush(
+                            context,
+                            const ThemeModeSettingScreen(),
+                          ),
                         ),
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 2,
+                        _MenuLeaf(
+                          title: '탐색화면 세팅',
+                          onTap: () => _closeThenPush(
+                            context,
+                            const ExploreViewSettingScreen(),
+                          ),
                         ),
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? Colors.deepPurple.withOpacity(.06)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text('Menu item', style: TextStyle(fontSize: 16)),
+                      ],
+                    ),
+
+                    // 2) 의견보내기
+                    _MenuLeaf(
+                      leading: const Icon(Icons.chat_bubble_outline),
+                      title: '의견보내기',
+                      onTap: () => _closeThenPush(
+                        context,
+                        const FeedbackScreen(),
                       ),
-                    );
-                  },
+                    ),
+
+                    // 3) 앱추천
+                    _MenuLeaf(
+                      leading: const Icon(Icons.share_outlined),
+                      title: '앱추천',
+                      onTap: () => _closeThenPush(
+                        context,
+                        const ShareAppScreen(),
+                      ),
+                    ),
+
+                    // 4) 약관 및 정책 (드롭다운)
+                    _MenuExpansion(
+                      leading: const Icon(Icons.description_outlined),
+                      title: '약관 및 정책',
+                      children: [
+                        _MenuLeaf(
+                          title: '이용약관',
+                          onTap: () => _closeThenPush(
+                            context,
+                            const TermsScreen(),
+                          ),
+                        ),
+                        _MenuLeaf(
+                          title: '개인정보처리방침',
+                          onTap: () => _closeThenPush(
+                            context,
+                            const PrivacyPolicyScreen(),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // 5) 소개
+                    _MenuLeaf(
+                      leading: const Icon(Icons.info_outline),
+                      title: '소개',
+                      onTap: () => _closeThenPush(
+                        context,
+                        const AboutScreen(),
+                      ),
+                    ),
+
+                    // 6) 회원탈퇴 (파괴적 액션 느낌으로 강조)
+                    _MenuLeaf(
+                      leading: const Icon(Icons.delete_outline, color: Colors.red),
+                      title: '회원탈퇴',
+                      isDestructive: true,
+                      onTap: () => _closeThenPush(
+                        context,
+                        const AccountDeleteScreen(),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 드롭다운(ExpansionTile) 메뉴 공통 위젯
+class _MenuExpansion extends StatelessWidget {
+  final Widget? leading;
+  final String title;
+  final List<_MenuLeaf> children;
+
+  const _MenuExpansion({
+    required this.title,
+    required this.children,
+    this.leading,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      // ExpansionTile의 기본 splash/ink 등을 최소화해서 패널 톤과 맞춤
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        leading: leading,
+        title: Text(title, style: const TextStyle(fontSize: 16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        collapsedShape:
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        childrenPadding:
+        const EdgeInsets.only(left: 12 + 24, right: 12, bottom: 8),
+        children: children
+            .map((leaf) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: leaf,
+        ))
+            .toList(),
+      ),
+    );
+  }
+}
+
+/// 단일 항목(leaf) 공통 위젯
+class _MenuLeaf extends StatelessWidget {
+  final Widget? leading;
+  final String title;
+  final bool isDestructive; // 빨간 텍스트 등 파괴적 액션 강조
+  final VoidCallback onTap;
+
+  const _MenuLeaf({
+    required this.title,
+    required this.onTap,
+    this.leading,
+    this.isDestructive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = isDestructive ? Colors.red : Colors.black87;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.deepPurple.withOpacity(0.0), // 필요 시 선택 배경
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            if (leading != null) ...[
+              IconTheme(data: IconThemeData(color: fg), child: leading!),
+              const SizedBox(width: 10),
+            ],
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(fontSize: 16, color: fg),
+              ),
+            ),
+          ],
         ),
       ),
     );
