@@ -6,10 +6,21 @@ class PlaceCard extends StatelessWidget {
   final PlaceItem data;
   const PlaceCard({super.key, required this.data});
 
-  String _safePrefix(String s, int len) {
-    if (s.isEmpty) return '';
-    if (s.runes.length <= len) return s;
-    return String.fromCharCodes(s.runes.take(len));
+  /// 주소 문자열을 안전하게 줄이는 함수
+  /// - null, 빈 값 처리
+  /// - 두 번째 띄어쓰기 전까지만 반환 (예: '서울 강남구 강남대로' → '서울 강남구')
+  String _formatShortAddress(String? addr) {
+    if (addr == null) return ''; // null이면 빈 문자열 반환
+    final trimmed = addr.trim(); // 문자열 앞뒤 공백 제거
+    if (trimmed.isEmpty) return ''; // 공백만 있는 경우 처리
+
+    // 띄어쓰기를 기준으로 나누기 (연속 공백도 하나로 처리)
+    final parts = trimmed.split(RegExp(r'\s+')); // RegExp(r'\s+') : 하나 이상의 연속된 공백을 찾아내는 패턴 (정규표현식 객체 사용)
+    // 두 개 이상의 단어가 있으면 첫 번째+두 번째만 반환
+    if (parts.length >= 2) {
+      return '${parts[0]} ${parts[1]}';
+    }
+    return trimmed; // 단어가 하나뿐이면 그대로 반환
   }
 
   @override
@@ -34,20 +45,20 @@ class PlaceCard extends StatelessWidget {
           children: [
             // 1) 카드 전체를 채우는 이미지
             Positioned.fill(
-        child: Hero(
-        tag: 'place:${data.contentid}', // ✅ 디테일 화면의 Hero tag와 일치해야 함
+              child: Hero(
+                tag: 'place:${data.contentid}', // ✅ 디테일 화면의 Hero tag와 일치해야 함
 
-          child: Image.network(
-                data.firstimage,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Image.network( // API data에 firstimage가 없는 경우
-                    'https://cdn.pixabay.com/photo/2019/07/08/04/23/traveling-4323759_1280.png', // 대체 이미지 주소
-                    fit: BoxFit.cover,
-                  );
-                },
+                child: Image.network(
+                  data.firstimage,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Image.network( // API data에 firstimage가 없는 경우
+                      'https://cdn.pixabay.com/photo/2019/07/08/04/23/traveling-4323759_1280.png', // 대체 이미지 주소
+                      fit: BoxFit.cover,
+                    );
+                  },
+                ),
               ),
-            ),
             ),
             // 2) 하단 가독성용 그라데이션
             Positioned(
@@ -122,16 +133,9 @@ class PlaceCard extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        'From: ',
+                        _formatShortAddress(data.addr1),
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.70),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        _safePrefix(data.addr1, 2),
-                        style: TextStyle(
-                          color: Colors.white,
+                          color: Colors.white70,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
