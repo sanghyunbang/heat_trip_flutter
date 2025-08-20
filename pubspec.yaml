@@ -83,6 +83,7 @@ flutter:
     - assets/icons/google.svg
     - assets/icons/kakao.svg
     - assets/icons/naver.svg
+    - assets/Logo4.png
     - assets/
     - .env
 
