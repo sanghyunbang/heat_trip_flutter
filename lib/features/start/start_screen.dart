@@ -40,74 +40,75 @@ class StartScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 50),
+              const SizedBox(height: 130),
               // WHAT: 앱 로고
-              SvgPicture.asset("assets/sampleLogo.svg", height: 100),
-              const SizedBox(height: 50),
+              // SvgPicture.asset("assets/sampleLogo.svg", height: 100),
+              Image.asset("assets/Logo4.png", height: 500, fit: BoxFit.contain),
+              const SizedBox(height: 80),
 
-              // WHAT: 타이틀 텍스트
-              const Text(
-                'How are you feeling\nright now?',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 30),
+              // // WHAT: 타이틀 텍스트
+              // const Text(
+              //   'How are you feeling\nright now?',
+              //   textAlign: TextAlign.center,
+              //   style: TextStyle(
+              //     fontSize: 26,
+              //     fontWeight: FontWeight.bold,
+              //     color: Colors.black87,
+              //   ),
+              // ),
+              // const SizedBox(height: 30),
 
-              // WHAT: 감정 리스트 (InkWell 카드)
-              // WHY: 클릭 시 go_router로 큐레이션 탭(/curation)으로 이동.
-              //      필요 시 선택값을 query/extra로 전달하여 초기 PAD/서브감정 프리셋 가능.
-              Expanded(
-                child: ListView.separated(
-                  itemCount: feelings.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    final feeling = feelings[index];
-                    return InkWell(
-                      borderRadius: BorderRadius.circular(30),
-                      onTap: () {
-                        final label = feeling['label'] as String;
-                        // A) 단순히 큐레이션 탭으로 이동:
-                        context.go('/curation');
+              // // WHAT: 감정 리스트 (InkWell 카드)
+              // // WHY: 클릭 시 go_router로 큐레이션 탭(/curation)으로 이동.
+              // //      필요 시 선택값을 query/extra로 전달하여 초기 PAD/서브감정 프리셋 가능.
+              // Expanded(
+              //   child: ListView.separated(
+              //     itemCount: feelings.length,
+              //     separatorBuilder: (_, __) => const SizedBox(height: 16),
+              //     itemBuilder: (context, index) {
+              //       final feeling = feelings[index];
+              //       return InkWell(
+              //         borderRadius: BorderRadius.circular(30),
+              //         onTap: () {
+              //           final label = feeling['label'] as String;
+              //           // A) 단순히 큐레이션 탭으로 이동:
+              //           context.go('/curation');
 
-                        // B) 선택한 감정을 쿼리로 넘기고 싶다면 (선택):
-                        // context.go(Uri(path: '/curation', queryParameters: {'feeling': label}).toString());
+              //           // B) 선택한 감정을 쿼리로 넘기고 싶다면 (선택):
+              //           // context.go(Uri(path: '/curation', queryParameters: {'feeling': label}).toString());
 
-                        // C) extra로 넘기는 방법 (타입 안전하지만 URL에는 안 보임):
-                        // context.go('/curation', extra: {'feeling': label});
-                      },
-                      child: Container(
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: feeling['color'] as Color,
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: Row(
-                          children: [
-                            const SizedBox(width: 24),
-                            Icon(
-                              feeling['icon'] as IconData,
-                              color: Colors.white,
-                            ),
-                            const SizedBox(width: 16),
-                            Text(
-                              feeling['label'] as String,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
+              //           // C) extra로 넘기는 방법 (타입 안전하지만 URL에는 안 보임):
+              //           // context.go('/curation', extra: {'feeling': label});
+              //         },
+              //         child: Container(
+              //           height: 60,
+              //           decoration: BoxDecoration(
+              //             color: feeling['color'] as Color,
+              //             borderRadius: BorderRadius.circular(30),
+              //           ),
+              //           child: Row(
+              //             children: [
+              //               const SizedBox(width: 24),
+              //               Icon(
+              //                 feeling['icon'] as IconData,
+              //                 color: Colors.white,
+              //               ),
+              //               const SizedBox(width: 16),
+              //               Text(
+              //                 feeling['label'] as String,
+              //                 style: const TextStyle(
+              //                   fontSize: 18,
+              //                   color: Colors.white,
+              //                   fontWeight: FontWeight.w600,
+              //                 ),
+              //               ),
+              //             ],
+              //           ),
+              //         ),
+              //       );
+              //     },
+              //   ),
+              // ),
 
               // WHAT: 우측 하단 액션들(회원가입 / Skip)
               Align(
