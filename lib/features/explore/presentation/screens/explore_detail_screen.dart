@@ -105,7 +105,7 @@ class _ExploreDetailScreenState extends State<ExploreDetailScreen> {
                       color: Color(0x15000000),
                       blurRadius: 10,
                       offset: Offset(0, -2),
-                    )
+                    ),
                   ],
                 ),
                 child: SingleChildScrollView(
@@ -248,9 +248,12 @@ class _QtyStepper extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _SquareIconBtn(icon: Icons.remove, onTap: () {
-          if (qty > 1) onChanged(qty - 1);
-        }),
+        _SquareIconBtn(
+          icon: Icons.remove,
+          onTap: () {
+            if (qty > 1) onChanged(qty - 1);
+          },
+        ),
         const SizedBox(width: 8),
         SizedBox(
           width: 56,
@@ -284,16 +287,14 @@ class _SquareIconBtn extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      shape:
-      RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Colors.grey.shade300)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: Colors.grey.shade300),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
         onTap: onTap,
-        child: SizedBox(
-          width: 36,
-          height: 36,
-          child: Icon(icon, size: 18),
-        ),
+        child: SizedBox(width: 36, height: 36, child: Icon(icon, size: 18)),
       ),
     );
   }
@@ -326,7 +327,9 @@ class _ColorDots extends StatelessWidget {
               shape: BoxShape.circle,
               color: c,
               border: Border.all(
-                color: isSel ? Theme.of(context).colorScheme.primary : Colors.black12,
+                color: isSel
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.black12,
                 width: isSel ? 2 : 1,
               ),
             ),

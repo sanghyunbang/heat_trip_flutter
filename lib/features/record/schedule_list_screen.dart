@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:heat_trip_flutter/features/record/data/model/schedule_response.dart';
 import 'package:heat_trip_flutter/features/record/schedule_create_screen.dart';
-import 'package:heat_trip_flutter/features/record/data/schedule_repository_impl.dart';
 import 'package:heat_trip_flutter/features/record/schedule_detail_screen.dart';
+import 'package:heat_trip_flutter/features/record/data/schedule_repository_impl.dart';
 
 class ScheduleListScreen extends StatefulWidget {
   const ScheduleListScreen({super.key});
@@ -21,6 +21,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   String _searchTitle = '';
   DateTime? _searchDate;
   String _filterType = '전체';
+  bool _showOngoingSchedules = true;
 
   @override
   void initState() {
@@ -67,37 +68,15 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   @override
   Widget build(BuildContext context) {
     final DateFormat formatter = DateFormat('yyyy-MM-dd');
-    final now = DateTime.now();
 
-    final filteredSchedules = _allSchedules.where((schedule) {
-      final titleMatch = schedule.title.toLowerCase().contains(
-        _searchTitle.toLowerCase(),
-      );
+    final filteredSchedules = _repository.filterSchedules(
+      all: _allSchedules,
+      title: _searchTitle,
+      date: _searchDate,
+      filterType: _filterType,
+    );
 
-      final dateMatch =
-          _searchDate == null ||
-          (_searchDate!.isAfter(
-                schedule.dateFrom.subtract(const Duration(days: 1)),
-              ) &&
-              _searchDate!.isBefore(
-                schedule.dateTo.add(const Duration(days: 1)),
-              ));
-
-      final isPast = schedule.dateTo.isBefore(now);
-      final isFuture = schedule.dateFrom.isAfter(now);
-
-      final filterMatch =
-          _filterType == '전체' ||
-          (_filterType == '지나간' && isPast) ||
-          (_filterType == '앞으로' && isFuture);
-
-      return titleMatch && dateMatch && filterMatch;
-    }).toList();
-
-    final ongoingSchedules = _allSchedules.where((schedule) {
-      return now.isAfter(schedule.dateFrom.subtract(const Duration(days: 1))) &&
-          now.isBefore(schedule.dateTo.add(const Duration(days: 1)));
-    }).toList();
+    final ongoingSchedules = _repository.getOngoingSchedules(_allSchedules);
 
     return Scaffold(
       backgroundColor: Colors.amber,
@@ -141,25 +120,44 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                   buildFilterChips(),
                   const SizedBox(height: 12),
                   buildSearchBar(formatter),
-                  const SizedBox(height: 20),
+                  _buildSummaryInfo(formatter),
+                  const SizedBox(height: 10),
                   Expanded(
                     child: SingleChildScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (ongoingSchedules.isNotEmpty) ...[
-                            const Text(
-                              '📌 현재 진행 중인 스케쥴',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  '📌 현재 진행 중인 스케쥴',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _showOngoingSchedules =
+                                          !_showOngoingSchedules;
+                                    });
+                                  },
+                                  child: Text(
+                                    _showOngoingSchedules ? '접기' : '보기',
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 8),
-                            ...ongoingSchedules.map(
-                              (s) => buildScheduleCard(s, formatter),
-                            ),
+                            if (_showOngoingSchedules)
+                              ...ongoingSchedules.map(
+                                (s) => buildScheduleCard(s, formatter),
+                              ),
                             const SizedBox(height: 16),
                           ],
                           const Text(
@@ -214,16 +212,19 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     return Row(
       children: [
         Expanded(
-          child: TextField(
-            decoration: const InputDecoration(
-              labelText: '제목 검색',
-              border: OutlineInputBorder(),
+          child: SizedBox(
+            height: 45,
+            child: TextField(
+              decoration: const InputDecoration(
+                labelText: '제목 검색',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchTitle = value;
+                });
+              },
             ),
-            onChanged: (value) {
-              setState(() {
-                _searchTitle = value;
-              });
-            },
           ),
         ),
         const SizedBox(width: 10),
@@ -242,17 +243,126 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     );
   }
 
+  Widget _buildSummaryInfo(DateFormat formatter) {
+    if (_allSchedules.isEmpty) return const SizedBox();
+
+    final now = DateTime.now();
+
+    final upcomingSchedules =
+        _allSchedules.where((s) => s.dateFrom.isAfter(now)).toList()
+          ..sort((a, b) => a.dateFrom.compareTo(b.dateFrom));
+
+    final closest = upcomingSchedules.isNotEmpty
+        ? upcomingSchedules.first
+        : null;
+    final closestDaysLeft = closest != null
+        ? closest.dateFrom.difference(now).inDays + 1
+        : null;
+
+    int totalTravelDays = 0;
+    for (final s in _allSchedules) {
+      // 이미 종료된 여행만 포함
+      if (s.dateTo.isBefore(now)) {
+        totalTravelDays += s.dateTo.difference(s.dateFrom).inDays + 1;
+      }
+    }
+
+    final completedTrips = _allSchedules
+        .where((s) => s.dateTo.isBefore(now))
+        .length;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12, bottom: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _buildInfoCard(
+            icon: Icons.event,
+            label: '가까운 일정',
+            value: closest != null ? '${closestDaysLeft}일 남음' : '없음',
+          ),
+          _buildInfoCard(
+            icon: Icons.today,
+            label: '총 여행일수',
+            value: '$totalTravelDays일',
+          ),
+          _buildInfoCard(
+            icon: Icons.flight_takeoff,
+            label: '여행 횟수',
+            value: '$completedTrips회',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoCard({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Expanded(
+      child: Container(
+        height: 70,
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.95),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 4,
+              offset: Offset(2, 2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.redAccent, size: 18),
+            const SizedBox(height: 4),
+            Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(label, style: const TextStyle(fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget buildScheduleCard(ScheduleResponse schedule, DateFormat formatter) {
+    final now = DateTime.now();
+    final isPast = schedule.dateTo.isBefore(now);
+    final dDayText = _repository.getDDayText(
+      schedule.dateFrom,
+      schedule.dateTo,
+    );
+
     return Card(
-      color: Colors.white,
+      color: isPast ? Colors.grey[300] : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: ListTile(
-        title: Text(schedule.title),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(child: Text(schedule.title)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: isPast ? Colors.grey : Colors.redAccent,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                dDayText,
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
         subtitle: Text(
           '${formatter.format(schedule.dateFrom)} ~ ${formatter.format(schedule.dateTo)}',
         ),
-        isThreeLine: false,
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
