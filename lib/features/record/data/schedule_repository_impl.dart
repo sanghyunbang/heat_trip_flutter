@@ -1,18 +1,17 @@
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:heat_trip_flutter/features/record/data/dto/schedule_request.dart';
 import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
-import 'package:http/http.dart' as http;
+import 'package:heat_trip_flutter/features/record/data/dto/schedule_request.dart';
 import 'package:heat_trip_flutter/features/record/data/model/schedule_response.dart';
+import 'package:http/http.dart' as http;
 
 class ScheduleRepositoryImpl {
   final String baseUrl = dotenv.env['API_BASE_URL'] ?? '';
 
-  // ----------------글쓰기
-  Future<String?> schedulepost(ScheduleRequest request) async {
-    print('              [DEBUG] schedulepost 호출됨');
+  // ------------------- 스케쥴 생성
+  Future<String?> schedulePost(ScheduleRequest request) async {
     final token = await TokenStorage.getToken();
-    if (token == null) return '[schedulepost] 인증 정보가 없습니다.';
+    if (token == null) return '[schedulePost] 인증 정보가 없습니다.';
 
     final url = Uri.parse('$baseUrl/public/schedules');
 
@@ -25,28 +24,20 @@ class ScheduleRepositoryImpl {
       body: jsonEncode(request.toJson()),
     );
 
-    print('📬 응답 Body: ${response.body}');
-    print('🍪 응답 헤더 (Set-Cookie): ${response.headers['set-cookie']}');
-
     if (response.statusCode == 201) {
       return null;
     } else {
-      // 실패한 경우 콘솔에 상태 코드 및 응답을 출력
       print('[X] 포스팅 실패: ${response.statusCode} / ${response.body}');
       return '저장 실패 (${response.statusCode})';
     }
   }
 
-  // ----------------리스트 불러오기
+  // ------------------- 스케쥴 전체 조회
   Future<List<ScheduleResponse>> fetchSchedules() async {
-    print('          repository 리스트 불러오기 호출됨');
     final token = await TokenStorage.getToken();
-    if (token == null) {
-      throw Exception('토큰이 없습니다.');
-    }
+    if (token == null) throw Exception('토큰이 없습니다.');
 
     final url = Uri.parse('$baseUrl/public/schedules');
-
     final response = await http.get(
       url,
       headers: {
@@ -54,7 +45,6 @@ class ScheduleRepositoryImpl {
         'Content-Type': 'application/json',
       },
     );
-    print("받은 JSOM : ${response.body}");
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -64,13 +54,12 @@ class ScheduleRepositoryImpl {
     }
   }
 
-  // ----------------삭제하기
+  // ------------------- 스케쥴 삭제
   Future<String?> deleteSchedule(int scheduleId) async {
     final token = await TokenStorage.getToken();
     if (token == null) return '[deleteSchedule] 인증 정보가 없습니다.';
 
     final url = Uri.parse('$baseUrl/public/schedules/$scheduleId');
-
     final response = await http.delete(
       url,
       headers: {
@@ -80,10 +69,61 @@ class ScheduleRepositoryImpl {
     );
 
     if (response.statusCode == 200 || response.statusCode == 204) {
-      return null; // 성공
+      return null;
     } else {
       print('[X] 삭제 실패: ${response.statusCode} / ${response.body}');
       return '삭제 실패 (${response.statusCode})';
     }
+  }
+
+  // ------------------- D-Day 계산
+  String getDDayText(DateTime from, DateTime to) {
+    final now = DateTime.now();
+    if (now.isAfter(to)) {
+      return '종료됨';
+    } else {
+      final daysLeft = from.difference(now).inDays;
+      return 'D-${daysLeft + 1}';
+    }
+  }
+
+  // ------------------- 현재 진행 중인 스케쥴 필터링
+  List<ScheduleResponse> getOngoingSchedules(List<ScheduleResponse> all) {
+    final now = DateTime.now();
+    return all.where((schedule) {
+      return now.isAfter(schedule.dateFrom.subtract(const Duration(days: 1))) &&
+          now.isBefore(schedule.dateTo.add(const Duration(days: 1)));
+    }).toList();
+  }
+
+  // ------------------- 조건에 따른 필터링
+  List<ScheduleResponse> filterSchedules({
+    required List<ScheduleResponse> all,
+    String title = '',
+    DateTime? date,
+    String filterType = '전체', // '전체', '지나간', '앞으로'
+  }) {
+    final now = DateTime.now();
+
+    return all.where((schedule) {
+      final titleMatch = schedule.title.toLowerCase().contains(
+        title.toLowerCase(),
+      );
+
+      final dateMatch =
+          date == null ||
+          (date.isAfter(schedule.dateFrom.subtract(const Duration(days: 1))) &&
+              date.isBefore(schedule.dateTo.add(const Duration(days: 1))));
+
+      final isPast = schedule.dateTo.isBefore(now);
+      final isFuture = schedule.dateFrom.isAfter(now);
+
+      final filterMatch =
+          filterType == '전체' ||
+          (filterType == '지나간' && isPast) ||
+          (filterType == '앞으로' && isFuture);
+
+      return titleMatch && dateMatch && filterMatch;
+    }).toList();
   }
 }
