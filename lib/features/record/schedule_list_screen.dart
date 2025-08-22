@@ -352,11 +352,12 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
 
   Widget buildScheduleCard(ScheduleResponse schedule, DateFormat formatter) {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final isPast = schedule.dateTo.isBefore(now);
-    final dDayText = _repository.getDDayText(
-      schedule.dateFrom,
-      schedule.dateTo,
-    );
+    final isOngoing = !isPast && !schedule.dateFrom.isAfter(today);
+    final dDayText = isOngoing
+        ? '여행중'
+        : _repository.getDDayText(schedule.dateFrom, schedule.dateTo);
 
     return Card(
       color: isPast ? Colors.grey[300] : Colors.white,
