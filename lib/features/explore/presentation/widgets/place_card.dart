@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:heat_trip_flutter/features/explore/domain/entities/place_item.dart';
+import 'package:heat_trip_flutter/features/explore/data/models/place_item_dto.dart';
 import 'package:heat_trip_flutter/features/explore/presentation/screens/explore_detail_screen.dart';
 
 class PlaceCard extends StatelessWidget {
@@ -15,7 +15,9 @@ class PlaceCard extends StatelessWidget {
     if (trimmed.isEmpty) return ''; // 공백만 있는 경우 처리
 
     // 띄어쓰기를 기준으로 나누기 (연속 공백도 하나로 처리)
-    final parts = trimmed.split(RegExp(r'\s+')); // RegExp(r'\s+') : 하나 이상의 연속된 공백을 찾아내는 패턴 (정규표현식 객체 사용)
+    final parts = trimmed.split(
+      RegExp(r'\s+'),
+    ); // RegExp(r'\s+') : 하나 이상의 연속된 공백을 찾아내는 패턴 (정규표현식 객체 사용)
     // 두 개 이상의 단어가 있으면 첫 번째+두 번째만 반환
     if (parts.length >= 2) {
       return '${parts[0]} ${parts[1]}';
@@ -36,9 +38,7 @@ class PlaceCard extends StatelessWidget {
           // TODO: 상세 화면 이동
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => ExploreDetailScreen(data: data),
-            ),
+            MaterialPageRoute(builder: (_) => ExploreDetailScreen(data: data)),
           );
         },
         child: Stack(
@@ -52,7 +52,8 @@ class PlaceCard extends StatelessWidget {
                   data.firstimage,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
-                    return Image.network( // API data에 firstimage가 없는 경우
+                    return Image.network(
+                      // API data에 firstimage가 없는 경우
                       'https://cdn.pixabay.com/photo/2019/07/08/04/23/traveling-4323759_1280.png', // 대체 이미지 주소
                       fit: BoxFit.cover,
                     );
