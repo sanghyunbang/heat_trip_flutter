@@ -37,6 +37,11 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
 
     try {
       final schedules = await _repository.fetchSchedules();
+      for (final s in schedules) {
+        print(
+          'Schedule Loaded: ${s.title}, From: ${s.dateFrom}, To: ${s.dateTo}',
+        );
+      }
       setState(() {
         _allSchedules = schedules;
       });
@@ -247,16 +252,29 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     if (_allSchedules.isEmpty) return const SizedBox();
 
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
 
-    final upcomingSchedules =
-        _allSchedules.where((s) => s.dateFrom.isAfter(now)).toList()
-          ..sort((a, b) => a.dateFrom.compareTo(b.dateFrom));
+    final upcomingSchedules = _allSchedules.where((s) {
+      final startDate = DateTime(
+        s.dateFrom.year,
+        s.dateFrom.month,
+        s.dateFrom.day,
+      );
+      return startDate.isAtSameMomentAs(today) || startDate.isAfter(today);
+    }).toList()..sort((a, b) => a.dateFrom.compareTo(b.dateFrom));
+
+    print('upcomingSchedules count: ${upcomingSchedules.length}');
 
     final closest = upcomingSchedules.isNotEmpty
         ? upcomingSchedules.first
         : null;
     final closestDaysLeft = closest != null
-        ? closest.dateFrom.difference(now).inDays + 1
+        ? DateTime(
+                closest.dateFrom.year,
+                closest.dateFrom.month,
+                closest.dateFrom.day,
+              ).difference(today).inDays +
+              1
         : null;
 
     int totalTravelDays = 0;
@@ -279,7 +297,9 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
           _buildInfoCard(
             icon: Icons.event,
             label: '가까운 일정',
-            value: closest != null ? '${closestDaysLeft}일 남음' : '없음',
+            value: closest != null
+                ? '${closest.title} (D-${closestDaysLeft})'
+                : '없음',
           ),
           _buildInfoCard(
             icon: Icons.today,
@@ -303,7 +323,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }) {
     return Expanded(
       child: Container(
-        height: 70,
+        height: 80,
         margin: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.95),
@@ -316,7 +336,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
             ),
           ],
         ),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(8),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
