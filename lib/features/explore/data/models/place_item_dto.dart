@@ -1,4 +1,22 @@
-import 'package:heat_trip_flutter/features/explore/domain/entities/place_item.dart';
+class PlaceItem {
+  final int contentid;
+  final String title;
+  final String addr1;
+  final String addr2;
+  final String firstimage;
+  final String firstimage2;
+  // final String overview;
+
+  const PlaceItem({
+    required this.contentid,
+    required this.title,
+    required this.addr1,
+    required this.addr2,
+    required this.firstimage,
+    required this.firstimage2,
+    // required this.overview,
+  });
+}
 
 class PlaceItemDto extends PlaceItem {
   const PlaceItemDto({
@@ -23,14 +41,13 @@ class PlaceItemDto extends PlaceItem {
     );
   }
 
-  Map<String, dynamic> toJson() =>
-      {
-        'contentid': contentid,
-        'title': title,
-        'addr1': addr1,
-        'addr2': addr2,
-        'firstimage': firstimage,
-        'firstimage2': firstimage2,
-        // 'overview': overview,
-      };
+  Map<String, dynamic> toJson() => {
+    'contentid': contentid,
+    'title': title,
+    'addr1': addr1,
+    'addr2': addr2,
+    'firstimage': firstimage,
+    'firstimage2': firstimage2,
+    // 'overview': overview,
+  };
 }
