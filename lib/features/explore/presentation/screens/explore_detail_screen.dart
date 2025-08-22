@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:heat_trip_flutter/features/explore/domain/entities/place_item.dart';
+import 'package:heat_trip_flutter/features/explore/data/models/place_item_dto.dart';
 
 class ExploreDetailScreen extends StatefulWidget {
   final PlaceItem data;
