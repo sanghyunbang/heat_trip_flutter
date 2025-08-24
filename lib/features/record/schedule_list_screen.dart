@@ -4,10 +4,10 @@ import 'package:heat_trip_flutter/features/record/data/model/schedule_response.d
 import 'package:heat_trip_flutter/features/record/schedule_create_screen.dart';
 import 'package:heat_trip_flutter/features/record/schedule_detail_screen.dart';
 import 'package:heat_trip_flutter/features/record/data/schedule_repository_impl.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 class ScheduleListScreen extends StatefulWidget {
   const ScheduleListScreen({super.key});
-
   @override
   _ScheduleListScreenState createState() => _ScheduleListScreenState();
 }
@@ -23,6 +23,13 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   String _filterType = '전체';
   bool _showOngoingSchedules = true;
 
+  // 달력 보기 관련 상태 값
+  bool _isCalendarView = false;
+  Map<DateTime, List<ScheduleResponse>> _events = {};
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+
   @override
   void initState() {
     super.initState();
@@ -37,14 +44,10 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
 
     try {
       final schedules = await _repository.fetchSchedules();
-      for (final s in schedules) {
-        print(
-          'Schedule Loaded: ${s.title}, From: ${s.dateFrom}, To: ${s.dateTo}',
-        );
-      }
       setState(() {
         _allSchedules = schedules;
       });
+      _groupEventsByDate();
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -56,18 +59,38 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     }
   }
 
+  void _groupEventsByDate() {
+    final Map<DateTime, List<ScheduleResponse>> data = {};
+    for (final schedule in _allSchedules) {
+      DateTime date = DateTime(
+        schedule.dateFrom.year,
+        schedule.dateFrom.month,
+        schedule.dateFrom.day,
+      );
+      final end = DateTime(
+        schedule.dateTo.year,
+        schedule.dateTo.month,
+        schedule.dateTo.day,
+      );
+      while (!date.isAfter(end)) {
+        final key = DateTime(date.year, date.month, date.day);
+        data.putIfAbsent(key, () => []).add(schedule);
+        date = date.add(const Duration(days: 1));
+      }
+    }
+    setState(() {
+      _events = data;
+    });
+  }
+
   Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
+    final picked = await showDatePicker(
       context: context,
       initialDate: _searchDate ?? DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
     );
-    if (picked != null) {
-      setState(() {
-        _searchDate = picked;
-      });
-    }
+    if (picked != null) setState(() => _searchDate = picked);
   }
 
   @override
@@ -80,7 +103,6 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
       date: _searchDate,
       filterType: _filterType,
     );
-
     final ongoingSchedules = _repository.getOngoingSchedules(_allSchedules);
 
     return Scaffold(
@@ -118,70 +140,28 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
           ? Center(child: Text('에러 발생: $_errorMessage'))
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  buildFilterChips(),
-                  const SizedBox(height: 12),
-                  buildSearchBar(formatter),
-                  _buildSummaryInfo(formatter),
-                  const SizedBox(height: 10),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (ongoingSchedules.isNotEmpty) ...[
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  '📌 현재 진행 중인 스케쥴',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                TextButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _showOngoingSchedules =
-                                          !_showOngoingSchedules;
-                                    });
-                                  },
-                                  child: Text(
-                                    _showOngoingSchedules ? '접기' : '보기',
-                                    style: const TextStyle(color: Colors.white),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            if (_showOngoingSchedules)
-                              ...ongoingSchedules.map(
-                                (s) => buildScheduleCard(s, formatter),
-                              ),
-                            const SizedBox(height: 16),
-                          ],
-                          const Text(
-                            '📅 전체 스케쥴',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
+          : SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    buildFilterChips(),
+                    const SizedBox(height: 12),
+                    buildSearchBar(formatter),
+                    _buildSummaryInfo(formatter),
+                    const SizedBox(height: 10),
+                    buildViewToggleChips(),
+                    const SizedBox(height: 12),
+                    _isCalendarView
+                        ? buildCalendarView(formatter)
+                        : buildListView(
+                            formatter,
+                            ongoingSchedules,
+                            filteredSchedules,
                           ),
-                          const SizedBox(height: 8),
-                          ...filteredSchedules.map(
-                            (s) => buildScheduleCard(s, formatter),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
     );
@@ -224,11 +204,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                 labelText: '제목 검색',
                 border: OutlineInputBorder(),
               ),
-              onChanged: (value) {
-                setState(() {
-                  _searchTitle = value;
-                });
-              },
+              onChanged: (v) => setState(() => _searchTitle = v),
             ),
           ),
         ),
@@ -248,26 +224,216 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     );
   }
 
+  Widget buildViewToggleChips() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        ChoiceChip(
+          label: const Text('리스트 보기'),
+          selected: !_isCalendarView,
+          onSelected: (_) => setState(() => _isCalendarView = false),
+        ),
+        const SizedBox(width: 8),
+        ChoiceChip(
+          label: const Text('달력 보기'),
+          selected: _isCalendarView,
+          onSelected: (_) => setState(() => _isCalendarView = true),
+        ),
+      ],
+    );
+  }
+
+  Widget buildCalendarView(DateFormat formatter) {
+    final eventsForSelectedDay = _selectedDay != null
+        ? (_events[_selectedDay!] ?? [])
+        : [];
+
+    return Column(
+      children: [
+        TableCalendar<ScheduleResponse>(
+          firstDay: DateTime(2020, 1, 1),
+          lastDay: DateTime(2030, 12, 31),
+          focusedDay: _focusedDay,
+          calendarFormat: CalendarFormat.month,
+          availableCalendarFormats: const {CalendarFormat.month: '월간'},
+          selectedDayPredicate: (d) => isSameDay(d, _selectedDay),
+          onDaySelected: (sel, foc) {
+            setState(() {
+              _selectedDay = DateTime(sel.year, sel.month, sel.day);
+              _focusedDay = foc;
+            });
+          },
+          onPageChanged: (foc) => _focusedDay = foc,
+          eventLoader: (day) {
+            final key = DateTime(day.year, day.month, day.day);
+            return _events[key] ?? [];
+          },
+          calendarBuilders: CalendarBuilders(
+            defaultBuilder: (context, day, focusedDay) {
+              final key = DateTime(day.year, day.month, day.day);
+
+              final today = DateTime.now();
+              final schedulesForDay = _allSchedules.where((s) {
+                final from = DateTime(
+                  s.dateFrom.year,
+                  s.dateFrom.month,
+                  s.dateFrom.day,
+                );
+                final to = DateTime(
+                  s.dateTo.year,
+                  s.dateTo.month,
+                  s.dateTo.day,
+                );
+                return !key.isBefore(from) && !key.isAfter(to);
+              }).toList();
+
+              if (schedulesForDay.isEmpty) return null;
+
+              final s = schedulesForDay.first;
+              final from = DateTime(
+                s.dateFrom.year,
+                s.dateFrom.month,
+                s.dateFrom.day,
+              );
+              final to = DateTime(s.dateTo.year, s.dateTo.month, s.dateTo.day);
+
+              Color bgColor;
+              if (to.isBefore(today)) {
+                bgColor = Colors.black.withOpacity(0.8);
+              } else if (!from.isAfter(today) && !to.isBefore(today)) {
+                bgColor = Colors.white.withOpacity(0.8);
+              } else {
+                bgColor = Colors.yellow.withOpacity(0.8);
+              }
+
+              final isStart = key == from;
+              final isEnd = key == to;
+              final isSingle = from == to;
+
+              return Container(
+                margin: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: isSingle
+                      ? BorderRadius.circular(10)
+                      : BorderRadius.horizontal(
+                          left: isStart
+                              ? const Radius.circular(10)
+                              : Radius.zero,
+                          right: isEnd
+                              ? const Radius.circular(10)
+                              : Radius.zero,
+                        ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '${day.day}',
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              );
+            },
+          ),
+          calendarStyle: const CalendarStyle(
+            markerDecoration: BoxDecoration(
+              color: Colors.red,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (_selectedDay != null && eventsForSelectedDay.isNotEmpty)
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: eventsForSelectedDay.length + 1,
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '📌 선택한 날짜의 스케쥴',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                );
+              }
+              final schedule = eventsForSelectedDay[index - 1];
+              return buildScheduleCard(schedule, formatter);
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget buildListView(
+    DateFormat formatter,
+    List<ScheduleResponse> ongoing,
+    List<ScheduleResponse> filtered,
+  ) {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (ongoing.isNotEmpty) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '📌 현재 진행 중인 스케쥴',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => setState(
+                    () => _showOngoingSchedules = !_showOngoingSchedules,
+                  ),
+                  child: Text(
+                    _showOngoingSchedules ? '접기' : '보기',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_showOngoingSchedules)
+              ...ongoing.map((s) => buildScheduleCard(s, formatter)),
+            const SizedBox(height: 16),
+          ],
+          const Text(
+            '📅 전체 스케쥴',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...filtered.map((s) => buildScheduleCard(s, formatter)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSummaryInfo(DateFormat formatter) {
     if (_allSchedules.isEmpty) return const SizedBox();
-
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    final upcomingSchedules = _allSchedules.where((s) {
-      final startDate = DateTime(
-        s.dateFrom.year,
-        s.dateFrom.month,
-        s.dateFrom.day,
-      );
-      return startDate.isAtSameMomentAs(today) || startDate.isAfter(today);
+    final upcoming = _allSchedules.where((s) {
+      final start = DateTime(s.dateFrom.year, s.dateFrom.month, s.dateFrom.day);
+      return start.isAtSameMomentAs(today) || start.isAfter(today);
     }).toList()..sort((a, b) => a.dateFrom.compareTo(b.dateFrom));
 
-    print('upcomingSchedules count: ${upcomingSchedules.length}');
-
-    final closest = upcomingSchedules.isNotEmpty
-        ? upcomingSchedules.first
-        : null;
+    final closest = upcoming.isNotEmpty ? upcoming.first : null;
     final closestDaysLeft = closest != null
         ? DateTime(
                 closest.dateFrom.year,
@@ -277,20 +443,16 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
               1
         : null;
 
-    int totalTravelDays = 0;
-    for (final s in _allSchedules) {
-      // 이미 종료된 여행만 포함
-      if (s.dateTo.isBefore(now)) {
-        totalTravelDays += s.dateTo.difference(s.dateFrom).inDays + 1;
-      }
+    int totalDays = 0;
+    for (var s in _allSchedules) {
+      if (s.dateTo.isBefore(now))
+        totalDays += s.dateTo.difference(s.dateFrom).inDays + 1;
     }
 
-    final completedTrips = _allSchedules
-        .where((s) => s.dateTo.isBefore(now))
-        .length;
+    final completed = _allSchedules.where((s) => s.dateTo.isBefore(now)).length;
 
     return Container(
-      margin: const EdgeInsets.only(top: 12, bottom: 12),
+      margin: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -304,12 +466,12 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
           _buildInfoCard(
             icon: Icons.today,
             label: '총 여행일수',
-            value: '$totalTravelDays일',
+            value: '$totalDays일',
           ),
           _buildInfoCard(
             icon: Icons.flight_takeoff,
             label: '여행 횟수',
-            value: '$completedTrips회',
+            value: '$completed회',
           ),
         ],
       ),
@@ -332,7 +494,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
             BoxShadow(
               color: Colors.black12,
               blurRadius: 4,
-              offset: Offset(2, 2),
+              offset: const Offset(2, 2),
             ),
           ],
         ),
@@ -350,107 +512,128 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     );
   }
 
-  Widget buildScheduleCard(ScheduleResponse schedule, DateFormat formatter) {
+  Widget buildScheduleCard(ScheduleResponse s, DateFormat fm) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final isPast = schedule.dateTo.isBefore(now);
-    final isOngoing = !isPast && !schedule.dateFrom.isAfter(today);
+    final isPast = s.dateTo.isBefore(now);
+    final isOngoing = !isPast && !s.dateFrom.isAfter(today);
     final dDayText = isOngoing
         ? '여행중'
-        : _repository.getDDayText(schedule.dateFrom, schedule.dateTo);
+        : _repository.getDDayText(s.dateFrom, s.dateTo);
 
-    return Card(
-      color: isPast ? Colors.grey[300] : Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    final bgColor = isPast
+        ? Colors.grey[200]
+        : isOngoing
+        ? Colors.orange[100]
+        : Colors.lightBlue[50];
+
+    return Container(
       margin: const EdgeInsets.symmetric(vertical: 6),
-      child: ListTile(
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(child: Text(schedule.title)),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: isPast ? Colors.grey : Colors.redAccent,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                dDayText,
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-            ),
-          ],
-        ),
-        subtitle: Text(
-          '${formatter.format(schedule.dateFrom)} ~ ${formatter.format(schedule.dateTo)}',
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.edit, color: Colors.blueAccent),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ScheduleCreateScreen(schedule: schedule),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(2, 3)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              buildDDayBadge(dDayText, isPast),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  s.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
                   ),
-                ).then((_) => _loadSchedules());
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.redAccent),
-              onPressed: () async {
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('삭제 확인'),
-                    content: Text('"${schedule.title}" 스케줄을 삭제하시겠습니까?'),
-                    actions: [
-                      TextButton(
-                        child: const Text('취소'),
-                        onPressed: () => Navigator.pop(context, false),
-                      ),
-                      TextButton(
-                        child: const Text(
-                          '삭제',
-                          style: TextStyle(color: Colors.red),
-                        ),
-                        onPressed: () => Navigator.pop(context, true),
-                      ),
-                    ],
-                  ),
-                );
-
-                if (confirmed == true) {
-                  final error = await _repository.deleteSchedule(
-                    schedule.scheduleId,
-                  );
-                  if (error == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('스케줄이 삭제되었습니다.')),
-                    );
-                    _loadSchedules();
-                  } else {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text(error)));
-                  }
-                }
-              },
-            ),
-            const Icon(Icons.chevron_right),
-          ],
-        ),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ScheduleDetailScreen(schedule: schedule),
-            ),
-          );
-        },
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit, color: Colors.blueAccent),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ScheduleCreateScreen(schedule: s),
+                    ),
+                  ).then((_) => _loadSchedules());
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.redAccent),
+                onPressed: () => _confirmDelete(s),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+              const SizedBox(width: 4),
+              Text('${fm.format(s.dateFrom)} ~ ${fm.format(s.dateTo)}'),
+            ],
+          ),
+        ],
       ),
     );
+  }
+
+  Widget buildDDayBadge(String text, bool isPast) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isPast
+              ? [Colors.grey, Colors.black38]
+              : [Colors.redAccent, Colors.deepOrange],
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(ScheduleResponse schedule) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('삭제 확인'),
+        content: Text('"${schedule.title}" 스케줄을 삭제하시겠습니까?'),
+        actions: [
+          TextButton(
+            child: const Text('취소'),
+            onPressed: () => Navigator.pop(ctx, false),
+          ),
+          TextButton(
+            child: const Text('삭제', style: TextStyle(color: Colors.red)),
+            onPressed: () => Navigator.pop(ctx, true),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      final error = await _repository.deleteSchedule(schedule.scheduleId);
+      if (error == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('스케줄이 삭제되었습니다.')));
+        _loadSchedules();
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error)));
+      }
+    }
   }
 }
