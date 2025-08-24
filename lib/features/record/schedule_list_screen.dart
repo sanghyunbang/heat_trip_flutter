@@ -30,6 +30,10 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
+  // 디자인 토큰(보더 컬러/라운드)
+  static const Color _borderColor = Color(0xFFE5E7EB); // slate-200 유사
+  static const double _radius = 12.0;
+
   @override
   void initState() {
     super.initState();
@@ -106,9 +110,17 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     final ongoingSchedules = _repository.getOngoingSchedules(_allSchedules);
 
     return Scaffold(
-      backgroundColor: Colors.amber,
+      backgroundColor: const Color.fromARGB(255, 250, 237, 221),
       appBar: AppBar(
-        backgroundColor: Colors.amber,
+        backgroundColor: const Color.fromARGB(255, 247, 246, 245),
+        elevation: 0, // 그림자 제거
+        scrolledUnderElevation: 0,
+        shadowColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        shape: const Border(
+          // 상단 AppBar에도 아주 얇은 하단 보더
+          bottom: BorderSide(color: _borderColor, width: 1),
+        ),
         title: const Text('내 스케쥴'),
         actions: [
           Padding(
@@ -119,8 +131,13 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                 foregroundColor: Colors.black87,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
+                  side: const BorderSide(
+                    color: _borderColor,
+                    width: 1,
+                  ), // 버튼 외곽선
                 ),
-                elevation: 2,
+                elevation: 0,
+                shadowColor: Colors.transparent,
               ),
               icon: const Icon(Icons.add),
               label: const Text('스케쥴 작성'),
@@ -177,16 +194,28 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
             label: const Text('전체'),
             selected: _filterType == '전체',
             onSelected: (_) => setState(() => _filterType = '전체'),
+            side: const BorderSide(color: _borderColor), // 칩 외곽선
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
           ),
           ChoiceChip(
             label: const Text('지나간 스케쥴'),
             selected: _filterType == '지나간',
             onSelected: (_) => setState(() => _filterType = '지나간'),
+            side: const BorderSide(color: _borderColor),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
           ),
           ChoiceChip(
             label: const Text('앞으로의 스케쥴'),
             selected: _filterType == '앞으로',
             onSelected: (_) => setState(() => _filterType = '앞으로'),
+            side: const BorderSide(color: _borderColor),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
           ),
         ],
       ),
@@ -202,7 +231,24 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
             child: TextField(
               decoration: const InputDecoration(
                 labelText: '제목 검색',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: Color.fromARGB(255, 21, 89, 224),
+                    width: 1,
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: Color.fromARGB(255, 27, 89, 214),
+                    width: 1,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: Color.fromARGB(255, 16, 79, 206),
+                    width: 2,
+                  ),
+                ),
               ),
               onChanged: (v) => setState(() => _searchTitle = v),
             ),
@@ -210,6 +256,16 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
         ),
         const SizedBox(width: 10),
         ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            elevation: 0,
+            shadowColor: Colors.transparent,
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black87,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: const BorderSide(color: _borderColor, width: 1), // 버튼 외곽선
+            ),
+          ),
           onPressed: () => _selectDate(context),
           child: Text(
             _searchDate != null ? formatter.format(_searchDate!) : '날짜 선택',
@@ -232,12 +288,20 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
           label: const Text('리스트 보기'),
           selected: !_isCalendarView,
           onSelected: (_) => setState(() => _isCalendarView = false),
+          side: const BorderSide(color: _borderColor),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
         ),
         const SizedBox(width: 8),
         ChoiceChip(
           label: const Text('달력 보기'),
           selected: _isCalendarView,
           onSelected: (_) => setState(() => _isCalendarView = true),
+          side: const BorderSide(color: _borderColor),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
         ),
       ],
     );
@@ -299,7 +363,12 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
 
               Color bgColor;
               if (to.isBefore(today)) {
-                bgColor = Colors.black.withOpacity(0.8);
+                bgColor = const Color.fromARGB(
+                  255,
+                  241,
+                  178,
+                  115,
+                ).withOpacity(0.8);
               } else if (!from.isAfter(today) && !to.isBefore(today)) {
                 bgColor = Colors.white.withOpacity(0.8);
               } else {
@@ -324,6 +393,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                               ? const Radius.circular(10)
                               : Radius.zero,
                         ),
+                  border: Border.all(color: _borderColor, width: 1), // 달력 칸 외곽선
                 ),
                 alignment: Alignment.center,
                 child: Text(
@@ -411,9 +481,9 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
           const Text(
             '📅 전체 스케쥴',
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w200,
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 8),
@@ -445,8 +515,9 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
 
     int totalDays = 0;
     for (var s in _allSchedules) {
-      if (s.dateTo.isBefore(now))
+      if (s.dateTo.isBefore(now)) {
         totalDays += s.dateTo.difference(s.dateFrom).inDays + 1;
+      }
     }
 
     final completed = _allSchedules.where((s) => s.dateTo.isBefore(now)).length;
@@ -489,14 +560,8 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.95),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 4,
-              offset: const Offset(2, 2),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(_radius),
+          border: Border.all(color: _borderColor, width: 1), // ✅ 외곽선
         ),
         padding: const EdgeInsets.all(8),
         child: Column(
@@ -521,21 +586,29 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
         ? '여행중'
         : _repository.getDDayText(s.dateFrom, s.dateTo);
 
-    final bgColor = isPast
+    final Color? bgColor = isPast
         ? Colors.grey[200]
         : isOngoing
         ? Colors.orange[100]
         : Colors.lightBlue[50];
+
+    // 상태에 따라 아주 살짝 진한 보더
+    final Color borderForState = isPast
+        ? const Color(0xFFCBD5E1) // slate-300
+        : isOngoing
+        ? const Color(0xFFF59E0B) // amber-500 근처
+        : const Color(0xFF60A5FA); // blue-400 근처
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 6),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(2, 3)),
-        ],
+        borderRadius: BorderRadius.circular(_radius),
+        border: Border.all(
+          color: borderForState.withOpacity(0.6),
+          width: 1,
+        ), // ✅ 외곽선
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -593,6 +666,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
               : [Colors.redAccent, Colors.deepOrange],
         ),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _borderColor, width: 1), // 뱃지에도 얇은 외곽선
       ),
       child: Text(
         text,
@@ -608,15 +682,37 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        elevation: 0, // 그림자 제거
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_radius),
+          side: const BorderSide(color: _borderColor, width: 1), // ✅ 외곽선
+        ),
         title: const Text('삭제 확인'),
         content: Text('"${schedule.title}" 스케줄을 삭제하시겠습니까?'),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         actions: [
           TextButton(
+            style: TextButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: const BorderSide(color: _borderColor, width: 1), // 버튼 외곽선
+              ),
+              foregroundColor: Colors.black87,
+              backgroundColor: Colors.white,
+            ),
             child: const Text('취소'),
             onPressed: () => Navigator.pop(ctx, false),
           ),
           TextButton(
-            child: const Text('삭제', style: TextStyle(color: Colors.red)),
+            style: TextButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: const BorderSide(color: _borderColor, width: 1),
+              ),
+              foregroundColor: Colors.red,
+              backgroundColor: Colors.white,
+            ),
+            child: const Text('삭제'),
             onPressed: () => Navigator.pop(ctx, true),
           ),
         ],
@@ -625,14 +721,35 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     if (confirmed == true) {
       final error = await _repository.deleteSchedule(schedule.scheduleId);
       if (error == null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('스케줄이 삭제되었습니다.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('스케줄이 삭제되었습니다.'),
+            elevation: 0,
+            behavior: SnackBarBehavior.floating, // 떠 있게 하면 외곽선이 잘 보임
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: const BorderSide(color: _borderColor, width: 1), // ✅ 외곽선
+            ),
+            margin: const EdgeInsets.all(12),
+            backgroundColor: Colors.white,
+            // 텍스트 컬러 대비를 위해
+          ),
+        );
         _loadSchedules();
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error),
+            elevation: 0,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: const BorderSide(color: _borderColor, width: 1),
+            ),
+            margin: const EdgeInsets.all(12),
+            backgroundColor: Colors.white,
+          ),
+        );
       }
     }
   }

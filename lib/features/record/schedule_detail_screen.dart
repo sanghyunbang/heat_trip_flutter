@@ -15,7 +15,7 @@ class ScheduleDetailScreen extends StatelessWidget {
       backgroundColor: Colors.amber[100],
       appBar: AppBar(
         title: const Text('스케줄 상세보기'),
-        backgroundColor: Colors.amber,
+        backgroundColor: const Color.fromRGBO(246, 202, 136, 1),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -41,7 +41,10 @@ class ScheduleDetailScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    const Icon(Icons.date_range, color: Colors.amber),
+                    const Icon(
+                      Icons.date_range,
+                      color: Color.fromARGB(255, 241, 203, 131),
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       '${formatter.format(schedule.dateFrom)} ~ ${formatter.format(schedule.dateTo)}',
