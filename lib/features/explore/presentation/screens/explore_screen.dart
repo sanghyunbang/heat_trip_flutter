@@ -1,89 +1,53 @@
+// =============================
+// explore_screen.dart — render vertical cards like the 2nd screenshot
+// =============================
 import 'package:flutter/material.dart';
 import 'package:heat_trip_flutter/features/explore/data/models/place_item_dto.dart';
 import 'package:heat_trip_flutter/features/explore/data/remote/place_api.dart';
 import 'package:heat_trip_flutter/features/explore/data/remote/place_api_http.dart';
-
 import 'package:heat_trip_flutter/features/explore/presentation/state/explore_scroll_vm.dart';
 import 'package:heat_trip_flutter/features/explore/presentation/widgets/place_card.dart';
 import 'package:heat_trip_flutter/features/explore/presentation/widgets/region_filter_chip.dart';
 import 'package:heat_trip_flutter/features/explore/presentation/widgets/region_select_sheet.dart';
 import 'package:http/http.dart' as http;
 
-/// ExploreScreen
-/// - 관광지/축제 리스트를 "무한 스크롤"로 보여주는 화면
-/// - 기존 UI(탭, 지역 필터, 카드 그리드)를 유지하면서
-///   실제 HTTP 통신 + 커서 기반 페이지네이션을 동작시키기 위한 예제
-///
-/// 구조 개요
-/// 1) View(UI): 본 파일의 StatefulWidget + AnimatedBuilder
-/// 2) ViewModel: ExploreScrollVM(ChangeNotifier)
-///    - 현재 아이템 목록, 로딩 상태, nextCursor, hasNext 등을 관리
-///    - refresh(...) / loadMore(...)로 페이지네이션 수행
-/// 3) Repository/API: PlaceRepositoryImpl → HttpPlaceApi
-///    - 실제 HTTP로 서버 `/api/explore/places/scroll` 호출(예시)
-///
-/// 핵심 포인트
-/// - ScrollController.position.extentAfter(아래 남은 스크롤 거리)를 이용해
-///   특정 임계값(< 600) 이하로 내려가면 vm.loadMore() 호출
-/// - 그리드의 "마지막 칸"을 sentinel로 사용하여
-///   로딩 중이면 로더 셀, 더 이상 없으면 No more 셀을 표기
-///
-
-/// ExploreScreen – 관광지 / 축제 목록을 보여주는 화면
 class ExploreScreen extends StatefulWidget {
-  /// 초기 필터
   final ExploreFilters? initialFilters;
-
   const ExploreScreen({super.key, this.initialFilters});
 
   @override
   State<ExploreScreen> createState() => _ExploreScreenState();
 }
 
-/// SingleTickerProviderStateMixin
-/// - TabController(애니메이션 프레임 동기화)를 위해 vsync 제공
-
 class _ExploreScreenState extends State<ExploreScreen>
     with SingleTickerProviderStateMixin {
-  // 상태 컨트롤러
-  late final ExploreScrollVM _vm;
+  late ExploreScrollVM _vm;
   late TabController _tab;
   final ScrollController _scroll = ScrollController();
-
-  // late final GetPlaceItems _getPlaceItems; // 유스케이스 (데이터 불러오기)
-
-  // 지역 필터
-  String _selectedRegion = '전체';
-  final List<String> regions = ['전체', '서울', '경기', '인천', '부산', '제주'];
-
-  // API
   late final PlaceApi _api;
-  // late Future<List<PlaceItem>> _future; // 비동기 데이터 (관광지/축제 목록)
+
+  String _selectedRegion = '전체';
+  final List<String> _regions = ['전체', '서울', '경기', '인천', '부산', '제주'];
 
   @override
   void initState() {
     super.initState();
-
-    // API 준비 (explore는 로그인 없이 구현)
     _api = PlaceApiHttp(client: http.Client());
 
-    // 탭(0=관광지, 1=축제)
     _tab = TabController(length: 2, vsync: this);
     _tab.addListener(() {
-      if (_tab.indexIsChanging) return; // 애니메이션 중복 방지
+      if (_tab.indexIsChanging) return; // 중복 호출 방지
       _rebuildVmAndRefresh();
     });
 
-    // 스크롤 하단 근접시 다음 페이지
     _scroll.addListener(() {
       if (_scroll.position.extentAfter < 600) {
-        _vm.fetchNext(); // 다음 페이지 로드
+        _vm.fetchNext();
       }
     });
 
-    // 최초 VM 생성 + 로드
     _vm = _buildVm(filters: _composeFilters());
-    _vm.refresh(); // 초기 데이터 로드
+    _vm.refresh();
   }
 
   @override
@@ -94,23 +58,16 @@ class _ExploreScreenState extends State<ExploreScreen>
     super.dispose();
   }
 
-  // 현재 탭/지역 → ExploreFilters 변환
   ExploreFilters _composeFilters() {
     final areaCode = _mapAreaCode(_selectedRegion);
-
     String? cat1;
     String? cat2;
     String? cat3;
-
     if (_tab.index == 0) {
-      // 관광지 (백엔드 코드 체계에 맞게 필요 시 설정)
-      // cat1 = 'A01';
+      // 관광지
     } else {
       // 축제
-      // cat1 = 'A02';
-      // cat2 = 'A0207';
     }
-
     return ExploreFilters(
       areacode: areaCode,
       sigungucode: null,
@@ -120,29 +77,23 @@ class _ExploreScreenState extends State<ExploreScreen>
     );
   }
 
-  // VM 재생성 + 첫 페이지 로드
   void _rebuildVmAndRefresh() {
     final newFilters = _composeFilters();
     _vm.dispose();
     _vm = _buildVm(filters: newFilters);
     _vm.refresh();
-
-    // UX: 최상단으로
     _scroll.animateTo(
       0,
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
     );
-
-    setState(() {}); // AnimatedBuilder 갱신
+    setState(() {});
   }
 
-  // VM 팩토리
   ExploreScrollVM _buildVm({required ExploreFilters filters}) {
     return ExploreScrollVM(api: _api, filters: filters, pageSize: 20);
   }
 
-  // 지역 선택 바텀시트
   Future<void> _openRegionSelect() async {
     final result = await showModalBottomSheet<String>(
       context: context,
@@ -152,7 +103,7 @@ class _ExploreScreenState extends State<ExploreScreen>
       ),
       builder: (_) => RegionSelectSheet(
         title: '지역 선택',
-        options: regions,
+        options: _regions,
         initial: _selectedRegion,
       ),
     );
@@ -192,7 +143,6 @@ class _ExploreScreenState extends State<ExploreScreen>
                     delegate: _SearchDelegateWithReturn(initialQuery: ''),
                   );
                   if (result != null) {
-                    // 검색을 서버에 전달하려면 ExploreFilters/Api에 q 필드 추가
                     _rebuildVmAndRefresh();
                   }
                 },
@@ -202,7 +152,6 @@ class _ExploreScreenState extends State<ExploreScreen>
           body: Column(
             children: [
               const SizedBox(height: 8),
-              // 지역 필터 칩
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Align(
@@ -230,8 +179,6 @@ class _ExploreScreenState extends State<ExploreScreen>
                 ),
               ),
               const SizedBox(height: 8),
-
-              // 목록 + sentinel
               Expanded(child: _buildGridWithPaging(context)),
             ],
           ),
@@ -240,7 +187,6 @@ class _ExploreScreenState extends State<ExploreScreen>
     );
   }
 
-  // 상태에 따른 그리드 렌더링
   Widget _buildGridWithPaging(BuildContext context) {
     if (_vm.error != null && _vm.items.isEmpty) {
       return Center(child: Text('에러: ${_vm.error}'));
@@ -252,22 +198,46 @@ class _ExploreScreenState extends State<ExploreScreen>
       return const Center(child: Text('검색 결과가 없습니다.'));
     }
 
+    // 두 번째 스샷의 비율을 위해 세로형 카드 기준으로 조정
+    final width = MediaQuery.of(context).size.width;
+    final crossAxisCount = width >= 1000 ? 2 : 1; // 태블릿 이상 2열, 모바일 1열
+    // ---- 여기부터 동적 카드 비율 계산 ----
+    const hPad = 12.0; // Grid padding (좌우)
+    const spacing = 12.0; // 카드 간격
+    final tileWidth =
+        (width - hPad * 2 - spacing * (crossAxisCount - 1)) / crossAxisCount;
+
+    const imageAspect = 16 / 9; // PlaceCard(vertical)의 이미지 비율과 반드시 동일
+    const infoHeight = 96.0; // 제목/메타/태그 예상 높이(필요 시 80~120에서 조절)
+    final tileHeight = tileWidth / imageAspect + infoHeight;
+    final childAspectRatio = tileWidth / tileHeight;
+    // ---- 동적 계산 끝 ----
     final itemCount = _vm.items.length + 1; // + sentinel
 
     return GridView.builder(
       controller: _scroll,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 0.72,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        mainAxisSpacing: spacing,
+        crossAxisSpacing: spacing,
+        childAspectRatio: childAspectRatio, // ⬅ 여기!
       ),
       itemCount: itemCount,
       itemBuilder: (_, i) {
         if (i < _vm.items.length) {
           final PlaceItem item = _vm.items[i];
-          return PlaceCard(data: item);
+          // ▼ 배지/가격/평점/거리/시간은 API가 없으면 생략됩니다(옵션 파라미터)
+          return PlaceCard(
+            data: item,
+            layout: PlaceCardLayout.vertical,
+            // categoryLabel: '카페',
+            // priceLabel: '\$\$',
+            // rating: 4.8,
+            // distance: '0.5km',
+            // duration: '1-2시간',
+            // tags: const ['전통','차분함','문화'],
+          );
         }
         if (_vm.loading) return const _GridLoaderCell();
         if (!_vm.hasNext) return const _GridNoMoreCell();
@@ -276,7 +246,6 @@ class _ExploreScreenState extends State<ExploreScreen>
     );
   }
 
-  // 지역명 → areacode 매핑(예시 값)
   int? _mapAreaCode(String region) {
     switch (region) {
       case '전체':
@@ -297,7 +266,6 @@ class _ExploreScreenState extends State<ExploreScreen>
   }
 }
 
-// sentinel: 로더 셀
 class _GridLoaderCell extends StatelessWidget {
   const _GridLoaderCell();
   @override
@@ -305,7 +273,6 @@ class _GridLoaderCell extends StatelessWidget {
       const Card(child: Center(child: CircularProgressIndicator()));
 }
 
-// sentinel: No more 셀
 class _GridNoMoreCell extends StatelessWidget {
   const _GridNoMoreCell();
   @override
@@ -319,7 +286,6 @@ class _GridNoMoreCell extends StatelessWidget {
   );
 }
 
-/// 간단 검색 Delegate (선택 문자열 반환)
 class _SearchDelegateWithReturn extends SearchDelegate<String> {
   _SearchDelegateWithReturn({String? initialQuery}) {
     query = initialQuery ?? '';
@@ -354,7 +320,11 @@ class _ResultList extends StatelessWidget {
       '제주',
       '강릉',
     ].where((s) => s.contains(query)).toList();
-    if (suggestions.isEmpty) return Center(child: Text('검색어: $query'));
+
+    if (suggestions.isEmpty) {
+      return Center(child: Text('검색어: $query'));
+    }
+
     return ListView.builder(
       itemCount: suggestions.length,
       itemBuilder: (_, i) => ListTile(
