@@ -10,6 +10,15 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:heat_trip_flutter/features/record/data/model/schedule_response.dart';
 
+// === Color Palette (match with list screen) ===
+const Color kPrimary = Color(0xFFEB9C64); // 테라코타 포인트
+const Color kPrimaryStrong = Color(0xFFD98246); // 포커스/진한 포인트
+const Color kSurface = Color(0xFFF7F6F5); // 상단 AppBar 등 표면
+const Color kBackground = Color(0xFFFAEDDD); // 페이지 배경(베이지)
+const Color kBorder = Color(0xFFE5E7EB); // 연한 외곽선
+const Color kFieldFill = Color(0xFFFFF6EC); // 폼 필드 연한 배경
+const Color kText = Color(0xFF111827); // 진한 본문
+
 class ScheduleCreateScreen extends StatefulWidget {
   final ScheduleResponse? schedule; // 수정 모드 확인용
 
@@ -87,6 +96,24 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
       initialDateRange: _selectedRange,
+      // ✨ DateRangePicker 컬러 오버레이 (색상만 변경)
+      builder: (context, child) {
+        final theme = Theme.of(context);
+        return Theme(
+          data: theme.copyWith(
+            colorScheme: theme.colorScheme.copyWith(
+              primary: kPrimary,
+              onPrimary: Colors.white,
+              surface: kSurface,
+              onSurface: kText,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(foregroundColor: kPrimary),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked != null) {
       setState(() => _selectedRange = picked);
@@ -135,24 +162,37 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(isEditing ? '스케줄이 수정되었습니다.' : '스케줄이 저장되었습니다.'),
-              backgroundColor: Colors.pink.shade300,
+              backgroundColor: kPrimary, // ✅ 포인트 컬러로 통일
+              behavior: SnackBarBehavior.floating,
             ),
           );
           Navigator.pop(context);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('저장 실패: ${response.statusCode}')),
+            const SnackBar(
+              content: Text('저장 실패'),
+              backgroundColor: kPrimary,
+              behavior: SnackBarBehavior.floating,
+            ),
           );
         }
       } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('서버 오류: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('서버 오류'),
+            backgroundColor: kPrimary,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('모든 항목을 입력해주세요.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('모든 항목을 입력해주세요.'),
+          backgroundColor: kPrimary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -161,9 +201,11 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
     final isEditing = widget.schedule != null;
 
     return Scaffold(
+      backgroundColor: kBackground, // ✅ 이전 화면과 배경 톤 일치
       appBar: AppBar(
         title: Text(isEditing ? '스케줄 수정' : '스케줄 작성'),
-        backgroundColor: Colors.pink,
+        backgroundColor: kSurface, // ✅ 표면색 통일
+        foregroundColor: kText, // 타이틀/아이콘 가독성
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -176,14 +218,24 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
                 initialValue: _authorName ?? '',
                 decoration: InputDecoration(
                   labelText: '작성자',
+                  labelStyle: const TextStyle(color: kText),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: kBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: kBorder),
+                  ),
+                  disabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: kBorder),
                   ),
                   filled: true,
-                  fillColor: Colors.pink.shade50,
+                  fillColor: kFieldFill, // ✅ 연한 필드 배경
                 ),
                 enabled: false,
-                style: const TextStyle(color: Colors.black87),
+                style: const TextStyle(color: kText),
               ),
               const SizedBox(height: 16),
 
@@ -192,16 +244,23 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
                 controller: _titleController,
                 decoration: InputDecoration(
                   labelText: '여행 제목',
+                  labelStyle: const TextStyle(color: kText),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: kBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: kBorder),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.pink.shade300),
+                    borderSide: const BorderSide(color: kPrimary, width: 2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 validator: (value) =>
                     value == null || value.isEmpty ? '여행 제목을 입력해주세요.' : null,
+                style: const TextStyle(color: kText),
               ),
               const SizedBox(height: 16),
 
@@ -212,17 +271,25 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
                   child: TextFormField(
                     decoration: InputDecoration(
                       labelText: '여행 기간',
+                      labelStyle: const TextStyle(color: kText),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: kBorder),
                       ),
-                      suffixIcon: Icon(
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: kBorder),
+                      ),
+                      suffixIcon: const Icon(
                         Icons.calendar_today,
-                        color: Colors.pink,
+                        color: kPrimaryStrong, // ✅ 포인트 컬러
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.pink.shade300),
+                        borderSide: const BorderSide(color: kPrimary, width: 2),
                         borderRadius: BorderRadius.circular(8),
                       ),
+                      filled: true,
+                      fillColor: Colors.white,
                     ),
                     controller: TextEditingController(
                       text: _selectedRange != null
@@ -231,7 +298,7 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
                     ),
                     validator: (_) =>
                         _selectedRange == null ? '기간을 선택해주세요.' : null,
-                    style: const TextStyle(color: Colors.black87),
+                    style: const TextStyle(color: kText),
                   ),
                 ),
               ),
@@ -243,17 +310,25 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
                 maxLines: 5,
                 decoration: InputDecoration(
                   labelText: '기타 메모',
+                  labelStyle: const TextStyle(color: kText),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: kBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: kBorder),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.pink.shade300),
+                    borderSide: const BorderSide(color: kPrimary, width: 2),
                     borderRadius: BorderRadius.circular(8),
                   ),
+                  filled: true,
+                  fillColor: Colors.white,
                 ),
                 validator: (value) =>
                     value == null || value.isEmpty ? '내용을 입력해주세요.' : null,
-                style: const TextStyle(color: Colors.black87),
+                style: const TextStyle(color: kText),
               ),
               const SizedBox(height: 30),
 
@@ -262,17 +337,21 @@ class _ScheduleCreateScreenState extends State<ScheduleCreateScreen> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _submitForm,
-                  icon: const Icon(Icons.save),
-                  label: Text(isEditing ? '수정하기' : '저장하기'),
+                  icon: const Icon(Icons.save, color: Colors.white),
+                  label: Text(
+                    isEditing ? '수정하기' : '저장하기',
+                    style: const TextStyle(color: Colors.white),
+                  ),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     textStyle: const TextStyle(fontSize: 18),
-                    backgroundColor: Colors.pink,
+                    backgroundColor: kPrimary, // ✅ 포인트 컬러
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
+                      side: const BorderSide(color: kPrimaryStrong, width: 1),
                     ),
-                    elevation: 4,
+                    // elevation은 그대로(요청: 색상만 수정)
                   ),
                 ),
               ),
