@@ -160,7 +160,8 @@ class _ProfileScreenState extends State<ProfileScreen>
               nickname: nickname,
               isLoggedIn: isLoggedIn,   // ✅ 헤더가 TabBar 표시 여부를 판단
               onEdit: () {
-                // TODO: 프로필 편집 화면 이동
+                // ✅ go_router 네임드 라우트 이동
+                context.goNamed('profileEdit');
               },
               onLogout: _logout,
               onLogin: _goLogin,        // ✅ 비로그인일 때 Login 버튼 콜백
@@ -209,21 +210,28 @@ class _ProfileScreenState extends State<ProfileScreen>
                           ),
                         ),
                         SizedBox(height: 20),
-                        Text('Continue watching',
+                        Text('감정별 상태보기',
                             style: TextStyle(
                                 fontWeight: FontWeight.w700, fontSize: 16)),
                         SizedBox(height: 12),
                         CourseItem(
-                          icon: Icons.security_outlined,
-                          title: 'Intro to Cyber-security',
-                          author: 'Paul Newman',
+                          icon: Icons.sentiment_satisfied_alt,
+                          title: '기쁨',
+                          author: 'happiness',
                           progress: 0.70,
                         ),
                         SizedBox(height: 12),
                         CourseItem(
-                          icon: Icons.hexagon_outlined,
-                          title: 'Intro to Polymer',
-                          author: 'Zahir Khan',
+                          icon: Icons.sentiment_very_dissatisfied,
+                          title: '슬픔',
+                          author: 'sadness',
+                          progress: 0.45,
+                        ),
+                        SizedBox(height: 12),
+                        CourseItem(
+                          icon: Icons.sentiment_very_dissatisfied_outlined,
+                          title: '두려움',
+                          author: 'fear',
                           progress: 0.45,
                         ),
                       ],
