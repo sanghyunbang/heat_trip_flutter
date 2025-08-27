@@ -130,6 +130,7 @@
 // lib/app/app_router.dart
 import 'package:go_router/go_router.dart';
 import 'package:heat_trip_flutter/core/widgets/layout/main_nav_shell.dart';
+import 'package:heat_trip_flutter/features/foryou/foryou_route.dart';
 
 // feature routes
 import 'package:heat_trip_flutter/features/start/start_routes.dart';
@@ -151,7 +152,9 @@ final GoRouter appRouter = GoRouter(
       branches: [
         StatefulShellBranch(routes: exploreRoutes), // 각 feature가 자기 루트만 제공
         StatefulShellBranch(routes: recordRoutes),
-        StatefulShellBranch(routes: curationRoutes),
+        StatefulShellBranch(
+          routes: foryouRoutes,
+        ), // foryouRoutes 추가[curationRoutes → foryouRoutes]
         StatefulShellBranch(routes: journeyRoutes),
         StatefulShellBranch(routes: profileRoutes),
       ],
