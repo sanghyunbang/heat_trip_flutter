@@ -57,6 +57,10 @@ dependencies:
   go_router: ^16.1.0
   provider: ^6.1.5
 
+  visibility_detector: ^0.4.0+2 # 위젯이 화면에 보이는지 감지
+  flutter_animate: ^4.5.2 # 애니메이션
+  iconsax: ^0.0.8 # 아이콘
+
 
 dev_dependencies:
   flutter_test:
