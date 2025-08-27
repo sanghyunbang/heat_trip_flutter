@@ -27,8 +27,8 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   bool _isCalendarView = false;
   Map<DateTime, List<ScheduleResponse>> _events = {};
   CalendarFormat _calendarFormat = CalendarFormat.month;
-  DateTime _focusedDay = DateTime.now();
-  DateTime? _selectedDay;
+  DateTime _focusedDay = DateTime.now(); // 달력에서 오늘 날짜
+  DateTime? _selectedDay; //유저가 선택한 날짜
 
   // 디자인 토큰(보더 컬러/라운드)
   static const Color _borderColor = Color(0xFFE5E7EB); // slate-200 유사
@@ -64,8 +64,15 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }
 
   void _groupEventsByDate() {
+    final filtered = _repository.filterSchedules(
+      all: _allSchedules,
+      title: _searchTitle,
+      date: _searchDate,
+      filterType: _filterType,
+    );
+
     final Map<DateTime, List<ScheduleResponse>> data = {};
-    for (final schedule in _allSchedules) {
+    for (final schedule in filtered) {
       DateTime date = DateTime(
         schedule.dateFrom.year,
         schedule.dateFrom.month,
@@ -82,6 +89,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
         date = date.add(const Duration(days: 1));
       }
     }
+
     setState(() {
       _events = data;
     });
@@ -94,7 +102,12 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
     );
-    if (picked != null) setState(() => _searchDate = picked);
+    if (picked != null) {
+      setState(() {
+        _searchDate = picked;
+        _groupEventsByDate();
+      });
+    }
   }
 
   @override
@@ -193,7 +206,10 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
           ChoiceChip(
             label: const Text('전체'),
             selected: _filterType == '전체',
-            onSelected: (_) => setState(() => _filterType = '전체'),
+            onSelected: (_) => setState(() {
+              _filterType = '전체';
+              _groupEventsByDate();
+            }),
             side: const BorderSide(color: _borderColor), // 칩 외곽선
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
@@ -202,7 +218,10 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
           ChoiceChip(
             label: const Text('지나간 스케쥴'),
             selected: _filterType == '지나간',
-            onSelected: (_) => setState(() => _filterType = '지나간'),
+            onSelected: (_) => setState(() {
+              _filterType = '지나간';
+              _groupEventsByDate();
+            }),
             side: const BorderSide(color: _borderColor),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
@@ -211,7 +230,10 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
           ChoiceChip(
             label: const Text('앞으로의 스케쥴'),
             selected: _filterType == '앞으로',
-            onSelected: (_) => setState(() => _filterType = '앞으로'),
+            onSelected: (_) => setState(() {
+              _filterType = '앞으로';
+              _groupEventsByDate();
+            }),
             side: const BorderSide(color: _borderColor),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
@@ -250,7 +272,10 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                   ),
                 ),
               ),
-              onChanged: (v) => setState(() => _searchTitle = v),
+              onChanged: (v) => setState(() {
+                _searchTitle = v;
+                _groupEventsByDate();
+              }),
             ),
           ),
         ),
@@ -274,7 +299,10 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
         if (_searchDate != null)
           IconButton(
             icon: const Icon(Icons.clear),
-            onPressed: () => setState(() => _searchDate = null),
+            onPressed: () => setState(() {
+              _searchDate = null;
+              _groupEventsByDate();
+            }),
           ),
       ],
     );
@@ -287,7 +315,10 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
         ChoiceChip(
           label: const Text('리스트 보기'),
           selected: !_isCalendarView,
-          onSelected: (_) => setState(() => _isCalendarView = false),
+          onSelected: (_) => setState(() {
+            _isCalendarView = false;
+            _groupEventsByDate();
+          }),
           side: const BorderSide(color: _borderColor),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
@@ -297,7 +328,10 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
         ChoiceChip(
           label: const Text('달력 보기'),
           selected: _isCalendarView,
-          onSelected: (_) => setState(() => _isCalendarView = true),
+          onSelected: (_) => setState(() {
+            _isCalendarView = true;
+            _groupEventsByDate();
+          }),
           side: const BorderSide(color: _borderColor),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
@@ -335,21 +369,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
           calendarBuilders: CalendarBuilders(
             defaultBuilder: (context, day, focusedDay) {
               final key = DateTime(day.year, day.month, day.day);
-
-              final today = DateTime.now();
-              final schedulesForDay = _allSchedules.where((s) {
-                final from = DateTime(
-                  s.dateFrom.year,
-                  s.dateFrom.month,
-                  s.dateFrom.day,
-                );
-                final to = DateTime(
-                  s.dateTo.year,
-                  s.dateTo.month,
-                  s.dateTo.day,
-                );
-                return !key.isBefore(from) && !key.isAfter(to);
-              }).toList();
+              final schedulesForDay = _events[key] ?? [];
 
               if (schedulesForDay.isEmpty) return null;
 
@@ -362,6 +382,8 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
               final to = DateTime(s.dateTo.year, s.dateTo.month, s.dateTo.day);
 
               Color bgColor;
+              final today = DateTime.now();
+
               if (to.isBefore(today)) {
                 bgColor = const Color.fromARGB(
                   255,
@@ -393,7 +415,10 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                               ? const Radius.circular(10)
                               : Radius.zero,
                         ),
-                  border: Border.all(color: _borderColor, width: 1), // 달력 칸 외곽선
+                  border: Border.all(
+                    color: const Color.fromARGB(255, 0, 0, 0),
+                    width: 1.5,
+                  ),
                 ),
                 alignment: Alignment.center,
                 child: Text(
@@ -406,7 +431,9 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
               );
             },
           ),
+
           calendarStyle: const CalendarStyle(
+            markersMaxCount: 0,
             markerDecoration: BoxDecoration(
               color: Colors.red,
               shape: BoxShape.circle,
@@ -434,7 +461,17 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                 );
               }
               final schedule = eventsForSelectedDay[index - 1];
-              return buildScheduleCard(schedule, formatter);
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ScheduleDetailScreen(schedule: schedule),
+                    ),
+                  );
+                },
+                child: buildScheduleCard(schedule, formatter),
+              );
             },
           ),
       ],
