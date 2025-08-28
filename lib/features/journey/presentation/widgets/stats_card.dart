@@ -1,42 +1,39 @@
 import 'package:flutter/material.dart';
 import '../../domain/models.dart';
 
-/// 상단 통계 카드 (2 × 1 : Trips · Diary Entries)
+/// 상단 통계 카드 (나의 총 여행 수 · 나의 총 일기 수)
 class StatsCard extends StatelessWidget {
   final JourneyStats stats;
   const StatsCard({required this.stats});
 
   @override
   Widget build(BuildContext context) {
-    final surface = Theme.of(context).colorScheme.surface;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Card(
         elevation: 0.5,
-        color: surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         child: Padding(
-          // 카드 내부 여백
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           child: Row(
             children: [
-              // 왼쪽 칸 : Trips
               Expanded(
                 child: _StatItem(
-                  icon: Icons.travel_explore,
+                  icon: Icons.flight_takeoff,
                   iconColor: Colors.indigo,
+                  iconSize: 28,                // ⬅ 아이콘 크게
                   value: '${stats.trips}',
-                  label: 'Trips',
+                  label: '나의 총 여행 수',
                 ),
               ),
-              // 오른쪽 칸 : Diary Entries
               Expanded(
                 child: _StatItem(
-                  icon: Icons.menu_book_outlined,
+                  icon: Icons.menu_book_rounded,
                   iconColor: Colors.purple,
+                  iconSize: 28,                // ⬅ 아이콘 크게
                   value: '${stats.diaryEntries}',
-                  label: 'Diary Entries',
+                  label: '나의 총 일기 수',
                 ),
               ),
             ],
@@ -47,35 +44,51 @@ class StatsCard extends StatelessWidget {
   }
 }
 
-/// 통계 항목(아이콘 + 값 + 라벨)
 class _StatItem extends StatelessWidget {
-  final IconData icon;       // 아이콘
-  final Color iconColor;     // 아이콘 색상
-  final String value;        // 숫자
-  final String label;        // 라벨
+  final IconData icon;
+  final Color iconColor;
+  final String value;
+  final String label;
+  final double iconSize;
 
   const _StatItem({
     required this.icon,
     required this.iconColor,
     required this.value,
     required this.label,
+    this.iconSize = 28,
   });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Icon(icon, size: 20, color: iconColor),
-        const SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+            Icon(icon, size: iconSize, color: iconColor),
+            const SizedBox(width: 8),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 20,                 // ⬅ 숫자 조금 키움
+                fontWeight: FontWeight.w800,
+                color: Colors.black,
+              ),
+            ),
           ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,                    // ⬅ 라벨도 살짝 키움
+            color: cs.onSurfaceVariant,
+          ),
         ),
       ],
     );

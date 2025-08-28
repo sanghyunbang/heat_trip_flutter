@@ -46,6 +46,7 @@ class ScheduleCard extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         elevation: 0.8,
+        color: Colors.white, // ✅ 카드 배경: 흰색
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -55,7 +56,11 @@ class ScheduleCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Ink.image(image: NetworkImage(hero), fit: BoxFit.cover, child: const SizedBox.shrink()),
+                  Ink.image(
+                    image: NetworkImage(hero),
+                    fit: BoxFit.cover,
+                    child: const SizedBox.shrink(),
+                  ),
                   Positioned(
                     left: 10,
                     top: 10,
@@ -78,7 +83,10 @@ class ScheduleCard extends StatelessWidget {
                         color: Colors.black.withOpacity(0.55),
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: Text(statusLabel, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                      child: Text(
+                        statusLabel,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ),
                   Positioned(
@@ -139,6 +147,7 @@ class _ScheduleTags extends StatelessWidget {
   Widget build(BuildContext context) {
     final visible = tags.take(2).toList();
     final extra = tags.length - visible.length;
+    final outline = Theme.of(context).colorScheme.outlineVariant;
 
     return Wrap(
       spacing: 8,
@@ -148,13 +157,16 @@ class _ScheduleTags extends StatelessWidget {
           Chip(
             label: Text(t),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+            backgroundColor: const Color(0xFFF1F1F1), // ✅ 칩 배경: 연한 회색
+            side: BorderSide(color: outline),
           ),
         if (extra > 0)
           InputChip(
             label: Text('+$extra more'),
             onPressed: () {}, // TODO: 바텀시트 등으로 전체 표시
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            backgroundColor: const Color(0xFFF1F1F1), // ✅ 칩 배경: 연한 회색
+            side: BorderSide(color: outline),
           ),
       ],
     );
