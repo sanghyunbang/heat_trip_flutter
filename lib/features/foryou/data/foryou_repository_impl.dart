@@ -4,11 +4,7 @@
 import 'package:heat_trip_flutter/features/foryou/domain/foryou_repository.dart';
 
 // Domain 엔티티들 (alias dom으로 가져옴 → DTO와 혼동 방지)
-import 'package:heat_trip_flutter/features/foryou/domain/entities/context.dart'
-    as dom;
-import 'package:heat_trip_flutter/features/foryou/domain/entities/rank_item.dart'
-    as dom;
-import 'package:heat_trip_flutter/features/foryou/domain/entities/feedback_event.dart'
+import 'package:heat_trip_flutter/features/foryou/domain/entities/entities.dart'
     as dom;
 
 // Domain ↔ DTO 변환을 담당하는 Mapper

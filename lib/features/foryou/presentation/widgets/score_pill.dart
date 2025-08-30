@@ -5,7 +5,15 @@
 /// 비고: 시각적 보조. 로직 없음.
 
 // lib/features/foryou/presentation/widgets/score_pill.dart
+// lib/features/foryou/presentation/widgets/score_pill.dart
 import 'package:flutter/material.dart';
+import 'dart:ui' show FontFeature;
+
+class _Pal {
+  static const bg200 = Color(0xFFEBE2CD);
+  static const bg300 = Color(0xFFC2BAA6);
+  static const text100 = Color(0xFF353535);
+}
 
 class ScorePill extends StatelessWidget {
   final double score;
@@ -13,19 +21,22 @@ class ScorePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = Theme.of(context).colorScheme.secondaryContainer;
-    final fg = Theme.of(context).colorScheme.onSecondaryContainer;
+    // 아주 작은 pill + 탭 고정폭 숫자
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: bg,
+        color: _Pal.bg200.withOpacity(.42),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: _Pal.bg300.withOpacity(.55), width: 0.6),
       ),
       child: Text(
         score.toStringAsFixed(3),
-        style: TextStyle(
-          color: fg,
-          fontFeatures: const [FontFeature.tabularFigures()],
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: Colors.white, // 그라데이션 위 대비를 위해 흰색
+          // 숫자 정렬 안정화
+          fontFeatures: [FontFeature.tabularFigures()],
         ),
       ),
     );
