@@ -1,7 +1,7 @@
 // lib/features/record/record_routes.dart
 import 'package:go_router/go_router.dart';
-import 'package:heat_trip_flutter/features/record/schedule_create_screen.dart';
-import 'package:heat_trip_flutter/features/record/schedule_list_screen.dart';
+import 'package:heat_trip_flutter/features/record/presentation/screens/schedule_edit_screen.dart';
+import 'package:heat_trip_flutter/features/record/presentation/screens/schedule_list_screen.dart';
 
 final List<RouteBase> recordRoutes = [
   GoRoute(
@@ -12,7 +12,7 @@ final List<RouteBase> recordRoutes = [
       GoRoute(
         path: 'create',
         name: 'scheduleCreate',
-        builder: (context, state) => const ScheduleCreateScreen(),
+        builder: (context, state) => const ScheduleEditScreen(),
       ),
     ],
   ),
