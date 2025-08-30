@@ -31,18 +31,18 @@ class MainNavShell extends StatelessWidget {
           // 그라데이션 (#eb9c64 → #ff8789)
           gradient: const LinearGradient(
             colors: [Color(0xFFEB9C64), Color(0xFFFF8789)],
-            begin: Alignment.centerLeft,   // 왼쪽(주황)에서
-            end: Alignment.centerRight,    // 오른쪽(핑크)으로
+            begin: Alignment.centerLeft, // 왼쪽(주황)에서
+            end: Alignment.centerRight, // 오른쪽(핑크)으로
             // 필요하면 대각선 느낌: begin: Alignment.bottomLeft, end: Alignment.topRight
           ),
         ),
         child: FloatingActionButton(
           // 배경을 투명하게 만들어야 컨테이너의 그라데이션이 보임
           backgroundColor: Colors.transparent,
-          elevation: 0,                // 자체 그림자는 끄고(컨테이너가 담당)
+          elevation: 0, // 자체 그림자는 끄고(컨테이너가 담당)
           shape: const CircleBorder(), // 동그란 모양 유지
           onPressed: () => _onTabTapped(2),
-          child: const Icon(Icons.dynamic_feed, color: Colors.white), // 아이콘만 표시
+          child: const Icon(Icons.favorite, color: Colors.white), // 아이콘만 표시
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
