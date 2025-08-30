@@ -103,6 +103,7 @@ class Schedule {
 
 /// 다이어리 모델(스크린샷 UI용 확장 필드 포함)
 class DiaryEntry {
+  final int? scheduleId;              // nullable
   final String authorInitials;
   final String title;
   final DateTime date;
@@ -113,6 +114,7 @@ class DiaryEntry {
   final String body;
 
   const DiaryEntry({
+    this.scheduleId,
     required this.authorInitials,
     required this.title,
     required this.date,
@@ -132,15 +134,11 @@ class DiaryEntry {
 
 /// 상단 통계용 모델
 class JourneyStats {
-  final int countries;
   final int trips;
-  final int milesFlown;
   final int diaryEntries;
 
   const JourneyStats({
-    required this.countries,
     required this.trips,
-    required this.milesFlown,
     required this.diaryEntries,
   });
 }
