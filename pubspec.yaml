@@ -61,6 +61,9 @@ dependencies:
   flutter_animate: ^4.5.2 # 애니메이션
   iconsax: ^0.0.8 # 아이콘
 
+  flutter_staggered_grid_view: ^0.7.0 # 그리드뷰
+
+
 
 dev_dependencies:
   flutter_test:
