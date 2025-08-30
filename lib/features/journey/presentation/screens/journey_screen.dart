@@ -47,9 +47,7 @@ class _JourneyScreenState extends State<JourneyScreen>
             onPressed: () {},
             icon: const Icon(Icons.add),
             label: const Text('Add Trip'),
-            style: TextButton.styleFrom(
-              foregroundColor: Color(0xFF353535),
-            ),
+            style: TextButton.styleFrom(foregroundColor: Color(0xFF353535)),
           ),
           const SizedBox(width: 8),
         ],
@@ -87,47 +85,44 @@ class _JourneyScreenState extends State<JourneyScreen>
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: Container(
-              color: const Color(0xFFF6F6F6), // 탭 컨텐츠 영역 배경색
-              child: TabBarView(
-                controller: _tab, // 동일 컨트롤러 사용
-                children: [
-                  // Timeline
-                  FutureBuilder<List<Schedule>>(
-                    future: _schedulesF,
-                    builder: _scheduleBuilder(),
-                  ),
-                  // Active
-                  FutureBuilder<List<Schedule>>(
-                    future: _schedulesF,
-                    builder: (context, snap) =>
-                        _scheduleBuilder(
-                          filter: (s) => s.status == ScheduleStatus.inProgress,
-                        )(context, snap),
-                  ),
-                  // Planned
-                  FutureBuilder<List<Schedule>>(
-                    future: _schedulesF,
-                    builder: (context, snap) =>
-                        _scheduleBuilder(
-                          filter: (s) => s.status == ScheduleStatus.planned,
-                        )(context, snap),
-                  ),
-                  // Diary
-                  FutureBuilder<List<DiaryEntry>>(
-                    future: _diariesF,
-                    builder: (context, snap) {
-                      if (snap.connectionState != ConnectionState.done) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snap.hasError || !snap.hasData) {
-                        return const Center(child: Text('Failed to load diaries.'));
-                      }
-                      return DiaryTab(entries: snap.data!);
-                    },
-                  ),
-                ],
-              ),
+            child: TabBarView(
+              controller: _tab, // 동일 컨트롤러 사용
+              children: [
+                // Timeline
+                FutureBuilder<List<Schedule>>(
+                  future: _schedulesF,
+                  builder: _scheduleBuilder(),
+                ),
+                // Active
+                FutureBuilder<List<Schedule>>(
+                  future: _schedulesF,
+                  builder: (context, snap) => _scheduleBuilder(
+                    filter: (s) => s.status == ScheduleStatus.inProgress,
+                  )(context, snap),
+                ),
+                // Planned
+                FutureBuilder<List<Schedule>>(
+                  future: _schedulesF,
+                  builder: (context, snap) => _scheduleBuilder(
+                    filter: (s) => s.status == ScheduleStatus.planned,
+                  )(context, snap),
+                ),
+                // Diary
+                FutureBuilder<List<DiaryEntry>>(
+                  future: _diariesF,
+                  builder: (context, snap) {
+                    if (snap.connectionState != ConnectionState.done) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snap.hasError || !snap.hasData) {
+                      return const Center(
+                        child: Text('Failed to load diaries.'),
+                      );
+                    }
+                    return DiaryTab(entries: snap.data!);
+                  },
+                ),
+              ],
             ),
           ),
         ],
@@ -146,7 +141,9 @@ class _JourneyScreenState extends State<JourneyScreen>
       if (snap.hasError || !snap.hasData) {
         return const Center(child: Text('Failed to load schedules.'));
       }
-      final items = filter == null ? snap.data! : snap.data!.where(filter).toList();
+      final items = filter == null
+          ? snap.data!
+          : snap.data!.where(filter).toList();
       return ScheduleList(items: items);
     };
   }
@@ -160,8 +157,8 @@ class _JourneyTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const selectedBg = Color(0xFFEBE2CD);   // 선택 배경
-    const selectedFg = Color(0xFF353535);   // 선택 텍스트
+    const selectedBg = Color(0xFFEBE2CD); // 선택 배경
+    const selectedFg = Color(0xFF353535); // 선택 텍스트
 
     return TabBar(
       controller: controller,
@@ -175,7 +172,8 @@ class _JourneyTabs extends StatelessWidget {
         if (states.contains(MaterialState.pressed)) {
           return selectedBg.withOpacity(0.25); // 눌렀을 때도 지정 색
         }
-        if (states.contains(MaterialState.hovered) || states.contains(MaterialState.focused)) {
+        if (states.contains(MaterialState.hovered) ||
+            states.contains(MaterialState.focused)) {
           return selectedBg.withOpacity(0.18);
         }
         return Colors.transparent;
@@ -200,4 +198,3 @@ class _JourneyTabs extends StatelessWidget {
     );
   }
 }
-

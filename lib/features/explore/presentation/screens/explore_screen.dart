@@ -255,7 +255,8 @@ class _ExploreScreenState extends State<ExploreScreen>
       animation: _vm, // ViewModel을 애니메이션 소스로 등록
       builder: (_, __) {
         return Scaffold(
-          backgroundColor: const Color(0xFFF6F6F6), // 연한 회색 배경
+          // backgroundColor: const Color(0xFFF6F6F6), // 연한 회색 배경
+          backgroundColor: Colors.white, // 연한 회색 배경
           // ================================================================
           // AppBar: 제목, 탭, 검색 버튼
           // ================================================================
@@ -425,7 +426,7 @@ class _ExploreScreenState extends State<ExploreScreen>
     // ========================================================================
     return GridView.builder(
       controller: _scroll, // 스크롤 감지를 위한 컨트롤러 연결
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      // padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
 
       // 그리드 레이아웃 설정
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../domain/models.dart';
 
 /// 스케줄 목록 + 카드
@@ -41,7 +42,14 @@ class ScheduleCard extends StatelessWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: () {}, // TODO: 상세 이동
+      onTap: () {
+        // 상세화면 이동
+        context.pushNamed(
+          'journeyDetail',
+          pathParameters: {'id': schedule.id.toString()}, // ✅ int → String
+          extra: schedule,                                 // (선택) 초기 렌더용
+        );
+      },
       child: Card(
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
