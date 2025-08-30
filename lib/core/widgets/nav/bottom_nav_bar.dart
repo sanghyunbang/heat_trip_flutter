@@ -18,14 +18,24 @@ class AppBottomNavBar extends StatelessWidget {
       currentIndex: currentIndex,
       onTap: onTap,
       items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.travel_explore), label: 'explore'),
-        BottomNavigationBarItem(icon: Icon(Icons.list), label: 'record'),
         BottomNavigationBarItem(
-          icon: Opacity(opacity: 0.0, child: Icon(Icons.dynamic_feed)),
-          label: 'for you',
+          icon: Icon(Icons.travel_explore),
+          label: 'Explore',
         ),
-        BottomNavigationBarItem(icon: Icon(Icons.library_books), label: 'journey'),
-        BottomNavigationBarItem(icon: Icon(Icons.person), label: 'profile'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.event_note),
+          label: 'Schedule',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.stars_rounded),
+          activeIcon: Icon(Icons.stars_rounded),
+          label: 'For You',
+        ),
+        BottomNavigationBarItem(icon: Icon(Icons.menu_book), label: 'Diary'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.stars_rounded),
+          label: 'Profile',
+        ),
       ],
     );
   }
