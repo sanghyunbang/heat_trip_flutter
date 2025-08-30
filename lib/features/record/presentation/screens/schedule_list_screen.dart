@@ -186,7 +186,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
         children: [
           const Expanded(
             child: Text(
-              'Record',
+              'Schedule',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
