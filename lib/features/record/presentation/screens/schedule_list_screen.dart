@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -8,6 +9,7 @@ import 'package:heat_trip_flutter/features/record/data/schedule_repository_impl.
 import 'package:heat_trip_flutter/features/record/presentation/screens/schedule_edit_screen.dart';
 import 'package:heat_trip_flutter/features/record/presentation/screens/schedule_detail_screen.dart';
 import 'package:heat_trip_flutter/features/record/presentation/widgets/record_ui.dart';
+// ↑ record_ui.dart 안의 kTextMain, kTextMuted, kBorder, ViewTab, StatusChip, ScheduleListCard 등 사용
 
 /// 카드 메뉴
 enum _CardMenu { edit, delete }
@@ -29,8 +31,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
 
   // 검색/필터 상태
   String _searchTitle = '';
-  // ✅ 날짜 필터 완전 삭제 (UI/로직 둘 다)
-  String _filterType = '전체';
+  String _filterType = '전체'; // 전체/지나간/앞으로
 
   // 탭(리스트/달력) & 캘린더 상태
   ViewTab _tab = ViewTab.schedule;
@@ -47,7 +48,6 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     _load();
   }
 
-  /// 서버에서 스케줄 목록을 가져와 상태 갱신
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -64,30 +64,26 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }
 
   // ─────────────────────────────────────
-  // 필터링 로직
+  // 필터링
   // ─────────────────────────────────────
-
-  /// 리스트에서 사용하는 필터(제목 + 상태). ✅ 날짜 조건 제거
   List<ScheduleResponse> get _filteredForList {
     return _repository.filterSchedules(
       all: _all,
       title: _searchTitle,
-      date: null, // <- 항상 null (날짜 필터 없음)
+      date: null, // ✅ 날짜 필터 없음
       filterType: _filterType,
     );
   }
 
-  /// 달력에서도 제목/상태만 적용
   List<ScheduleResponse> get _filteredForCalendar {
     return _repository.filterSchedules(
       all: _all,
       title: _searchTitle,
-      date: null, // <- 항상 null
+      date: null, // ✅ 날짜 필터 없음
       filterType: _filterType,
     );
   }
 
-  /// day가 [dateFrom, dateTo] 범위에 속하는 일정들
   List<ScheduleResponse> _schedulesOn(DateTime day) {
     final d = DateTime(day.year, day.month, day.day);
     return _filteredForCalendar.where((s) {
@@ -101,14 +97,14 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     final sameYear = start.year == end.year;
     final s = DateFormat.MMMd().format(start);
     final e = DateFormat.MMMd().format(end);
-    if (sameYear) return '$s – $e';
-    return '${DateFormat.yMMMEd().format(start)} – ${DateFormat.yMMMEd().format(end)}';
+    return sameYear
+        ? '$s – $e'
+        : '${DateFormat.yMMMEd().format(start)} – ${DateFormat.yMMMEd().format(end)}';
   }
 
   // ─────────────────────────────────────
-  // 아이콘 & 색상 매핑 (이모지 → 컬러 아이콘)
+  // 아이콘 & 색상 매핑
   // ─────────────────────────────────────
-
   Color _tint(Color c, [double o = .16]) => c.withOpacity(o);
 
   Widget _circleIcon(
@@ -169,38 +165,144 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }
 
   // ─────────────────────────────────────
-  // 빌드
+  // AppBar (큰 타이틀 + 부제 + 검색창 + Add 버튼)
   // ─────────────────────────────────────
-  @override
-  Widget build(BuildContext context) {
-    if (_loading) {
-      return const WhitePage(child: Center(child: CircularProgressIndicator()));
-    }
-    if (_error != null) {
-      return WhitePage(child: Center(child: Text('에러: $_error')));
-    }
-
-    final fm = DateFormat('yyyy-MM-dd');
-    final listFiltered = _filteredForList;
-
-    return WhitePage(
-      child: SingleChildScrollView(
-        controller: _scrollController,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 헤더: 추가/검색
-            RecordHeader(
-              onAdd: () {
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      backgroundColor: Colors.white,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: false,
+      titleSpacing: 16,
+      toolbarHeight: 56, // 상단 행 여유
+      surfaceTintColor: Colors.transparent, // M3 틴트 제거
+      // 상태바 아이콘 색
+      systemOverlayStyle: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark, // Android
+        statusBarBrightness: Brightness.light, // iOS
+      ),
+      title: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Record',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: kTextMain,
+              ),
+            ),
+          ),
+          // + Add Item 버튼 (FilledButton으로 톤 다운)
+          SizedBox(
+            height: 40,
+            child: FilledButton.icon(
+              onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const ScheduleEditScreen()),
                 ).then((_) => _load());
               },
-              onSearchChanged: (v) => setState(() => _searchTitle = v),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add Item'),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color.fromARGB(
+                  255,
+                  26,
+                  29,
+                  33,
+                ), // 부드러운 다크그레이
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                overlayColor: Colors.white.withOpacity(.06),
+              ),
             ),
-            const SizedBox(height: 16),
+          ),
+        ],
+      ),
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(92),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 2),
+              const Text(
+                'Schedule & plan your trips',
+                style: TextStyle(color: kTextMuted),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 44,
+                child: TextField(
+                  onChanged: (v) => setState(() => _searchTitle = v),
+                  decoration: InputDecoration(
+                    hintText: 'Search schedule…',
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    fillColor: const Color(0xFFF3F4F6),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: kBorder),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: kBorder),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: kBorder),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
+  // ─────────────────────────────────────
+  // 빌드
+  // ─────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    // 로딩/에러도 동일한 AppBar를 사용
+    if (_loading) {
+      return Scaffold(
+        appBar: _buildAppBar(context),
+        body: const Center(child: CircularProgressIndicator()),
+        backgroundColor: Colors.white,
+      );
+    }
+    if (_error != null) {
+      return Scaffold(
+        appBar: _buildAppBar(context),
+        body: Center(child: Text('에러: $_error')),
+        backgroundColor: Colors.white,
+      );
+    }
+
+    final fm = DateFormat('yyyy-MM-dd');
+    final listFiltered = _filteredForList;
+
+    return Scaffold(
+      appBar: _buildAppBar(context),
+      backgroundColor: Colors.white,
+      body: SingleChildScrollView(
+        controller: _scrollController,
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             // 뷰 전환(리스트/달력)
             WideSegmentBar(
               value: _tab,
@@ -208,7 +310,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
             ),
             const SizedBox(height: 14),
 
-            // ✅ 리스트 탭일 때만 필터칩 노출 (Calendar에서는 숨김)
+            // ✅ 리스트 탭일 때만 필터칩 노출
             if (_tab == ViewTab.schedule) ...[
               _filterChips(),
               const SizedBox(height: 12),
@@ -233,9 +335,8 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   // UI 조각
   // ─────────────────────────────────────
 
-  /// 상태칩(전체/과거/예정) — 작고 컬러풀, 아이콘/체크표시 없음(선택시 배경만 채움)
+  /// 상태칩(전체/과거/예정) — 작고 컬러풀, 체크 없음(선택 시 배경만 채움)
   Widget _filterChips() {
-    // 팔레트
     const allColor = Color(0xFF7C3AED); // purple
     const pastColor = Color(0xFF0EA5E9); // cyan
     const nextColor = Color(0xFF22C55E); // green
@@ -286,7 +387,6 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }
 
   /// 상단 요약(가까운 일정 / 누적 일수 / 여행 횟수)
-  /// - 오버플로우 방지를 위해 높이 여유/텍스트 크기 조정
   Widget _summaryRow() {
     if (_all.isEmpty) return const SizedBox();
     final now = DateTime.now();
@@ -323,7 +423,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     }) {
       return Expanded(
         child: Container(
-          height: 100, // ↑ 살짝 키워서 오버플로우 방지
+          height: 100,
           margin: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
             color: color.withOpacity(.06),
@@ -362,28 +462,27 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
           value: closest != null
               ? '${closest.title} (D-${closestDaysLeft})'
               : 'None',
-          color: const Color(0xFF7C3AED), // purple
+          color: const Color(0xFF7C3AED),
         ),
         info(
           icon: Icons.today,
           label: 'Total days',
           value: '$totalDays',
-          color: const Color(0xFF0EA5E9), // cyan
+          color: const Color(0xFF0EA5E9),
         ),
         info(
           icon: Icons.flight_takeoff,
           label: 'Trips',
           value: '$completed',
-          color: const Color(0xFFEF4444), // red
+          color: const Color(0xFFEF4444),
         ),
       ],
     );
   }
 
   // ─────────────────────────────────────
-  // 리스트 탭(진행 중 + 전체)
+  // 리스트 탭
   // ─────────────────────────────────────
-
   Widget _listContent(DateFormat fm, List<ScheduleResponse> filtered) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -416,9 +515,8 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }
 
   // ─────────────────────────────────────
-  // 카드 뷰(리스트/달력 공용)
+  // 카드 뷰 공용
   // ─────────────────────────────────────
-
   Widget _cardMenuButton(ScheduleResponse s) {
     return PopupMenuButton<_CardMenu>(
       tooltip: 'More',
@@ -537,7 +635,6 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Compact Calendar
         Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 360),
@@ -603,7 +700,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
         ),
         const SizedBox(height: 16),
 
-        // 선택한 날짜 섹션(항상 유지)
+        // 선택한 날짜
         AnimatedSize(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
@@ -676,7 +773,6 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                       ),
                       child: Row(
                         children: [
-                          // 타이틀 + 기간
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -701,7 +797,6 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                               ],
                             ),
                           ),
-                          // 작은 아이콘 칩들
                           Wrap(spacing: 6, children: _chipIconsFor([s])),
                         ],
                       ),
