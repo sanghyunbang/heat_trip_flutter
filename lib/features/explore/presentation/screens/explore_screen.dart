@@ -37,6 +37,8 @@ import 'package:http/http.dart' as http;
 // Masonry 그리드
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
+import 'package:heat_trip_flutter/shared/presentation/widgets/headers.dart';
+
 /// 탐색 화면 - 장소들을 Masonry 그리드로 표시하는 메인 화면
 ///
 /// 기능:

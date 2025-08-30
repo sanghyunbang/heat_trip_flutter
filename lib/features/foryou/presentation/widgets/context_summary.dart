@@ -1,112 +1,196 @@
 // lib/features/foryou/presentation/widgets/context_summary.dart
-
-/// ContextSummary  [Widget]
-/// 역할: 현재 추천 컨텍스트(PAD, 사교/소음/혼잡, 위치)를 칩 형태로 요약 표시.
-/// 입력: [ctx] dom.Context
-/// 사용처: ForYouScreen 상단 요약 박스.
-/// 주의: 값 범위(PAD: -2/-1/1/2, 선호: -1/1)가 UI 문구에 반영됨.
-
-// lib/features/foryou/presentation/widgets/context_summary.dart
 import 'package:flutter/material.dart';
 import 'package:heat_trip_flutter/features/foryou/domain/entities/context.dart'
     as dom;
 
-class _Pal {
-  static const primary100 = Color(0xFFEB9C64); // #eb9c64 (orange)
-  static const primary200 = Color(0xFFFF8789); // #ff8789 (pink)
-  static const primary300 = Color(0xFF554E4F);
-  static const accent100 = Color(0xFF8FBF9F);
-  static const accent200 = Color(0xFF346145);
-  static const text100 = Color(0xFF353535);
-  static const text200 = Color(0xFF000000);
-  static const bg100 = Color(0xFFF5ECD7);
-  static const bg200 = Color(0xFFEBE2CD);
-  static const bg300 = Color(0xFFC2BAA6);
+/// ─────────────────────────────────────────────────────────────────
+/// 1) 칩 색상 스킴: 파일 최상단(클래스 밖, 전역 영역)에 둡니다.
+/// ─────────────────────────────────────────────────────────────────
+class _ChipScheme {
+  final Color bg1; // gradient start
+  final Color bg2; // gradient end
+  final Color border;
+  final Color fg; // text color
+  const _ChipScheme({
+    required this.bg1,
+    required this.bg2,
+    required this.border,
+    required this.fg,
+  });
 }
 
+// 파스텔 팔레트
+const _SCHEME_PLEASURE = _ChipScheme(
+  bg1: Color(0xFFFFF0DD),
+  bg2: Color(0xFFFFE6D4),
+  border: Color(0xFFFFD6B8),
+  fg: Color(0xFF6B4E3D),
+); // 좋은 기분: 살구
+const _SCHEME_CALM = _ChipScheme(
+  bg1: Color(0xFFE8F2FF),
+  bg2: Color(0xFFDDEBFF),
+  border: Color(0xFFCDE0FF),
+  fg: Color(0xFF244C7A),
+); // 차분/졸림: 라이트블루
+const _SCHEME_DOMINANCE = _ChipScheme(
+  bg1: Color(0xFFF2E8FF),
+  bg2: Color(0xFFEDE1FF),
+  border: Color(0xFFDECCFF),
+  fg: Color(0xFF5A3E8E),
+); // 주도/자신감: 라일락
+const _SCHEME_SOCIAL = _ChipScheme(
+  bg1: Color(0xFFE6FAF2),
+  bg2: Color(0xFFDDF7ED),
+  border: Color(0xFFC6F0E1),
+  fg: Color(0xFF256D57),
+); // 사교: 민트
+const _SCHEME_QUIET = _ChipScheme(
+  bg1: Color(0xFFF6F1FF),
+  bg2: Color(0xFFF3ECFF),
+  border: Color(0xFFE7DBFF),
+  fg: Color(0xFF5C4C86),
+); // 조용: 연보라
+const _SCHEME_ENERGETIC = _ChipScheme(
+  bg1: Color(0xFFFFF5D9),
+  bg2: Color(0xFFFFF0C7),
+  border: Color(0xFFFFE3A3),
+  fg: Color(0xFF7A5A12),
+); // 활기/에너지/들뜸: 라이트옐로
+const _SCHEME_SERENE = _ChipScheme(
+  bg1: Color(0xFFEFF9F0),
+  bg2: Color(0xFFE8F6E9),
+  border: Color(0xFFD4EED6),
+  fg: Color(0xFF2E5E30),
+); // 한적: 라이트그린
+const _SCHEME_DEFAULT = _ChipScheme(
+  bg1: Colors.white,
+  bg2: Colors.white,
+  border: Color(0xFFE6E1D6),
+  fg: Color(0xFF374151),
+);
+
+// 라벨 문자열로 색상 스킴 선택
+_ChipScheme schemeForLabel(String text) {
+  if (text.contains('기분') || text.contains('🙂') || text.contains('😄'))
+    return _SCHEME_PLEASURE;
+  if (text.contains('차분') ||
+      text.contains('😌') ||
+      text.contains('졸림') ||
+      text.contains('😪'))
+    return _SCHEME_CALM;
+  if (text.contains('주도') ||
+      text.contains('자신감') ||
+      text.contains('💪') ||
+      text.contains('🦾'))
+    return _SCHEME_DOMINANCE;
+  if (text.contains('사교') || text.contains('🧑‍🤝‍🧑')) return _SCHEME_SOCIAL;
+  if (text.contains('조용') || text.contains('🔈')) return _SCHEME_QUIET;
+  if (text.contains('활기') ||
+      text.contains('에너지') ||
+      text.contains('⚡') ||
+      text.contains('🔊') ||
+      text.contains('들뜸'))
+    return _SCHEME_ENERGETIC;
+  if (text.contains('한적') || text.contains('🌿')) return _SCHEME_SERENE;
+  return _SCHEME_DEFAULT;
+}
+
+/// ─────────────────────────────────────────────────────────────────
+/// 2) 요약 위젯 본문
+/// ─────────────────────────────────────────────────────────────────
 class ContextSummary extends StatelessWidget {
-  final dom.Context ctx;
   const ContextSummary({super.key, required this.ctx});
+  final dom.Context ctx;
 
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(16);
 
-    // 숫자 대신 이모지 + 짧은 코멘트
+    // 라벨(이모지 + 텍스트)
     final p = _pleasure(ctx.P);
     final a = _arousal(ctx.A);
     final d = _dominance(ctx.D);
-    final social = ctx.sociality == 1 ? '🧑‍🤝‍🧑 사교적' : '🧘 혼자 선호';
+    final social = ctx.sociality == 1 ? '🧑‍🤝‍🧑 사교적' : '💗 IN';
     final noise = ctx.noise == 1 ? '🔊 활기' : '🔈 조용';
     final crowd = ctx.crowdedness == 1 ? '👥 북적' : '🌿 한적';
     final locale = '📍 ${ctx.location.toUpperCase()}';
 
-    // 칩(아주 작게, 눈에 안 거슬리게)
-    const pillBgOpacity = 0.42; // 더 연하게 하려면 0.30~0.35 권장
-    Widget pill(String text) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: _Pal.bg200.withOpacity(pillBgOpacity),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: _Pal.bg300.withOpacity(0.55), width: 0.6),
-        ),
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 12, // 작게
-            height: 1.0,
-            fontWeight: FontWeight.w600,
-            color: _Pal.text100,
-          ),
-        ),
-      );
-    }
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: ClipRRect(
-        borderRadius: radius,
-        child: Material(
-          color: Colors.transparent,
-          child: Ink(
-            decoration: const BoxDecoration(
-              // 스크린샷 느낌: 좌상단→우하단으로 부드러운 오렌지→핑크
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [_Pal.primary100, _Pal.primary200],
-              ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFFFF4E6), Color(0xFFFFEEF3)], // 크림 → 옅은 핑크
+          ),
+          border: Border.all(color: const Color(0xFFECE7DB), width: 1),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x1A000000),
+              blurRadius: 16,
+              offset: Offset(0, 6),
             ),
-            child: InkWell(
-              // 박스 전체에만 리플(칩에는 퍼지지 않음)
-              splashColor: Colors.white24,
-              highlightColor: Colors.transparent,
-              onTap: () {}, // 필요시 요약 설명 등 액션
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Wrap(
-                  spacing: 6, // 칩 간 간격도 살짝 줄임
-                  runSpacing: 6,
-                  children: [
-                    pill(p),
-                    pill(a),
-                    pill(d),
-                    pill(social),
-                    pill(noise),
-                    pill(crowd),
-                    pill(locale),
-                  ],
-                ),
-              ),
-            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            runAlignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _pill(p),
+              _pill(a),
+              _pill(d),
+              _pill(social),
+              _pill(noise),
+              _pill(crowd),
+              _pill(locale),
+            ],
           ),
         ),
       ),
     );
   }
 
-  // ===== 감정 매핑: {-2, -1, 1, 2} 가정 =====
+  // 칩(그라디언트 + 얇은 테두리)
+  Widget _pill(String text) {
+    final sc = schemeForLabel(text); // ← 전역 함수 호출
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [sc.bg1, sc.bg2],
+        ),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: sc.border, width: 1),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12,
+          height: 1.0,
+          fontWeight: FontWeight.w700,
+          color: sc.fg,
+          letterSpacing: .1,
+        ),
+      ),
+    );
+  }
+
+  // 라벨 매핑
   String _pleasure(int v) {
     switch (v) {
       case -2:
