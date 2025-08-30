@@ -9,15 +9,8 @@ import 'package:heat_trip_flutter/features/record/presentation/screens/schedule_
 import 'package:heat_trip_flutter/features/record/presentation/screens/schedule_detail_screen.dart';
 import 'package:heat_trip_flutter/features/record/presentation/widgets/record_ui.dart';
 
-/// 점 3개 메뉴
+/// 카드 메뉴
 enum _CardMenu { edit, delete }
-
-/// 아이콘/색 스펙 (Dart 2.x 호환)
-class _IconSpec {
-  final IconData icon;
-  final Color color;
-  const _IconSpec(this.icon, this.color);
-}
 
 class ScheduleListScreen extends StatefulWidget {
   const ScheduleListScreen({super.key});
@@ -36,15 +29,15 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
 
   // 검색/필터 상태
   String _searchTitle = '';
-  DateTime? _searchDate; // 리스트용 날짜 필터
-  String _filterType = '전체'; // '전체' | '과거' | '예정'
+  // ✅ 날짜 필터 완전 삭제 (UI/로직 둘 다)
+  String _filterType = '전체';
 
   // 탭(리스트/달력) & 캘린더 상태
   ViewTab _tab = ViewTab.schedule;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
-  // 스크롤/앵커
+  // 스크롤/앵커(선택 영역 자동 스크롤)
   final _scrollController = ScrollController();
   final _selectedSectionKey = GlobalKey();
 
@@ -54,7 +47,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     _load();
   }
 
-  /// 서버에서 스케줄 목록 로딩
+  /// 서버에서 스케줄 목록을 가져와 상태 갱신
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -71,37 +64,30 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }
 
   // ─────────────────────────────────────
-  // 필터링
+  // 필터링 로직
   // ─────────────────────────────────────
+
+  /// 리스트에서 사용하는 필터(제목 + 상태). ✅ 날짜 조건 제거
   List<ScheduleResponse> get _filteredForList {
-    // _filterType 표시 문자열을 기존 레포지토리 규약('전체/지나간/앞으로')에 맞춰 매핑
-    final repoFilter = switch (_filterType) {
-      '과거' => '지나간',
-      '예정' => '앞으로',
-      _ => '전체',
-    };
     return _repository.filterSchedules(
       all: _all,
       title: _searchTitle,
-      date: _searchDate,
-      filterType: repoFilter,
+      date: null, // <- 항상 null (날짜 필터 없음)
+      filterType: _filterType,
     );
   }
 
+  /// 달력에서도 제목/상태만 적용
   List<ScheduleResponse> get _filteredForCalendar {
-    final repoFilter = switch (_filterType) {
-      '과거' => '지나간',
-      '예정' => '앞으로',
-      _ => '전체',
-    };
     return _repository.filterSchedules(
       all: _all,
       title: _searchTitle,
-      date: null, // 달력은 날짜 필터 미사용
-      filterType: repoFilter,
+      date: null, // <- 항상 null
+      filterType: _filterType,
     );
   }
 
+  /// day가 [dateFrom, dateTo] 범위에 속하는 일정들
   List<ScheduleResponse> _schedulesOn(DateTime day) {
     final d = DateTime(day.year, day.month, day.day);
     return _filteredForCalendar.where((s) {
@@ -119,20 +105,11 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     return '${DateFormat.yMMMEd().format(start)} – ${DateFormat.yMMMEd().format(end)}';
   }
 
-  Future<void> _pickSearchDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _searchDate ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-    );
-    if (picked != null) setState(() => _searchDate = picked);
-  }
+  // ─────────────────────────────────────
+  // 아이콘 & 색상 매핑 (이모지 → 컬러 아이콘)
+  // ─────────────────────────────────────
 
-  // ─────────────────────────────────────
-  // 아이콘 & 색상 매핑 (컬러 아이콘)
-  // ─────────────────────────────────────
-  Color _tint(Color c, [double o = .14]) => c.withOpacity(o);
+  Color _tint(Color c, [double o = .16]) => c.withOpacity(o);
 
   Widget _circleIcon(
     IconData icon,
@@ -154,29 +131,29 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     );
   }
 
-  _IconSpec _iconSpecFor(ScheduleResponse s) {
+  ({IconData icon, Color color}) _iconSpecFor(ScheduleResponse s) {
     final t = ('${s.title} ${s.content ?? ''}').toLowerCase();
 
     if (t.contains('flight') || t.contains('plane') || t.contains('air')) {
-      return const _IconSpec(Icons.flight_takeoff, Color(0xFF7C3AED)); // 보라
+      return (icon: Icons.flight_takeoff, color: const Color(0xFF7C3AED)); // 보라
     }
     if (t.contains('hotel') || t.contains('stay') || t.contains('check-in')) {
-      return const _IconSpec(Icons.hotel, Color(0xFF2563EB)); // 파랑
+      return (icon: Icons.hotel, color: const Color(0xFF2563EB)); // 파랑
     }
     if (t.contains('lunch') ||
         t.contains('dinner') ||
         t.contains('sushi') ||
         t.contains('restaurant') ||
         t.contains('food')) {
-      return const _IconSpec(Icons.restaurant, Color(0xFFF97316)); // 오렌지
+      return (icon: Icons.restaurant, color: const Color(0xFFF97316)); // 오렌지
     }
     if (t.contains('market') || t.contains('photo') || t.contains('camera')) {
-      return const _IconSpec(Icons.photo_camera, Color(0xFF16A34A)); // 그린
+      return (icon: Icons.photo_camera, color: const Color(0xFF16A34A)); // 그린
     }
     if (t.contains('museum') || t.contains('art') || t.contains('gallery')) {
-      return const _IconSpec(Icons.palette, Color(0xFFEC4899)); // 핑크
+      return (icon: Icons.palette, color: const Color(0xFFEC4899)); // 핑크
     }
-    return const _IconSpec(Icons.push_pin, Color(0xFF0EA5E9)); // 기본(시안)
+    return (icon: Icons.push_pin, color: const Color(0xFF0EA5E9)); // 기본(시안)
   }
 
   Widget _leadingFor(ScheduleResponse s) {
@@ -231,15 +208,17 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
             ),
             const SizedBox(height: 14),
 
-            _filterChips(),
-            const SizedBox(height: 10),
+            // ✅ 리스트 탭일 때만 필터칩 노출 (Calendar에서는 숨김)
+            if (_tab == ViewTab.schedule) ...[
+              _filterChips(),
+              const SizedBox(height: 12),
+            ],
 
-            _searchDateRow(fm),
-            const SizedBox(height: 12),
-
+            // 상단 요약
             _summaryRow(),
             const SizedBox(height: 12),
 
+            // 탭 본문
             if (_tab == ViewTab.schedule)
               _listContent(fm, listFiltered)
             else
@@ -254,11 +233,12 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   // UI 조각
   // ─────────────────────────────────────
 
-  /// 상태칩(전체/과거/예정) — **아이콘 없음**, 작게, 선택 시만 컬러
+  /// 상태칩(전체/과거/예정) — 작고 컬러풀, 아이콘/체크표시 없음(선택시 배경만 채움)
   Widget _filterChips() {
-    const allColor = Color(0xFF8B5CF6); // 보라
-    const pastColor = Color(0xFFF59E0B); // 앰버
-    const nextColor = Color(0xFF10B981); // 에메랄드
+    // 팔레트
+    const allColor = Color(0xFF7C3AED); // purple
+    const pastColor = Color(0xFF0EA5E9); // cyan
+    const nextColor = Color(0xFF22C55E); // green
 
     Widget chip({
       required String label,
@@ -266,26 +246,28 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
       required Color color,
     }) {
       final selected = _filterType == key;
+      final bg = selected ? color.withOpacity(.14) : Colors.white;
+      final bd = selected ? color.withOpacity(.45) : kBorder;
+      final txt = selected ? color : kTextMain;
 
       return ChoiceChip(
-        selected: selected,
-        onSelected: (_) => setState(() => _filterType = key),
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        visualDensity: const VisualDensity(horizontal: -3, vertical: -4),
-        labelPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        shape: const StadiumBorder(),
-        side: BorderSide(color: selected ? color.withOpacity(.45) : kBorder),
-        backgroundColor: Colors.white,
-        selectedColor: _tint(color),
-
         label: Text(
           label,
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            color: selected ? color : kTextMain,
+            color: txt,
           ),
         ),
+        selected: selected,
+        onSelected: (_) => setState(() => _filterType = key),
+        backgroundColor: Colors.white,
+        selectedColor: bg,
+        side: BorderSide(color: bd),
+        shape: const StadiumBorder(),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: const VisualDensity(horizontal: -3, vertical: -3),
       );
     }
 
@@ -296,102 +278,15 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
         runSpacing: 8,
         children: [
           chip(label: '전체', key: '전체', color: allColor),
-          chip(label: '과거 스케쥴', key: '과거', color: pastColor),
-          chip(label: '예정 스케쥴', key: '예정', color: nextColor),
+          chip(label: '과거 스케쥴', key: '지나간', color: pastColor),
+          chip(label: '예정 스케쥴', key: '앞으로', color: nextColor),
         ],
       ),
     );
   }
 
-  /// 날짜 검색(선택/클리어)
-  Widget _searchDateRow(DateFormat fm) {
-    return Row(
-      children: [
-        ElevatedButton(
-          onPressed: _pickSearchDate,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: kTextMain,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-              side: const BorderSide(color: kBorder),
-            ),
-          ),
-          child: Text(_searchDate != null ? fm.format(_searchDate!) : '날짜 선택'),
-        ),
-        if (_searchDate != null)
-          IconButton(
-            icon: const Icon(Icons.clear, color: kTextMuted),
-            onPressed: () => setState(() => _searchDate = null),
-          ),
-      ],
-    );
-  }
-
-  // 요약 카드용 배지
-  Widget _badge(IconData icon, Color color) {
-    return Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        color: color.withOpacity(.12),
-        shape: BoxShape.circle,
-        border: Border.all(color: color.withOpacity(.35)),
-        boxShadow: [BoxShadow(color: color.withOpacity(.10), blurRadius: 8)],
-      ),
-      alignment: Alignment.center,
-      child: Icon(icon, size: 16, color: color),
-    );
-  }
-
-  // ✅ Bottom overflow 방지: 고정 height 제거 → minHeight만 지정
-  Widget _metricCard({
-    required IconData icon,
-    required String title,
-    required String value,
-    required Color color,
-  }) {
-    return Expanded(
-      child: Container(
-        // height: 88, // ❌ 고정 높이 제거
-        constraints: const BoxConstraints(minHeight: 88), // ✅ 최소 높이만
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [color.withOpacity(.08), color.withOpacity(.02)],
-          ),
-          border: Border.all(color: color.withOpacity(.25)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min, // 내용에 맞게
-          children: [
-            _badge(icon, color),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12, color: color.withOpacity(.9)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   /// 상단 요약(가까운 일정 / 누적 일수 / 여행 횟수)
+  /// - 오버플로우 방지를 위해 높이 여유/텍스트 크기 조정
   Widget _summaryRow() {
     if (_all.isEmpty) return const SizedBox();
     final now = DateTime.now();
@@ -420,27 +315,66 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     }
     final completed = _all.where((s) => s.dateTo.isBefore(now)).length;
 
+    Widget info({
+      required IconData icon,
+      required String label,
+      required String value,
+      required Color color,
+    }) {
+      return Expanded(
+        child: Container(
+          height: 100, // ↑ 살짝 키워서 오버플로우 방지
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            color: color.withOpacity(.06),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withOpacity(.30)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: color),
+              const SizedBox(height: 6),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontWeight: FontWeight.w800, color: color),
+              ),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: color.withOpacity(.8)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Row(
       children: [
-        _metricCard(
+        info(
           icon: Icons.event,
-          title: 'Next',
+          label: 'Next',
           value: closest != null
               ? '${closest.title} (D-${closestDaysLeft})'
               : 'None',
-          color: const Color(0xFF6366F1), // 인디고
+          color: const Color(0xFF7C3AED), // purple
         ),
-        _metricCard(
+        info(
           icon: Icons.today,
-          title: 'Total days',
+          label: 'Total days',
           value: '$totalDays',
-          color: const Color(0xFF06B6D4), // 시안
+          color: const Color(0xFF0EA5E9), // cyan
         ),
-        _metricCard(
+        info(
           icon: Icons.flight_takeoff,
-          title: 'Trips',
+          label: 'Trips',
           value: '$completed',
-          color: const Color(0xFFFB7185), // 로즈
+          color: const Color(0xFFEF4444), // red
         ),
       ],
     );
@@ -449,6 +383,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   // ─────────────────────────────────────
   // 리스트 탭(진행 중 + 전체)
   // ─────────────────────────────────────
+
   Widget _listContent(DateFormat fm, List<ScheduleResponse> filtered) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -481,8 +416,9 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }
 
   // ─────────────────────────────────────
-  // 카드 (공용)
+  // 카드 뷰(리스트/달력 공용)
   // ─────────────────────────────────────
+
   Widget _cardMenuButton(ScheduleResponse s) {
     return PopupMenuButton<_CardMenu>(
       tooltip: 'More',
@@ -555,7 +491,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
           borderRadius: BorderRadius.circular(14),
           onTap: _openDetail,
           child: ScheduleListCard(
-            leadingIcon: _leadingFor(s), // 컬러풀 아이콘
+            leadingIcon: _leadingFor(s),
             title: s.title,
             subtitle: '${fm.format(s.dateFrom)} · ${fm.format(s.dateTo)}',
             description: s.content,
@@ -601,6 +537,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Compact Calendar
         Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 360),
@@ -666,7 +603,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
         ),
         const SizedBox(height: 16),
 
-        // 선택한 날짜 섹션
+        // 선택한 날짜 섹션(항상 유지)
         AnimatedSize(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
@@ -739,6 +676,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                       ),
                       child: Row(
                         children: [
+                          // 타이틀 + 기간
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -763,6 +701,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                               ],
                             ),
                           ),
+                          // 작은 아이콘 칩들
                           Wrap(spacing: 6, children: _chipIconsFor([s])),
                         ],
                       ),
@@ -778,7 +717,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }
 
   // ─────────────────────────────────────
-  // 삭제 확인 & 호출
+  // 삭제 확인 & 실제 삭제 호출
   // ─────────────────────────────────────
   Future<void> _confirmDelete(ScheduleResponse schedule) async {
     final confirmed = await showDialog<bool>(
@@ -789,7 +728,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
           side: const BorderSide(color: kBorder, width: 1),
         ),
         title: const Text('삭제 확인'),
-        content: Text('"${schedule.title}" 스케줄을 삭제하시겠습니까?'),
+        content: Text('"${schedule.title}" 스케쥴을 삭제하시겠습니까?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
