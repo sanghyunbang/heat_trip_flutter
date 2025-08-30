@@ -32,10 +32,7 @@ class AppBottomNavBar extends StatelessWidget {
           label: 'For You',
         ),
         BottomNavigationBarItem(icon: Icon(Icons.menu_book), label: 'Diary'),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.stars_rounded),
-          label: 'Profile',
-        ),
+        BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
       ],
     );
   }

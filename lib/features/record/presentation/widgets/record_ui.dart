@@ -61,7 +61,7 @@ class RecordHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SectionHeader(
-      title: 'Record',
+      title: 'Schedule',
       subtitle: 'Schedule & plan your trips',
       actionLabel: 'Add Item',
       actionIcon: Icons.add,

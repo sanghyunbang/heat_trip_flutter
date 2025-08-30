@@ -41,16 +41,33 @@ class _JourneyScreenState extends State<JourneyScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Journey'),
+        title: const Text('Diary'),
         actions: [
-          TextButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.add),
-            label: const Text('Add Trip'),
-            style: TextButton.styleFrom(foregroundColor: Color(0xFF353535)),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: FilledButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add Diary'),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color.fromARGB(
+                  255,
+                  25,
+                  28,
+                  33,
+                ), // ↓ 블랙보다 부드러운 다크그레이
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                overlayColor: Colors.white.withOpacity(.06), // 눌림 효과도 은은하게
+              ),
+            ),
           ),
-          const SizedBox(width: 8),
         ],
+
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(8),
           child: SizedBox(height: 8),
