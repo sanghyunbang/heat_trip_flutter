@@ -1,341 +1,206 @@
+/// explore_detail_screen.dart
+/// ─────────────────────────────────────────────────────────────────────────
+/// 역할
+/// - DetailVM 상태 구독 (로딩/에러/성공)
+/// - 로딩/에러에서도 항상 '뒤로가기'를 보장 (FallbackAppBar)
+/// - 성공 시: SliverAppBar + 섹션 위젯들 조립
+/// - 네비게이션 안전 팝(safePop) 제공 (go_router/일반 Navigator 모두 대응)
+/// ─────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
-import 'package:heat_trip_flutter/features/explore/data/models/place_item_dto.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+
+import '../../domain/entity_detail/place_detail.dart';
+import '../state/detail_vm.dart';
+
+// 섹션 위젯들 (프레젠테이션 분리)
+import '../widgets_detail/detail_appbars.dart';
+import '../widgets_detail/header_info.dart';
+import '../widgets_detail/gallery.dart';
+import '../widgets_detail/contact_card.dart';
+import '../widgets_detail/hours_card.dart';
+import '../widgets_detail/amenities_card.dart';
+import '../widgets_detail/reviews_card.dart';
+import '../widgets_detail/strip_html.dart';
 
 class ExploreDetailScreen extends StatefulWidget {
-  final PlaceItem data;
-  const ExploreDetailScreen({super.key, required this.data});
+  final int contentId; // 상세 API 키
+  final int contentTypeId; // 타입(관광지, 숙박 등) → 하위 섹션 구성이 달라질 때 사용
+
+  const ExploreDetailScreen({
+    super.key,
+    required this.contentId,
+    required this.contentTypeId,
+  });
 
   @override
   State<ExploreDetailScreen> createState() => _ExploreDetailScreenState();
 }
 
 class _ExploreDetailScreenState extends State<ExploreDetailScreen> {
-  int _qty = 1;
-  int _colorIndex = 0;
+  // 갤러리 인덱스, 즐겨찾기 토글 등 'UI 로컬 상태'
+  int _galleryIndex = 0;
+  bool _isFavorite = false;
 
-  // 데모용 가격/설명 (실데이터에 맞춰 갈아끼우세요)
-  String get price => '\$140.-';
-  final String lorem =
-      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat.';
+  @override
+  void initState() {
+    super.initState();
+    // VM 데이터 로드 트리거를 스케줄 (build 전 안전 실행)
+    Future.microtask(() {
+      context.read<DetailVM>().load(
+        contentId: widget.contentId,
+        contentTypeId: widget.contentTypeId,
+      );
+    });
+  }
+
+  /// go_router 또는 일반 Navigator를 모두 고려한 안전한 뒤로가기
+  /// - 스택이 있으면 pop
+  /// - 없으면 '/explore'로 이동
+  void _safePop() {
+    final nav = Navigator.of(context);
+    if (nav.canPop()) {
+      nav.pop();
+    } else {
+      context.go('/explore');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final vm = context.watch<DetailVM>(); // DetailVM 상태 구독
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
+    // 1) 로딩 상태: 상단 AppBar + 인디케이터 (뒤로가기 보장)
+    if (vm.loading) {
+      return Scaffold(
+        appBar: FallbackAppBar(titleText: '로딩 중…', onBack: _safePop),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
-      // 상단은 투명 AppBar 느낌으로 back 버튼만
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            // ---------- 상단: 큰 이미지 + 오버레이 ----------
-            Stack(
+    // 2) 에러 상태: 에러 메시지 + 다시 시도 버튼 (뒤로가기 보장)
+    if (vm.error != null) {
+      return Scaffold(
+        appBar: FallbackAppBar(titleText: '오류', onBack: _safePop),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // 이미지
-                AspectRatio(
-                  aspectRatio: 1.05, // 스샷과 비슷한 비율
-                  child: Hero(
-                    tag: 'place:${widget.data.contentid}',
-                    child: Image.network(
-                      widget.data.firstimage,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Image.asset(
-                        'assets/images/placeholder.png',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
+                Text('오류가 발생했습니다.\n${vm.error}', textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: () => context.read<DetailVM>().load(
+                    contentId: widget.contentId,
+                    contentTypeId: widget.contentTypeId,
                   ),
-                ),
-
-                // 좌상단 뒤로가기
-                Positioned(
-                  left: 8,
-                  top: 8,
-                  child: Material(
-                    color: Colors.black.withOpacity(0.05),
-                    shape: const CircleBorder(),
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      color: Colors.black87,
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                ),
-
-                // 우하단 북마크 배지
-                Positioned(
-                  right: 16,
-                  bottom: 16,
-                  child: Material(
-                    elevation: 2,
-                    color: cs.primary.withOpacity(0.9),
-                    shape: const CircleBorder(),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('북마크에 저장완료! (mock)'),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      },
-                      child: const SizedBox(
-                        width: 56,
-                        height: 56,
-                        child: Icon(Icons.bookmark_border, color: Colors.white),
-                      ),
-                    ),
-                  ),
+                  child: const Text('다시 시도'),
                 ),
               ],
             ),
+          ),
+        ),
+      );
+    }
 
-            // ---------- 본문 카드 ----------
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(0x15000000),
-                      blurRadius: 10,
-                      offset: Offset(0, -2),
+    // 3) 성공 상태 데이터
+    final PlaceDetail? detail = vm.data;
+    if (detail == null) {
+      // 방어 코드: 데이터 없을 때도 뒤로가기 보장
+      return Scaffold(
+        appBar: FallbackAppBar(titleText: '상세', onBack: _safePop),
+        body: const SizedBox.shrink(),
+      );
+    }
+
+    // 대표 이미지 + 추가 이미지 병합 (중복 제거)
+    final images = <String>[
+      if ((detail.firstImage ?? '').isNotEmpty) detail.firstImage!,
+      ...detail.images,
+    ].toSet().toList();
+
+    // 4) 성공 UI: 확장 SliverAppBar + 섹션 조립
+    return Scaffold(
+      body: CustomScrollView(
+        slivers: [
+          // (A) 상단 확장 앱바: 갤러리/공유/하트/뒤로가기
+          SliverDetailAppBar(
+            title: detail.title,
+            isFavorite: _isFavorite,
+            onBack: _safePop,
+            onToggleFavorite: () => setState(() => _isFavorite = !_isFavorite),
+            gallery: Gallery(
+              images: images,
+              index: _galleryIndex,
+              onChanged: (i) => setState(() => _galleryIndex = i),
+            ),
+          ),
+
+          // (B) 본문 섹션들
+          SliverList(
+            delegate: SliverChildListDelegate([
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    HeaderInfo(detail: detail),
+                    const SizedBox(height: 12),
+
+                    // 개요 (HTML 문자열은 stripHtml로 정리)
+                    if ((detail.overview ?? '').isNotEmpty) ...[
+                      const Divider(),
+                      const SizedBox(height: 12),
+                      const Text(
+                        '개요',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(stripHtml(detail.overview!)),
+                    ],
+
+                    const SizedBox(height: 16),
+                    ContactCard(detail: detail),
+                    const SizedBox(height: 12),
+                    HoursCard(hours: detail.hours),
+                    const SizedBox(height: 12),
+                    AmenitiesCard(amenities: detail.amenities),
+                    const SizedBox(height: 12),
+
+                    // 타입별 섹션 (이미 구현되어 있다면 사용)
+                    // ContentDetailView(detail: detail),
+                    const SizedBox(height: 12),
+                    ReviewsCard(reviews: detail.reviews),
+
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            icon: const Icon(Icons.calendar_month),
+                            label: const Text('방문 계획 추가'),
+                            onPressed: () {},
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.group_outlined),
+                            label: const Text('친구와 공유'),
+                            onPressed: () {},
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 24),
                   ],
                 ),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 타이틀(관광지명)/서브타이틀(주소)/가격
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  widget.data.title,
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.2,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Night Stands', // 데모 서브타이틀
-                                  style: TextStyle(
-                                    color: Colors.black.withOpacity(0.55),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  price,
-                                  style: TextStyle(
-                                    color: cs.primary,
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // 설명
-                      Text(
-                        lorem,
-                        style: TextStyle(
-                          color: Colors.black.withOpacity(0.65),
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // 수량 / 색상
-                      // Row(
-                      //   children: [
-                      //     // 수량
-                      //     Expanded(
-                      //       child: Column(
-                      //         crossAxisAlignment: CrossAxisAlignment.start,
-                      //         children: [
-                      //           const Text('Quantity',
-                      //               style: TextStyle(
-                      //                   fontWeight: FontWeight.w700)),
-                      //           const SizedBox(height: 8),
-                      //           _QtyStepper(
-                      //             qty: _qty,
-                      //             onChanged: (v) => setState(() => _qty = v),
-                      //           ),
-                      //         ],
-                      //       ),
-                      //     ),
-                      //     const SizedBox(width: 16),
-                      //     // 색상
-                      //     Expanded(
-                      //       child: Column(
-                      //         crossAxisAlignment: CrossAxisAlignment.start,
-                      //         children: [
-                      //           const Text('Colors',
-                      //               style: TextStyle(
-                      //                   fontWeight: FontWeight.w700)),
-                      //           const SizedBox(height: 8),
-                      //           _ColorDots(
-                      //             selected: _colorIndex,
-                      //             onChanged: (i) =>
-                      //                 setState(() => _colorIndex = i),
-                      //             colors: const [
-                      //               Color(0xFFE9EEF6), // 연하늘
-                      //               Color(0xFFC8E6C9), // 연초록
-                      //               Color(0xFFF8E1E7), // 연핑크
-                      //               Colors.black,
-                      //               Colors.white,
-                      //             ],
-                      //           ),
-                      //         ],
-                      //       ),
-                      //     ),
-                      //   ],
-                      // ),
-                      // const SizedBox(height: 28),
-
-                      // 바닥 그림자 느낌의 디바이더
-                      Container(
-                        height: 4,
-                        margin: const EdgeInsets.symmetric(horizontal: 60),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 수량 스테퍼( + / 수량 / - )
-class _QtyStepper extends StatelessWidget {
-  final int qty;
-  final ValueChanged<int> onChanged;
-  const _QtyStepper({required this.qty, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: BorderSide(color: Colors.grey.shade300),
-    );
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _SquareIconBtn(
-          icon: Icons.remove,
-          onTap: () {
-            if (qty > 1) onChanged(qty - 1);
-          },
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 56,
-          height: 36,
-          child: TextFormField(
-            key: ValueKey(qty),
-            initialValue: qty.toString().padLeft(2, '0'),
-            textAlign: TextAlign.center,
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 8),
-              enabledBorder: border,
-              focusedBorder: border,
-            ),
-            readOnly: true, // 데모에선 직접 입력 막음
+            ]),
           ),
-        ),
-        const SizedBox(width: 8),
-        _SquareIconBtn(icon: Icons.add, onTap: () => onChanged(qty + 1)),
-      ],
-    );
-  }
-}
-
-class _SquareIconBtn extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  const _SquareIconBtn({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: Colors.grey.shade300),
+        ],
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
-        child: SizedBox(width: 36, height: 36, child: Icon(icon, size: 18)),
-      ),
-    );
-  }
-}
-
-/// 색상 점 선택 위젯
-class _ColorDots extends StatelessWidget {
-  final List<Color> colors;
-  final int selected;
-  final ValueChanged<int> onChanged;
-  const _ColorDots({
-    required this.colors,
-    required this.selected,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 10,
-      children: List.generate(colors.length, (i) {
-        final c = colors[i];
-        final isSel = i == selected;
-        return GestureDetector(
-          onTap: () => onChanged(i),
-          child: Container(
-            width: 22,
-            height: 22,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: c,
-              border: Border.all(
-                color: isSel
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.black12,
-                width: isSel ? 2 : 1,
-              ),
-            ),
-          ),
-        );
-      }),
     );
   }
 }
