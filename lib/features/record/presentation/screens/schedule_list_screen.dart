@@ -311,10 +311,11 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
             const SizedBox(height: 14),
 
             // ✅ 리스트 탭일 때만 필터칩 노출
-            if (_tab == ViewTab.schedule) ...[
-              _filterChips(),
-              const SizedBox(height: 12),
-            ],
+            // if (_tab == ViewTab.schedule) ...[
+            //   _filterChips(),
+            //   const SizedBox(height: 12),
+            // ],
+            if (true) ...[_filterChips(), const SizedBox(height: 12)],
 
             // 상단 요약
             _summaryRow(),
