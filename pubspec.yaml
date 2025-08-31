@@ -63,6 +63,8 @@ dependencies:
 
   flutter_staggered_grid_view: ^0.7.0 # 그리드뷰
 
+  url_launcher: ^6.3.2
+
 
 
 dev_dependencies:
