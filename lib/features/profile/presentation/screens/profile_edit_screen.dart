@@ -1,4 +1,7 @@
+// lib/features/profile/presentation/profile_edit_screen.dart
 import 'package:flutter/material.dart';
+import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
+import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
@@ -10,36 +13,119 @@ class ProfileEditScreen extends StatefulWidget {
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // ── 데모용 초기값 (서버 연동 없이 화면만 확인) ──
-  final _nicknameCtrl = TextEditingController(text: '민하');
-  final _nameCtrl = TextEditingController(text: '김민하');
-  final _emailCtrl = TextEditingController(text: 'minha@example.com');
-  DateTime? _birthDate = DateTime(1998, 1, 23);
-  String _gender = 'F';
+  // ── 컨트롤러 ──
+  final _nicknameCtrl = TextEditingController();
+  final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _ageCtrl = TextEditingController(); // ✅ 나이 입력용
 
-  // 아바타(데모): 기본 아이콘 / 샘플이미지1 / 샘플이미지2
-  String? _avatarUrl; // null이면 기본 아이콘
+  String _gender = 'OTHER'; // 'FEMALE' / 'MALE' / 'OTHER'
+  String? _avatarUrl;   // null이면 기본 아이콘
   bool _saving = false;
+
+  // ✅ 서버 연동용
+  final _authRepo = AuthRepositoryImpl();
+  bool _loadingProfile = true; // 프로필 로딩 스피너
+  String? _loadError;          // 에러 메시지(선택)
+
+  // ✅ 여행 타입(멀티 선택)
+  static const List<String> _travelTypeOptions = [
+    '힐링', '액티비티', '문화·예술', '미식', '자연', '도시여행', '바다', '산·트레킹'
+  ];
+  final Set<String> _selectedTravelTypes = {}; // 서버에서 불러오면 반영
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFromServer(); // 화면 진입 시 서버에서 내 정보 로드
+  }
 
   @override
   void dispose() {
     _nicknameCtrl.dispose();
     _nameCtrl.dispose();
     _emailCtrl.dispose();
+    _ageCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _pickBirthDate() async {
+  // ✅ 서버에서 유저 정보 로드
+  Future<void> _loadFromServer() async {
+    setState(() {
+      _loadingProfile = true;
+      _loadError = null;
+    });
+
+    try {
+      final token = await TokenStorage.getToken();
+      if (token == null) {
+        setState(() {
+          _loadError = '로그인이 필요합니다.'; // 토큰 없음
+          _loadingProfile = false;
+        });
+        return;
+      }
+
+      final data = await _authRepo.getMyProfile(token);
+      if (data == null) {
+        setState(() {
+          _loadError = '프로필 정보를 불러오지 못했습니다.';
+          _loadingProfile = false;
+        });
+        return;
+      }
+
+      // 서버 필드명 예시: name, nickname, email, gender, avatarUrl, birthDate, age, preferredTravelTypes
+      _nicknameCtrl.text = (data['nickname'] ?? '').toString();
+      _nameCtrl.text     = (data['name'] ?? '').toString();
+      _emailCtrl.text    = (data['email'] ?? '').toString();
+
+      final g = (data['gender'] ?? '').toString().toUpperCase();
+      if (g == 'MALE' || g == 'M') _gender = 'MALE';
+      else if (g == 'FEMALE' || g == 'F') _gender = 'FEMALE';
+      else _gender = 'OTHER';
+
+      _avatarUrl = (data['avatarUrl'] as String?);
+
+      // ✅ 나이 채우기: age 우선, 없으면 birthDate로 계산
+      final dynamic age = data['age'];
+      if (age != null) {
+        _ageCtrl.text = age.toString();
+      } else if (data['birthDate'] != null) {
+        final dt = DateTime.tryParse(data['birthDate'].toString());
+        if (dt != null) _ageCtrl.text = _computeAge(dt).toString();
+      }
+
+      // ✅ 여행 타입 선택 반영 (preferredTravelTypes 또는 travelTypes)
+      final dynamic types = data['preferredTravelTypes'] ?? data['travelTypes'];
+      if (types is List) {
+        final s = types.map((e) => e.toString()).toSet();
+        _selectedTravelTypes
+          ..clear()
+          ..addAll(s.intersection(_travelTypeOptions.toSet())); // 알 수 없는 값 제외
+      }
+
+      setState(() => _loadingProfile = false);
+    } catch (e) {
+      setState(() {
+        _loadError = '불러오는 중 오류가 발생했습니다: $e';
+        _loadingProfile = false;
+      });
+    }
+  }
+
+  int _computeAge(DateTime birth) {
     final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _birthDate ?? DateTime(now.year - 20, 1, 1),
-      firstDate: DateTime(1900, 1, 1),
-      lastDate: DateTime(now.year, now.month, now.day),
-      helpText: '생년월일 선택',
-      fieldHintText: 'YYYY-MM-DD',
-    );
-    if (picked != null) setState(() => _birthDate = picked);
+    int age = now.year - birth.year;
+    final hasHadBirthdayThisYear =
+        (now.month > birth.month) ||
+            (now.month == birth.month && now.day >= birth.day);
+    if (!hasHadBirthdayThisYear) age--;
+    return age.clamp(0, 150);
+  }
+
+  Future<void> _pickBirthDate() async {
+    // ⛔️ 사용 안 함(생년월일 → 나이로 대체). 참조 남김 시 삭제 가능.
   }
 
   void _openAvatarSheet() {
@@ -95,17 +181,23 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   Future<void> _saveDemo() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
-    await Future.delayed(const Duration(milliseconds: 700)); // 저장 흉내
+    await Future.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
     setState(() => _saving = false);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('저장(데모) 완료!')),
     );
-    Navigator.of(context).pop(); // 이전 화면으로
+    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loadingProfile) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('프로필 수정'),
@@ -119,7 +211,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: _loadError != null
+            ? Center(child: Text(_loadError!, style: const TextStyle(color: Colors.black54)))
+            : SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Form(
             key: _formKey,
@@ -164,9 +258,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                // ── 이메일 ──
+                // ── 이메일 ── (unique라면 readOnly 권장)
                 TextFormField(
                   controller: _emailCtrl,
+                  readOnly: true,
                   decoration: const InputDecoration(
                     labelText: '이메일',
                     border: OutlineInputBorder(),
@@ -177,6 +272,27 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     if (s.isEmpty) return '이메일을 입력하세요';
                     if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(s)) {
                       return '이메일 형식이 올바르지 않습니다';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                // ── 나이 ──  ✅ (생년월일 대체)
+                TextFormField(
+                  controller: _ageCtrl,
+                  decoration: const InputDecoration(
+                    labelText: '나이',
+                    hintText: '예: 27',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                  validator: (v) {
+                    final s = v?.trim() ?? '';
+                    if (s.isEmpty) return '나이를 입력하세요';
+                    final n = int.tryParse(s);
+                    if (n == null || n < 1 || n > 120) {
+                      return '1~120 사이의 숫자를 입력하세요';
                     }
                     return null;
                   },
@@ -209,26 +325,33 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                // ── 생년월일 ──
-                InkWell(
-                  onTap: _pickBirthDate,
-                  borderRadius: BorderRadius.circular(8),
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: '생년월일',
-                      border: OutlineInputBorder(),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(_birthDate == null
-                            ? '선택하세요'
-                            : '${_birthDate!.year.toString().padLeft(4, '0')}-${_birthDate!.month.toString().padLeft(2, '0')}-${_birthDate!.day.toString().padLeft(2, '0')}'),
-                        const Icon(Icons.calendar_today, size: 18),
-                      ],
-                    ),
-                  ),
+                // ── 여행 타입 선택(멀티) ──  ✅
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('여행 타입', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[800])),
                 ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _travelTypeOptions.map((type) {
+                    final selected = _selectedTravelTypes.contains(type);
+                    return ChoiceChip(
+                      label: Text(type),
+                      selected: selected,
+                      onSelected: (v) {
+                        setState(() {
+                          if (v) {
+                            _selectedTravelTypes.add(type);
+                          } else {
+                            _selectedTravelTypes.remove(type);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+
                 const SizedBox(height: 24),
 
                 // ── 저장 버튼(보조) ──
@@ -269,7 +392,7 @@ class _AvatarPreview extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Colors.white,
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(.08), blurRadius: 10)],
+            boxShadow: [BoxShadow(color: Colors.black26.withOpacity(.08), blurRadius: 10)],
           ),
           child: CircleAvatar(
             radius: radius,
