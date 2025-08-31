@@ -35,6 +35,9 @@ class ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final safeUrl = avatarUrl.trim(); // 공백 방지
+    final hasUrl = safeUrl.isNotEmpty;
+
     return Container(
       color: backgroundColor,
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
@@ -51,14 +54,18 @@ class ProfileHeader extends StatelessWidget {
                       ? TextButton(
                     onPressed: onEdit,
                     style: _textBtnStyle(leftAligned: true),
-                    child: const Text('Edit',
-                        style: TextStyle(fontSize: 14, color: Colors.black54)),
+                    child: const Text(
+                      'Edit',
+                      style: TextStyle(fontSize: 14, color: Colors.black54),
+                    ),
                   )
                       : TextButton(
                     onPressed: onLogin, // null이면 비활성
                     style: _textBtnStyle(leftAligned: true),
-                    child: const Text('Login',
-                        style: TextStyle(fontSize: 14, color: Colors.black54)),
+                    child: const Text(
+                      'Login',
+                      style: TextStyle(fontSize: 14, color: Colors.black54),
+                    ),
                   ),
                 ),
               ),
@@ -66,7 +73,7 @@ class ProfileHeader extends StatelessWidget {
               // 중앙: 로그인됨 → 닉네임 / 비로그인 → guestLabel
               Text(
                 isLoggedIn ? (nickname.isEmpty ? '' : nickname) : guestLabel,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
                   letterSpacing: .2,
@@ -81,14 +88,18 @@ class ProfileHeader extends StatelessWidget {
                       ? TextButton(
                     onPressed: onLogout,
                     style: _textBtnStyle(),
-                    child: const Text('Logout',
-                        style: TextStyle(fontSize: 14, color: Colors.black54)),
+                    child: const Text(
+                      'Logout',
+                      style: TextStyle(fontSize: 14, color: Colors.black54),
+                    ),
                   )
                       : TextButton(
                     onPressed: onSignUp,
                     style: _textBtnStyle(),
-                    child: const Text('Sign up',
-                        style: TextStyle(fontSize: 14, color: Colors.black54)),
+                    child: const Text(
+                      'Sign up',
+                      style: TextStyle(fontSize: 14, color: Colors.black54),
+                    ),
                   ),
                 ),
               ),
@@ -96,17 +107,46 @@ class ProfileHeader extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // 아바타 (비로그인도 동일하게 표시)
+          // ===== 아바타 (네트워크 이미지 안정 렌더링) =====
           Container(
             padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(.08), blurRadius: 10)],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(.08),
+                  blurRadius: 10,
+                )
+              ],
             ),
-            child: CircleAvatar(
-              radius: 54,
-              backgroundImage: NetworkImage(avatarUrl),
+            child: ClipOval(
+              child: hasUrl
+                  ? Image.network(
+                safeUrl,
+                key: ValueKey(safeUrl), // URL 바뀌면 강제 리빌드
+                width: 108,
+                height: 108,
+                fit: BoxFit.cover,
+                // 네트워크 실패 시 플레이스홀더
+                errorBuilder: (_, __, ___) => _fallbackAvatar(),
+                // 느린 네트워크에서 로딩 표시
+                loadingBuilder: (ctx, child, progress) {
+                  if (progress == null) return child;
+                  return SizedBox(
+                    width: 108,
+                    height: 108,
+                    child: const Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  );
+                },
+              )
+                  : _fallbackAvatar(),
             ),
           ),
           const SizedBox(height: 12),
@@ -150,6 +190,18 @@ class ProfileHeader extends StatelessWidget {
       alignment: leftAligned ? Alignment.centerLeft : Alignment.centerRight,
       foregroundColor: Colors.black54,
       overlayColor: Colors.transparent,
+    );
+  }
+
+  /// 네트워크 실패/URL 없음일 때 보이는 기본 아바타
+  Widget _fallbackAvatar() {
+    return Container(
+      width: 108,
+      height: 108,
+      color: Colors.grey.shade200,
+      child: const Center(
+        child: Icon(Icons.person, size: 48, color: Colors.black38),
+      ),
     );
   }
 }
