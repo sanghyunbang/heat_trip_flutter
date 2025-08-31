@@ -150,7 +150,8 @@ final GoRouter appRouter = GoRouter(
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) => MainNavShell(navigationShell: shell),
       branches: [
-        StatefulShellBranch(routes: exploreRoutes), // 각 feature가 자기 루트만 제공
+        // 함수 호출로 받아온다 (env 로드 이후 시점)
+        StatefulShellBranch(routes: buildExploreRoutes()),
         StatefulShellBranch(routes: recordRoutes),
         StatefulShellBranch(
           routes: foryouRoutes,

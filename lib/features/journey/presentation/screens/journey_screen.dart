@@ -4,6 +4,7 @@ import '../../domain/models.dart';
 import '../widgets/stats_card.dart';
 import '../widgets/schedule_list.dart';
 import '../widgets/diary_tab.dart';
+import '../screens/new_diary_screen.dart';
 
 /// Journey 메인 화면 (go_router용 const 생성자)
 class JourneyScreen extends StatefulWidget {
@@ -20,7 +21,7 @@ class _JourneyScreenState extends State<JourneyScreen>
 
   late final Future<JourneyStats> _statsF = _api.fetchStats();
   late final Future<List<Schedule>> _schedulesF = _api.fetchSchedules();
-  late final Future<List<DiaryEntry>> _diariesF = _api.fetchDiaries();
+  late Future<List<DiaryEntry>> _diariesF = _api.fetchDiaries();
 
   // TabController를 State에 보관해서 리빌드/색상 변경에도 선택 상태 유지
   late final TabController _tab;
@@ -46,7 +47,31 @@ class _JourneyScreenState extends State<JourneyScreen>
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: FilledButton.icon(
-              onPressed: () {},
+              onPressed: () async {
+                final entry = await showModalBottomSheet<DiaryEntry>(
+                  context: context,
+                  isScrollControlled: true, // <- 화면 대부분 차지하게
+                  useSafeArea: true,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                  ),
+                  builder: (context) => Padding(
+                    padding: EdgeInsets.only(
+                      bottom: MediaQuery.of(context).viewInsets.bottom,
+                    ),
+                    child: NewDiaryScreen(), // scheduleId 넘기고 싶으면 여기에 전달
+                  ),
+                );
+
+                if (entry != null && context.mounted) {
+                  setState(() {
+                    _diariesF = _api.fetchDiaries(); // 작성 후 목록 새로고침
+                  });
+                }
+              },
+
               icon: const Icon(Icons.add, size: 18),
               label: const Text('Add Diary'),
               style: FilledButton.styleFrom(
