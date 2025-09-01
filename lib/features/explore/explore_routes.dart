@@ -5,7 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import 'presentation/screens/explore_screen.dart';
+// import 'presentation/screens/explore_screen.dart';
+import 'presentation/screens/explore/explore_screen.dart';
 import 'presentation/screens/explore_detail_screen.dart';
 import 'presentation/state/detail_vm.dart';
 import 'data_detail/place_detail_api.dart';
