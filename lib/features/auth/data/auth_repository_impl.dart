@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:heat_trip_flutter/features/auth/data/dto/login_request.dart';
 import 'package:heat_trip_flutter/features/auth/data/dto/register_request.dart';
+import 'package:heat_trip_flutter/features/profile/data/dto/update_profile_request.dart';
 import 'package:http/http.dart' as http;
 
 /// 실제 HTTP 요청을 통해 백엔드와 통신하는 클래스
@@ -64,14 +65,48 @@ class AuthRepositoryImpl {
     }
   }
 
+  // Future<Map<String, dynamic>?> getMyProfile(String token) async {
+  //   // 불필요한 Content-Type은 제거 (GET에는 보통 필요 없음)
+  //   final headers = {'Authorization': 'Bearer $token'};
+  //
+  //   // 1순위: 안전한 표준 엔드포인트 (DTO 반환)
+  //   final primary = Uri.parse('$baseUrl/users/me');
+  //
+  //   // 2순위(폴백): 기존 호환용 엔드포인트 (엔티티 반환 가능성 → 민감키 제거)
+  //   final fallback = Uri.parse('$baseUrl/public/getuser');
+  //
+  //   // 순차 시도
+  //   for (final url in [primary, fallback]) {
+  //     try {
+  //       final res = await http.get(url, headers: headers);
+  //       if (res.statusCode == 200) {
+  //         final data = jsonDecode(res.body) as Map<String, dynamic>;
+  //
+  //         // 혹시라도 엔티티가 내려와 민감정보 포함 시 제거
+  //         data.remove('password');
+  //         data.remove('roles');
+  //         data.remove('authorities');
+  //
+  //         return data;
+  //       } else {
+  //         print('[X] getMyProfile ${url.path} 실패: ${res.statusCode} / ${res.body}');
+  //       }
+  //     } catch (e) {
+  //       print('[X] getMyProfile ${url.path} 에러: $e');
+  //     }
+  //   }
+  //
+  //   return null;
+  // }
+  // 사용자 정보 조회
   Future<Map<String, dynamic>?> getMyProfile(String token) async {
-    final url = Uri.parse('$baseUrl/public/getuser');
+    // final url = Uri.parse('$baseUrl/public/getuser');
+    final url = Uri.parse('$baseUrl/auth/me'); // GET
 
     try {
       final response = await http.get(
         url,
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
       );
@@ -85,6 +120,30 @@ class AuthRepositoryImpl {
     } catch (e) {
       print('[X] 유저 정보 요청 중 에러: $e');
       return null;
+    }
+  }
+
+  // 사용자 정보 수정
+  Future<bool> updateMyProfile(String token, UpdateProfileRequest req) async {
+    final url = Uri.parse('$baseUrl/auth/me'); // PUT
+    try {
+      final response = await http.put(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(req.toJson()),
+      );
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        print('[X] 프로필 업데이트 실패: ${response.statusCode} / ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('[X] 프로필 업데이트 오류: $e');
+      return false;
     }
   }
 }
