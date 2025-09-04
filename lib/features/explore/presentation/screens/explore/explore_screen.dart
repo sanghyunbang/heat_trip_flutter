@@ -2,23 +2,16 @@
 //
 // ExploreScreen — Masonry(핀터레스트형) 카드 그리드 (오케스트레이션 전용)
 //
-// 역할 요약
-// - 상태/DI/라우팅 제어: TabController, ScrollController, ExploreScrollVM, PlaceApi 주입
-// - 필터 조합 및 VM 재빌드
-// - 하위 UI는 모두 분리된 컴포넌트에 위임 (AppBar, FiltersBar, MasonryGrid)
-// - 기존 주석/각주 스타일 유지 + 보강
-//
-// 변경점
-// - place_card 경로 변경: widgets/place_card/index.dart 배럴 사용
-// - UI 세부 구현을 위젯들로 분리해 파일 길이/복잡도 낮춤
-//
-// 의존
-// - flutter_staggered_grid_view: ^0.7.0
+// 변경 핵심
+//  - VM 초기화/refresh를 "프레임 이후"로 지연 → '_dirty' 방지. [A]
+//  - Home에서 전달한 쿼리 파라미터(Map<String,String>)를 Provider로 안전 수신. [B]
+//  - initialFilters가 넘어오면 그것을 우선 적용. [C]
+//  - 탭/지역 변경 시 VM을 재빌드 후 refresh. [D]
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 
-import 'package:heat_trip_flutter/features/explore/data/models/place_item_dto.dart';
 import 'package:heat_trip_flutter/features/explore/data/remote/place_api.dart';
 import 'package:heat_trip_flutter/features/explore/data/remote/place_api_http.dart';
 import 'package:heat_trip_flutter/features/explore/presentation/state/explore_scroll_vm.dart';
@@ -43,60 +36,90 @@ class ExploreScreen extends StatefulWidget {
 
 class _ExploreScreenState extends State<ExploreScreen>
     with SingleTickerProviderStateMixin {
-  // ────────────────────────────────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────────
   // 핵심 상태/의존
-  // ────────────────────────────────────────────────────────────────────────────
-  late ExploreScrollVM _vm;                   // 커서 기반 페이지네이션 VM
-  late TabController _tab;                    // '관광지' / '축제'
-  final ScrollController _scroll = ScrollController(); // 무한 스크롤 감지
-  late final PlaceApi _api;                   // API 인터페이스 (DI)
+  // ────────────────────────────────────────────────────────────────
+  ExploreScrollVM? _vm; // nullable로 두고 준비되면 설정
+  late TabController _tab; // '관광지' / '축제'
+  final ScrollController _scroll = ScrollController();
+  late final PlaceApi _api; // API 인터페이스
 
-  // ────────────────────────────────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────────
   // 필터 상태
-  // ────────────────────────────────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────────
   String _selectedRegion = '전체';
   final List<String> _regions = const ['전체', '서울', '경기', '인천', '부산', '제주'];
 
+  // ────────────────────────────────────────────────────────────────
+  // 라이프사이클
+  // ────────────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
 
-    // 1) API 구현체 주입
     _api = PlaceApiHttp(client: http.Client());
-
-    // 2) 탭 컨트롤러
     _tab = TabController(length: 2, vsync: this);
+
     _tab.addListener(() {
-      if (_tab.indexIsChanging) return; // 애니메이션 중 중복호출 방지
-      _rebuildVmAndRefresh();            // 탭 변경 시 필터 갱신
+      if (_tab.indexIsChanging) return;
+      _rebuildVmAndRefresh(); // [D]
     });
 
-    // 3) 무한 스크롤 트리거
     _scroll.addListener(() {
+      final vm = _vm;
+      if (vm == null) return;
       if (_scroll.position.extentAfter < 600) {
-        _vm.fetchNext();
+        vm.fetchNext();
       }
     });
 
-    // 4) VM 초기화 + 첫 로드
-    _vm = _buildVm(filters: _composeFilters());
-    _vm.refresh();
+    // [A] 초기 VM 생성/로드는 프레임 이후에 수행(빌드 중 notify 방지).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final filters = _composeInitialFilters(); // [B][C]
+      _vm = _buildVm(filters: filters);
+      _vm!.refresh();
+      setState(() {}); // AnimatedBuilder 없이 첫 그림을 띄우기 위함
+    });
   }
 
   @override
   void dispose() {
     _tab.dispose();
     _scroll.dispose();
-    _vm.dispose();
+    _vm?.dispose();
     super.dispose();
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // 필터 조합/VM 재생성
-  // ────────────────────────────────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────────
+  // 초기 필터 구성: initialFilters > Provider(queryParameters)
+  // ────────────────────────────────────────────────────────────────
+  ExploreFilters _composeInitialFilters() {
+    // [C] 위젯 인자로 명시적 필터가 있으면 그것을 우선.
+    if (widget.initialFilters != null) {
+      return widget.initialFilters!;
+    }
 
-  /// 현재 선택된 탭/지역을 바탕으로 서버 필터 조합
-  ExploreFilters _composeFilters() {
+    // [B] routes에서 Provider<Map<String,String>>로 감싼 쿼리 파라미터 읽기.
+    final Map<String, String>? qp = context.read<Map<String, String>?>();
+    final themeId = qp?['themeId'];
+    final q = qp?['q'];
+    final ctid = int.tryParse(qp?['contentTypeId'] ?? '');
+
+    // 여기서는 탭/지역도 반영해서 일관된 ExploreFilters로 만든다.
+    return _composeFilters(
+      themeIdHint: themeId,
+      keywordHint: q,
+      contentTypeIdHint: ctid,
+    );
+  }
+
+  // 현재 선택된 탭/지역 + (선택적으로) 홈에서 온 hint를 조합해 서버 필터를 만든다.
+  ExploreFilters _composeFilters({
+    String? themeIdHint,
+    String? keywordHint,
+    int? contentTypeIdHint,
+  }) {
     final areaCode = _mapAreaCode(_selectedRegion);
 
     String? cat1; // 대분류
@@ -105,46 +128,49 @@ class _ExploreScreenState extends State<ExploreScreen>
 
     if (_tab.index == 0) {
       // 관광지
-      // TODO: 카테고리 코드 매핑
-      // cat1 = 'A01';
+      // TODO: 카테고리 코드 매핑 (예: cat1 = 'A01')
     } else {
       // 축제
-      // TODO: 카테고리 코드 매핑
-      // cat1 = 'A02';
+      // TODO: 카테고리 코드 매핑 (예: cat1 = 'A02')
     }
 
+    // ExploreFilters는 기존 프로젝트의 타입을 그대로 사용.
+    // 필요시 생성자에 themeId/keyword/contentTypeId 같은 필드를 추가하세요.
     return ExploreFilters(
       areacode: areaCode,
       sigungucode: null,
       cat1: cat1,
       cat2: cat2,
       cat3: cat3,
+      // ↓ 아래 3개는 프로젝트 정의에 맞게 반영(예시는 주석)
+      // themeId: themeIdHint,
+      // keyword: keywordHint,
+      // contentTypeId: contentTypeIdHint,
     );
   }
 
-  /// VM 재생성 + 새로고침 (탭/지역/검색 등 필터 바뀔 때 공통 루틴)
-  void _rebuildVmAndRefresh() {
-    final newFilters = _composeFilters();
-
-    _vm.dispose();
-    _vm = _buildVm(filters: newFilters);
-    _vm.refresh();
-
-    _scroll.animateTo(0,
-        duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
-
-    setState(() {}); // AnimatedBuilder에 감싸져 있어도 상단 탭 텍스트 등 갱신 위해 호출
-  }
-
-  /// VM 팩토리
+  // VM 팩토리
   ExploreScrollVM _buildVm({required ExploreFilters filters}) {
     return ExploreScrollVM(api: _api, filters: filters, pageSize: 20);
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // 지역 선택 바텀시트
-  // ────────────────────────────────────────────────────────────────────────────
+  // VM 재생성 + 새로고침 (탭/지역/검색 등 필터 바뀔 때 공통 루틴)
+  void _rebuildVmAndRefresh() {
+    final newFilters = _composeFilters();
+    _vm?.dispose();
+    _vm = _buildVm(filters: newFilters);
+    _vm!.refresh();
 
+    _scroll.animateTo(
+      0,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+
+    setState(() {}); // 상단 탭 텍스트/필터 표시 갱신
+  }
+
+  // 지역 선택 바텀시트
   Future<void> _openRegionSelect() async {
     final result = await showModalBottomSheet<String>(
       context: context,
@@ -165,24 +191,33 @@ class _ExploreScreenState extends State<ExploreScreen>
     }
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
   // SearchDelegate 호출
-  // ────────────────────────────────────────────────────────────────────────────
   Future<void> _openSearch() async {
     final result = await showSearch<String>(
       context: context,
       delegate: SearchDelegateWithReturn(initialQuery: ''),
     );
     if (result != null) {
-      // TODO: 검색어를 ExploreFilters에 반영
+      // TODO: 검색어를 ExploreFilters에 반영 (프로젝트 필드에 맞춰 적용)
       _rebuildVmAndRefresh();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final vm = _vm;
+
+    // [A-보강] 아직 VM 준비 전이면 간단한 프레임홀더 표시
+    if (vm == null) {
+      return Scaffold(
+        appBar: ExploreAppBar(tabController: _tab, onPressSearch: _openSearch),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // VM이 준비된 이후에는 AnimatedBuilder로 감싼다.
     return AnimatedBuilder(
-      animation: _vm, // ChangeNotifier를 관찰 → 상태 변화 시 리빌드
+      animation: vm, // ChangeNotifier를 관찰 → 상태 변화 시 리빌드
       builder: (_, __) {
         return Scaffold(
           backgroundColor: Colors.white,
@@ -205,10 +240,7 @@ class _ExploreScreenState extends State<ExploreScreen>
               const SizedBox(height: 8),
               // 메인 콘텐츠
               Expanded(
-                child: ExploreMasonryGrid(
-                  vm: _vm,
-                  scrollController: _scroll,
-                ),
+                child: ExploreMasonryGrid(vm: vm, scrollController: _scroll),
               ),
             ],
           ),
@@ -217,9 +249,7 @@ class _ExploreScreenState extends State<ExploreScreen>
     );
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
   // 지역명 → API 지역코드 매핑
-  // ────────────────────────────────────────────────────────────────────────────
   int? _mapAreaCode(String region) {
     switch (region) {
       case '전체':
