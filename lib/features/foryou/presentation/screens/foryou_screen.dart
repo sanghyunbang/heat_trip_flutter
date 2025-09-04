@@ -1,20 +1,17 @@
-// lib/features/foryou/presentation/screens/foryou_screen.dart
-import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:go_router/go_router.dart';
+import 'package:heat_trip_flutter/features/foryou/presentation/widget/category_grid.dart';
+import 'package:heat_trip_flutter/features/foryou/presentation/widget/emotion_page.dart';
+import 'package:heat_trip_flutter/features/foryou/presentation/widget/insight_card.dart';
+import 'package:heat_trip_flutter/features/foryou/presentation/widget/local_destination_card.dart';
+import 'package:heat_trip_flutter/features/foryou/presentation/widget/mood_recommend_card.dart';
+import 'package:heat_trip_flutter/features/foryou/presentation/widget/popular_content_list.dart';
+import 'package:heat_trip_flutter/features/foryou/presentation/widget/recent_interest_carousel.dart';
+import 'package:heat_trip_flutter/features/foryou/presentation/widget/theme_card.dart';
 import 'package:provider/provider.dart';
 
-import 'package:heat_trip_flutter/features/foryou/domain/entities/context.dart'
-    as dom;
+import '../../domain/entities/context.dart' as dom;
 import '../states/foryou_vm.dart';
-
-// 위젯들
-import '../widgets/k_picker.dart'; // ⬅ KPicker(framed: false) 사용
-import '../widgets/context_summary.dart';
-import '../widgets/category_card.dart';
-import '../widgets/skeleton_card.dart';
-import '../widgets/error_view.dart';
+import 'detail_page.dart';
 
 class ForYouScreen extends StatefulWidget {
   final dom.Context contextModel;
@@ -29,147 +26,212 @@ class _ForYouScreenState extends State<ForYouScreen> {
   @override
   void initState() {
     super.initState();
-    // 초기 로딩은 다음 이벤트 루프로 미뤄 안전하게 트리거
-    Future.microtask(
-      () => context.read<ForYouVM>().load(widget.contextModel, k: widget.k),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ForYouVM>().load(widget.contextModel, widget.k);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<ForYouVM>();
+    final list = vm.items;
+
+    final moodEmoji = switch (vm.diagnosis?.mood) {
+      'CURIOUS' => '🤔',
+      'CALM' => '😌',
+      'HAPPY' => '😊',
+      'PROUD' => '🕶️',
+      'TIRED' => '🥱',
+      'ANXIOUS' => '😰',
+      'ANGRY' => '😠',
+      'SAD' => '😢',
+      _ => null,
+    };
+
+    // ── 카테고리 2열 카드 데이터(샘플 숫자는 TSX처럼 감성만 맞춤)
+    final cats = [
+      CategoryTileData(
+        id: 'nature',
+        labelKo: '자연',
+        count: 45,
+        icon: Icons.terrain,
+        color: Colors.green,
+      ),
+      CategoryTileData(
+        id: 'city',
+        labelKo: '도시',
+        count: 32,
+        icon: Icons.location_city,
+        color: Colors.blue,
+      ),
+      CategoryTileData(
+        id: 'coastal',
+        labelKo: '해안',
+        count: 28,
+        icon: Icons.waves,
+        color: Colors.cyan,
+      ),
+      CategoryTileData(
+        id: 'cultural',
+        labelKo: '문화',
+        count: 38,
+        icon: Icons.camera_alt_outlined,
+        color: Colors.deepPurple,
+      ),
+      CategoryTileData(
+        id: 'cafe',
+        labelKo: '카페',
+        count: 52,
+        icon: Icons.local_cafe_outlined,
+        color: Colors.orange,
+      ),
+      CategoryTileData(
+        id: 'healing',
+        labelKo: '힐링',
+        count: 29,
+        icon: Icons.favorite_outline,
+        color: Colors.pink,
+      ),
+    ];
+
+    // 인기 콘텐츠(샘플)
+    final popular = const [
+      PopularContent('제주도 숨은 카페 10곳', 1278),
+      PopularContent('부산 핫플레이스 완전정복', 1321),
+      PopularContent('서울 감성 여행 코스', 548),
+    ];
+
+    // 최근 관심(간단히 추천 상위 4개 사용)
+    final recent = list.take(4).toList();
 
     return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: () => context.read<ForYouVM>().load(widget.contextModel),
+      body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            // ───────────────── AppBar ─────────────────
-            // actions에 KPicker 두지 않음(요청: Summary 아래/오른쪽 정렬)
-            SliverAppBar(
-              floating: true,
-              snap: true,
-              title: const Text(
-                'For You',
-                style: TextStyle(fontWeight: FontWeight.w700),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              sliver: SliverList.list(
+                children: [
+                  Text(
+                    'For You',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '당신만을 위한 여행 추천',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // 인사이트 카드
+                  InsightCard(
+                    onRecord: () async {
+                      final result = await Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const EmotionPage()),
+                      );
+                      if (result != null && mounted) {
+                        vm.setDiagnosis(result);
+                        final ctx = dom.Context(
+                          energy: result.energy,
+                          social: result.social,
+                          location: widget.contextModel.location,
+                        );
+                        vm.load(ctx, widget.k);
+                      }
+                    },
+                    moodEmoji: moodEmoji,
+                    energy: vm.diagnosis?.energy,
+                    social: vm.diagnosis?.social,
+                  ),
+                  const SizedBox(height: 12),
+
+                  const MoodRecommendCard(),
+                  const SizedBox(height: 12),
+
+                  // ▼ 배너(이미지 안전 처리됨)
+                  ThemeCard(
+                    title: '마음의 치유',
+                    subtitle: '고요함을 찾는 힐링 여행',
+                    // 의도한 1차 URL (깨지면 자동으로 폴백)
+                    primaryImageUrl:
+                        'https://images.unsplash.com/photo-1536589961740-7f8f4f4f7f52?auto=format&fit=crop&w=1600&q=80',
+                    onTap: () {},
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // ▼ 여행 카테고리(2열 그리드)
+                  CategoryGrid(
+                    items: cats,
+                    onSeeAll: () {}, // TODO: 전체 보기로 이동
+                    onTap: (id) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CategoryDetailPage(
+                            category: id,
+                            contextModel: widget.contextModel,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
 
-            // ───────────── Summary(칩 그라디언트 박스) ─────────────
-            SliverToBoxAdapter(child: ContextSummary(ctx: widget.contextModel)),
-
-            // ───────────── Summary 아래 · 추천 카테고리 위 ─────────────
-            // KPicker 오른쪽 정렬 + 외곽 큰 오벌 제거(framed: false)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: KPicker(
-                    value: vm.k,
-                    framed: false, // ⬅ 외곽 캡슐(오벌) 제거
-                    onChanged: (v) => context.read<ForYouVM>().load(
-                      widget.contextModel,
-                      k: v,
+            // ▼ 추천 여행지 섹션
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              sliver: SliverToBoxAdapter(
+                child: Row(
+                  children: [
+                    Text(
+                      '추천 여행지',
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
-                  ),
+                    const Spacer(),
+                    Text(
+                      '${list.length}곳',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ),
               ),
             ),
-
-            // ───────────── 데이터 렌더링(로딩/에러/정상) ─────────────
-            if (vm.loading)
-              SliverList.builder(
-                itemCount: 6,
-                itemBuilder: (_, __) =>
-                    const SkeletonCard().animate().fadeIn(duration: 300.ms),
-              )
-            else if (vm.error != null)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: ErrorView(
-                  message: vm.error.toString(),
-                  onRetry: () =>
-                      context.read<ForYouVM>().load(widget.contextModel),
-                ).animate().fadeIn(duration: 250.ms),
-              )
-            else
-              // 추천 카테고리 카드 컨테이너
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: const Color(0xFFEBE2CD).withOpacity(.8),
-                        width: .8,
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              sliver: vm.loading
+                  ? const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Center(child: CircularProgressIndicator()),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(.06),
-                          blurRadius: 18,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
+                    )
+                  : SliverList.separated(
+                      itemCount: list.length,
+                      itemBuilder: (_, i) => LocalDestinationCard(d: list[i]),
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 섹션 헤더
-                        const Padding(
-                          padding: EdgeInsets.fromLTRB(16, 14, 16, 6),
-                          child: Text(
-                            '추천 카테고리',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 18,
-                              color: Color(0xFF353535),
-                            ),
-                          ),
-                        ),
-                        const Divider(height: 1, color: Color(0x15000000)),
-                        // 리스트
-                        ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: vm.items.length,
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          separatorBuilder: (_, __) => const Divider(
-                            height: 1,
-                            color: Color(0x14000000),
-                          ),
-                          itemBuilder: (_, i) {
-                            final item = vm.items[i];
-                            return CategoryCard(
-                                  item: item,
-                                  onVisible: () =>
-                                      vm.onCardVisible(item.category),
-                                  onInvisible: () => vm.onCardInvisible(
-                                    item.category,
-                                    widget.contextModel,
-                                  ),
-                                  onTap: () {
-                                    vm.onTap(item.category);
-                                    context.push(
-                                      '/foryou/detail/${item.category}',
-                                      extra: widget.contextModel,
-                                    );
-                                  },
-                                )
-                                .animate()
-                                .slideY(begin: .06, end: 0, duration: 200.ms)
-                                .fadeIn(duration: 200.ms);
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
+            ),
+
+            // ▼ 인기 여행 콘텐츠
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              sliver: SliverToBoxAdapter(
+                child: PopularContentList(items: popular),
+              ),
+            ),
+
+            // ▼ 최근 관심 여행지
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              sliver: SliverToBoxAdapter(
+                child: RecentInterestCarousel(
+                  items: recent,
+                  onSeeAll: () {}, // TODO: 전체보기
                 ),
               ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            ),
           ],
         ),
       ),
