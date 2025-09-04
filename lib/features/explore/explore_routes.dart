@@ -1,51 +1,69 @@
-// explore_routes.dart
+// lib/features/explore/explore_routes.dart
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-// import 'presentation/screens/explore_screen.dart';
+// Screens
+import 'presentation/screens/home/home_screen.dart';
 import 'presentation/screens/explore/explore_screen.dart';
 import 'presentation/screens/explore_detail_screen.dart';
-import 'presentation/state/detail_vm.dart';
+
+// Detail DI (KTO 상세)
 import 'data_detail/place_detail_api.dart';
 import 'data_detail/place_detail_repository.dart';
+import 'presentation/state/detail_vm.dart';
 
 List<RouteBase> buildExploreRoutes() {
-  // .env에서 값을 “런타임에” 꺼냄
+  // .env 로드 (상세 화면에서만 사용)
   final serviceKey = dotenv.maybeGet('YOUR_DECODING_SERVICE_KEY') ?? '';
   final mobileOS = dotenv.maybeGet('MOBILE_OS') ?? 'ETC';
   final mobileApp = dotenv.maybeGet('MOBILE_APP') ?? 'HeatTrip';
 
-  // (중요) KorService 버전 통일: 1 또는 2로 통일해서 쓰세요.
-  // 여기선 둘 다 KorService1로 맞추는 예시를 사용합니다.
   Uri buildCommonUri() =>
       Uri.https('apis.data.go.kr', '/B551011/KorService2/detailCommon2', {
-        'serviceKey': serviceKey, // ← 디코딩 키 사용! (Uri가 알아서 인코딩)
+        'serviceKey': serviceKey,
         'MobileOS': mobileOS,
         'MobileApp': mobileApp,
-        // 'defaultYN': 'Y',
-        // 'addrinfoYN': 'Y',
-        // 'mapinfoYN': 'Y',
-        // 'overviewYN': 'Y',
         '_type': 'Json',
       });
 
   Uri buildIntroUri() =>
       Uri.https('apis.data.go.kr', '/B551011/KorService2/detailIntro2', {
-        'serviceKey': serviceKey, // ← 디코딩 키 사용! (Uri가 알아서 인코딩)
+        'serviceKey': serviceKey,
         'MobileOS': mobileOS,
         'MobileApp': mobileApp,
         '_type': 'Json',
       });
 
-  return [
+  return <RouteBase>[
+    // 🔹 Explore 탭의 첫 화면 = Home(정적 카드)
+    //    ⇒ HomeScreen이 샘플 이미지를 자체 렌더하므로 Provider 주입 불필요.
     GoRoute(
       path: '/explore',
-      name: 'explore',
-      builder: (context, state) => const ExploreScreen(),
+      name: 'explore_home',
+      pageBuilder: (context, state) => const MaterialPage(child: HomeScreen()),
     ),
+
+    // 🔹 실제 목록(예전 Explore) — Home 카드 탭 시 여기로 이동
+    //    예: /explore/list?themeId=healing&contentTypeId=12&q=카페
+    GoRoute(
+      path: '/explore/list',
+      name: 'explore_list',
+      pageBuilder: (context, state) {
+        final query = state.uri.queryParameters; // Map<String,String>
+        return MaterialPage(
+          child: Provider<Map<String, String>>.value(
+            value: query,
+            child: const ExploreScreen(),
+          ),
+        );
+      },
+    ),
+
+    // 🔹 상세 화면
     GoRoute(
       path: '/explore/:contentId/:contentTypeId',
       name: 'explore_detail',
@@ -55,7 +73,7 @@ List<RouteBase> buildExploreRoutes() {
 
         final api = PlaceDetailApi(
           client: http.Client(),
-          commonBaseUri: buildCommonUri(), // ← 이제 런타임 조립
+          commonBaseUri: buildCommonUri(),
           introBaseUri: buildIntroUri(),
         );
         final repo = PlaceDetailRepository(api);
