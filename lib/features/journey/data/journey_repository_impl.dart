@@ -40,7 +40,7 @@ class JourneyRepositoryImpl {
     final token = await TokenStorage.getToken();
     if (token == null) throw Exception('No auth token');
 
-    final url = Uri.parse('$baseUrl/journeys/schedules');
+    final url = Uri.parse('$baseUrl/public/schedules');
     final response = await http.get(
       url,
       headers: {
@@ -130,7 +130,7 @@ class JourneyRepositoryImpl {
     final token = await TokenStorage.getToken();
     if (token == null) return 'Authentication required';
 
-    final url = Uri.parse('$baseUrl/journeys/diaries');
+    final url = Uri.parse('$baseUrl/journeys/entries');
     final response = await http.post(
       url,
       headers: {
@@ -140,11 +140,43 @@ class JourneyRepositoryImpl {
       body: jsonEncode(entry.toJson()),
     );
 
-    if (response.statusCode == 201) {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
       return null;
     } else {
       print('Failed to post diary: ${response.statusCode} ${response.body}');
       return '등록 실패 (${response.statusCode})';
+    }
+  }
+
+  Future<List<String>?> uploadImages(List<File> images) async {
+    final token = await TokenStorage.getToken();
+    if (token == null) return null;
+
+    final url = Uri.parse('$baseUrl/journeys/entries/images');
+    final request = http.MultipartRequest('POST', url);
+    request.headers['Authorization'] = 'Bearer $token';
+
+    for (final file in images) {
+      final mimeType = lookupMimeType(file.path) ?? 'image/jpeg';
+      final mediaType = MediaType.parse(mimeType);
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'images',
+          file.path,
+          contentType: mediaType,
+        ),
+      );
+    }
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return List<String>.from(data);
+    } else {
+      print('Image upload failed: ${response.statusCode} ${response.body}');
+      return null;
     }
   }
 }
