@@ -1,5 +1,3 @@
-// features/journey/domain/diary_entry.dart
-
 class DiaryEntry {
   final int? scheduleId;
   final String authorInitials;
@@ -11,7 +9,7 @@ class DiaryEntry {
   final List<String> photos;
   final String body;
 
-  DiaryEntry({
+  const DiaryEntry({
     this.scheduleId,
     required this.authorInitials,
     required this.title,
@@ -23,6 +21,26 @@ class DiaryEntry {
     required this.body,
   });
 
+  /// 표시용 날짜 ("Jan 21")
+  String get dateLabel {
+    const m = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${m[date.month - 1]} ${date.day}';
+  }
+
+  /// JSON → DiaryEntry
   factory DiaryEntry.fromJson(Map<String, dynamic> json) {
     return DiaryEntry(
       scheduleId: json['scheduleId'],
@@ -36,11 +54,13 @@ class DiaryEntry {
       body: json['body'],
     );
   }
+
+  /// DiaryEntry → JSON
   Map<String, dynamic> toJson() => {
     if (scheduleId != null) 'scheduleId': scheduleId,
     'authorInitials': authorInitials,
     'title': title,
-    'date': date.toIso8601String(),
+    'date': date.toIso8601String(), // .split('T')[0], LocalDate 대응
     'location': location,
     'moodLabel': moodLabel,
     'weatherLabel': weatherLabel,

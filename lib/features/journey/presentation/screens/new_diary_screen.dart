@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:heat_trip_flutter/features/journey/data/journey_repository_impl.dart';
 import '../../domain/models.dart';
 
 class NewDiaryScreen extends StatefulWidget {
@@ -65,7 +66,10 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () {
               final url = ctrl.text.trim();
@@ -81,13 +85,13 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
 
   void _removePhoto(int idx) => setState(() => _photos.removeAt(idx));
 
-  void _submit() {
+  void _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     final moodLabel = _moods[_moodIndex].$2;
 
     final entry = DiaryEntry(
-      scheduleId: widget.scheduleId,                // ✅ null 또는 실제 id
+      scheduleId: widget.scheduleId,
       authorInitials: 'ME',
       title: _title.text.trim(),
       date: _date,
@@ -98,7 +102,19 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
       body: _body.text.trim(),
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Diary saved')));
+    final repo = JourneyRepositoryImpl(); // ✨ Repository 인스턴스 생성
+    final error = await repo.postDiary(entry); // ✨ 서버 전송
+
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save: $error')));
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Diary saved')));
     Navigator.pop(context, entry);
   }
 
@@ -123,13 +139,21 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF1F2F5),
                       borderRadius: BorderRadius.circular(999),
                     ),
-                    child: Text('Schedule #${widget.scheduleId}',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    child: Text(
+                      'Schedule #${widget.scheduleId}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
               if (widget.scheduleId != null) const SizedBox(height: 12),
@@ -149,8 +173,9 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                           hintText: 'e.g. Magical Morning at Tsukiji',
                           border: OutlineInputBorder(),
                         ),
-                        validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Title is required' : null,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Title is required'
+                            : null,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -202,7 +227,10 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                             label: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(_moods[i].$1, style: const TextStyle(fontSize: 16)),
+                                Text(
+                                  _moods[i].$1,
+                                  style: const TextStyle(fontSize: 16),
+                                ),
                                 const SizedBox(width: 6),
                                 Text(_moods[i].$2),
                               ],
@@ -211,7 +239,9 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                             onSelected: (_) => setState(() => _moodIndex = i),
                             selectedColor: const Color(0xFFEBE2CD),
                             labelStyle: TextStyle(
-                              color: _moodIndex == i ? const Color(0xFF353535) : null,
+                              color: _moodIndex == i
+                                  ? const Color(0xFF353535)
+                                  : null,
                               fontWeight: FontWeight.w600,
                             ),
                             side: const BorderSide(color: Color(0xFFE6E6E6)),
@@ -241,7 +271,10 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                     const _SectionTitle('Photos'),
                     const SizedBox(height: 8),
                     if (_photos.isEmpty)
-                      Text('No photos yet. Add by URL.', style: TextStyle(color: subtle)),
+                      Text(
+                        'No photos yet. Add by URL.',
+                        style: TextStyle(color: subtle),
+                      ),
                     if (_photos.isNotEmpty)
                       _PhotoGrid(urls: _photos, onRemove: _removePhoto),
                     const SizedBox(height: 8),
@@ -271,8 +304,9 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                         hintText: 'Write your story...',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Please write something' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Please write something'
+                          : null,
                     ),
                   ],
                 ),
@@ -284,12 +318,15 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                 child: ElevatedButton.icon(
                   onPressed: _submit,
                   icon: const Icon(Icons.check, color: Colors.white),
-                  label:
-                  const Text('Save Diary', style: TextStyle(color: Colors.white)),
+                  label: const Text(
+                    'Save Diary',
+                    style: TextStyle(color: Colors.white),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0B0B14),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     elevation: 0,
                   ),
                 ),
@@ -329,7 +366,10 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800));
+    return Text(
+      text,
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+    );
   }
 }
 
@@ -383,7 +423,10 @@ class _PhotoGrid extends StatelessWidget {
                   errorBuilder: (_, __, ___) => Container(
                     color: Colors.grey.shade200,
                     alignment: Alignment.center,
-                    child: const Icon(Icons.broken_image_outlined, color: Colors.black26),
+                    child: const Icon(
+                      Icons.broken_image_outlined,
+                      color: Colors.black26,
+                    ),
                   ),
                 ),
               ),
