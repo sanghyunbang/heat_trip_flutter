@@ -44,6 +44,8 @@ class _ExploreScreenState extends State<ExploreScreen>
   final ScrollController _scroll = ScrollController();
   late final PlaceApi _api; // API 인터페이스
 
+  List<String>? _initialCat3List; // 지역탭 바꿔도 cat3 필터가 유지될 수 있게
+
   // ────────────────────────────────────────────────────────────────
   // 필터 상태
   // ────────────────────────────────────────────────────────────────
@@ -58,7 +60,7 @@ class _ExploreScreenState extends State<ExploreScreen>
     super.initState();
 
     _api = PlaceApiHttp(client: http.Client());
-    _tab = TabController(length: 2, vsync: this);
+    _tab = TabController(length: 2, vsync: this); // 상단 관광지, 축제 관련 탭
 
     _tab.addListener(() {
       if (_tab.indexIsChanging) return;
@@ -106,11 +108,25 @@ class _ExploreScreenState extends State<ExploreScreen>
     final q = qp?['q'];
     final ctid = int.tryParse(qp?['contentTypeId'] ?? '');
 
+    // CSV -> List<String> 파싱
+    final cat3Csv = qp?['cat3'];
+    final List<String>? cat3ListHint = (cat3Csv == null || cat3Csv.isEmpty)
+        ? null
+        : cat3Csv
+              .split(',')
+              .map((s) => s.trim())
+              .where((s) => s.isNotEmpty)
+              .toList();
+
+    // 원하면 “초기값으로” 보관 (탭/지역 바꿔도 유지하려면 사용)
+    _initialCat3List ??= cat3ListHint;
+
     // 여기서는 탭/지역도 반영해서 일관된 ExploreFilters로 만든다.
     return _composeFilters(
       themeIdHint: themeId,
       keywordHint: q,
       contentTypeIdHint: ctid,
+      cat3ListHint: _initialCat3List,
     );
   }
 
@@ -119,12 +135,16 @@ class _ExploreScreenState extends State<ExploreScreen>
     String? themeIdHint,
     String? keywordHint,
     int? contentTypeIdHint,
+    List<String>? cat3ListHint,
   }) {
     final areaCode = _mapAreaCode(_selectedRegion);
 
     String? cat1; // 대분류
     String? cat2; // 중분류
     String? cat3; // 소분류
+
+    // 외부에서 온 cat3List가 있다면 그것을 우선 적용
+    final List<String>? cat3List = cat3ListHint;
 
     if (_tab.index == 0) {
       // 관광지
@@ -142,6 +162,7 @@ class _ExploreScreenState extends State<ExploreScreen>
       cat1: cat1,
       cat2: cat2,
       cat3: cat3,
+      cat3List: cat3List,
       // ↓ 아래 3개는 프로젝트 정의에 맞게 반영(예시는 주석)
       // themeId: themeIdHint,
       // keyword: keywordHint,
@@ -156,7 +177,9 @@ class _ExploreScreenState extends State<ExploreScreen>
 
   // VM 재생성 + 새로고침 (탭/지역/검색 등 필터 바뀔 때 공통 루틴)
   void _rebuildVmAndRefresh() {
-    final newFilters = _composeFilters();
+    final newFilters = _composeFilters(
+      cat3ListHint: _initialCat3List, // 유지 => 탭 지역 바뀌어도 계속 동일 cat3
+    );
     _vm?.dispose();
     _vm = _buildVm(filters: newFilters);
     _vm!.refresh();

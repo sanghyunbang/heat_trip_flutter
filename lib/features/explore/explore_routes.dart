@@ -56,7 +56,7 @@ List<RouteBase> buildExploreRoutes() {
         final query = state.uri.queryParameters; // Map<String,String>
         return MaterialPage(
           child: Provider<Map<String, String>>.value(
-            value: query,
+            value: query, // Home에서 _goExplore에서 실어보낸 query를 그대로 주입!
             child: const ExploreScreen(),
           ),
         );
