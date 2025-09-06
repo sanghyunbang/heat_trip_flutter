@@ -16,6 +16,7 @@ class BoardCardData {
   final String themeId; // (현재 스타일엔 사용 X, 추후 확장용)
   final int? contentTypeId;
   final String? query;
+  final List<String> cat3List; // 관련 cat3 리스트로 추가하기
   const BoardCardData({
     required this.id,
     required this.title,
@@ -24,6 +25,7 @@ class BoardCardData {
     required this.themeId,
     this.contentTypeId,
     this.query,
+    this.cat3List = const [],
   });
 }
 
@@ -47,6 +49,7 @@ const List<BoardSection> kSections = [
       BoardCardData(
         id: 'healing-1',
         title: '전통 사찰',
+        cat3List: ['A02010800'],
         desc: '천년고도로 치유 — 고즈넉한 숲길과 종소리, 사찰 차 한 잔의 여유를 느껴보세요.',
         preview: [
           'https://images.unsplash.com/photo-1644647926885-fe106de1c4d0?w=1600',
@@ -58,6 +61,7 @@ const List<BoardSection> kSections = [
       BoardCardData(
         id: 'healing-2',
         title: '스파 리조트',
+        cat3List: ['A02020300'],
         desc: '따뜻한 온기와 휴식 — 노천탕, 테라피, 조용한 라운지까지 한 번에.',
         preview: [
           'https://images.unsplash.com/photo-1722177189511-aae39a9f5162?w=1600',
@@ -69,6 +73,7 @@ const List<BoardSection> kSections = [
       BoardCardData(
         id: 'healing-3',
         title: '산림욕장',
+        cat3List: ['A01010400', 'A01010500', 'A01010600'],
         desc: '피톤치드 가득한 숲길에서 호흡을 가다듬고 몸과 마음을 재충전하세요.',
         preview: [
           'https://images.unsplash.com/photo-1723382596965-7d51dc7a348c?w=1600',
@@ -85,7 +90,8 @@ const List<BoardSection> kSections = [
     boards: [
       BoardCardData(
         id: 'culture-1',
-        title: '현대미술관',
+        title: '미술관',
+        cat3List: ['A02060500'],
         desc: '새로운 시선의 전시 — 설치, 사진, 미디어아트를 한 공간에서.',
         preview: [
           'https://images.unsplash.com/photo-1608434904164-c8447262aa0d?w=1600',
@@ -94,20 +100,21 @@ const List<BoardSection> kSections = [
         contentTypeId: 12,
         query: '미술관',
       ),
-      BoardCardData(
-        id: 'culture-2',
-        title: '한복 체험',
-        desc: '도심 속 전통 — 골목 산책, 사진 촬영, 찻집까지 연결되는 하루.',
-        preview: [
-          'https://images.unsplash.com/photo-1711887540798-9d7d720e5319?w=1600',
-        ],
-        themeId: 'culture',
-        contentTypeId: 12,
-        query: '한복',
-      ),
+      // BoardCardData(
+      //   id: 'culture-2',
+      //   title: '한복 체험',
+      //   desc: '도심 속 전통 — 골목 산책, 사진 촬영, 찻집까지 연결되는 하루.',
+      //   preview: [
+      //     'https://images.unsplash.com/photo-1711887540798-9d7d720e5319?w=1600',
+      //   ],
+      //   themeId: 'culture',
+      //   contentTypeId: 12,
+      //   query: '한복',
+      // ),
       BoardCardData(
         id: 'culture-3',
         title: '고궁 탐방',
+        cat3List: ['A02010200', 'A02010300'],
         desc: '시간을 거스르는 산책 — 고즈넉한 전각과 계절별 정원의 풍경.',
         preview: [
           'https://images.unsplash.com/photo-1686232342940-b8c4148c69e4?w=1600',
@@ -125,6 +132,7 @@ const List<BoardSection> kSections = [
       BoardCardData(
         id: 'cozy-1',
         title: '감성 카페',
+        cat3List: ['A05020900'],
         desc: '햇살, LP음악, 수제 디저트 — 머무르는 자체가 여행이 되는 곳.',
         preview: [
           'https://images.unsplash.com/photo-1726763580111-8bb05287de6b?w=1600',
@@ -135,7 +143,8 @@ const List<BoardSection> kSections = [
       ),
       BoardCardData(
         id: 'cozy-2',
-        title: '독립서점',
+        title: '서점',
+        cat3List: ['A02061000'],
         desc: '취향을 발견하는 서가 — 작은 프로그램과 북토크도 함께.',
         preview: [
           'https://images.unsplash.com/photo-1649520189000-be2b9d14914e?w=1600',
@@ -147,6 +156,7 @@ const List<BoardSection> kSections = [
       BoardCardData(
         id: 'cozy-3',
         title: '가든 테라스',
+        cat3List: ['C01130001'],
         desc: '초록과 햇살 — 바람 좋은 오후, 아웃도어 테이블에서 여유를.',
         preview: [
           'https://images.unsplash.com/photo-1727303559695-32ed61cb2fe1?w=1600',
@@ -226,6 +236,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           if (b.contentTypeId != null)
                             'contentTypeId': '${b.contentTypeId}',
                           if (b.query != null) 'q': b.query!,
+                          if (b.cat3List.isNotEmpty)
+                            'cat3': b.cat3List.join(','), // CSV
                         },
                       ),
                     ),

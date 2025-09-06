@@ -11,6 +11,7 @@ class ExploreFilters {
   final String? cat1; // 카테고리 코드 (대분류)
   final String? cat2; // 카테고리 코드 (중분류)
   final String? cat3; // 카테고리 코드 (소분류)
+  final List<String>? cat3List; // 여러개 소분류 묶음으로 전달
 
   const ExploreFilters({
     this.areacode,
@@ -18,6 +19,7 @@ class ExploreFilters {
     this.cat1,
     this.cat2,
     this.cat3,
+    this.cat3List,
   });
 
   // 쿼리 파라미터를 맵으로 변환
@@ -37,7 +39,12 @@ class ExploreFilters {
     if (cat2 != null && cat2!.isNotEmpty) {
       params['cat2'] = cat2!;
     }
-    if (cat3 != null && cat3!.isNotEmpty) {
+
+    // 핵심: 리스트가 우선. 없으면 단일 cat3
+    // 주의 모내는건 어쨌뜬 'cat3'
+    if (cat3List != null && cat3List!.isNotEmpty) {
+      params['cat3'] = cat3List!.join(',');
+    } else if (cat3 != null && cat3!.isNotEmpty) {
       params['cat3'] = cat3!;
     }
 
