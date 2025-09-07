@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 // 각 메뉴 클릭 시 이동할 화면들
-import 'package:heat_trip_flutter/features/profile/presentation/screens/menu/theme_mode_setting_screen.dart';
-import 'package:heat_trip_flutter/features/profile/presentation/screens/menu/explore_view_setting_screen.dart';
 import 'package:heat_trip_flutter/features/profile/presentation/screens/menu/feedback_screen.dart';
 import 'package:heat_trip_flutter/features/profile/presentation/screens/menu/share_app_screen.dart';
 import 'package:heat_trip_flutter/features/profile/presentation/screens/menu/terms_screen.dart';
@@ -88,49 +86,17 @@ class RightSideMenuPanel extends StatelessWidget {
                 child: ListView(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   children: [
-                    // 1) 테마설정 (드롭다운)
-                    _MenuExpansion(
-                      leading: const Icon(Icons.color_lens_outlined),
-                      title: '테마설정',
-                      children: [
-                        _MenuLeaf(
-                          title: '라이트/다크 모드 설정',
-                          onTap: () => _closeThenPush(
-                            context,
-                            const ThemeModeSettingScreen(),
-                          ),
-                        ),
-                        _MenuLeaf(
-                          title: '탐색화면 세팅',
-                          onTap: () => _closeThenPush(
-                            context,
-                            const ExploreViewSettingScreen(),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // 2) 의견보내기
+                    // 1) 소개
                     _MenuLeaf(
-                      leading: const Icon(Icons.chat_bubble_outline),
-                      title: '의견보내기',
+                      leading: const Icon(Icons.info_outline),
+                      title: '소개',
                       onTap: () => _closeThenPush(
                         context,
-                        const FeedbackScreen(),
+                        const AboutScreen(),
                       ),
                     ),
 
-                    // 3) 앱추천
-                    _MenuLeaf(
-                      leading: const Icon(Icons.share_outlined),
-                      title: '앱추천',
-                      onTap: () => _closeThenPush(
-                        context,
-                        const ShareAppScreen(),
-                      ),
-                    ),
-
-                    // 4) 약관 및 정책 (드롭다운)
+                    // 2) 약관 및 정책 (드롭다운)
                     _MenuExpansion(
                       leading: const Icon(Icons.description_outlined),
                       title: '약관 및 정책',
@@ -152,17 +118,27 @@ class RightSideMenuPanel extends StatelessWidget {
                       ],
                     ),
 
-                    // 5) 소개
+                    // 3) 의견보내기
                     _MenuLeaf(
-                      leading: const Icon(Icons.info_outline),
-                      title: '소개',
+                      leading: const Icon(Icons.chat_bubble_outline),
+                      title: '의견보내기',
                       onTap: () => _closeThenPush(
                         context,
-                        const AboutScreen(),
+                        const FeedbackScreen(),
                       ),
                     ),
 
-                    // 6) 회원탈퇴 (로그인 상태에서만 노출)
+                    // 4) 앱추천
+                    _MenuLeaf(
+                      leading: const Icon(Icons.share_outlined),
+                      title: '앱 추천',
+                      onTap: () => _closeThenPush(
+                        context,
+                        const ShareAppScreen(),
+                      ),
+                    ),
+
+                    // 5) 회원탈퇴 (로그인 상태에서만 노출)
                     if (isLoggedIn)
                       _MenuLeaf(
                         leading: const Icon(Icons.delete_outline, color: Colors.red),
