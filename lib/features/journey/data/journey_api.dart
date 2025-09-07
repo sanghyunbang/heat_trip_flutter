@@ -19,10 +19,7 @@ class MockJourneyApi implements JourneyApi {
     await Future.delayed(const Duration(milliseconds: 150));
     final diaries = await fetchDiaries();
     final schedules = await fetchSchedules();
-    return JourneyStats(
-      trips: schedules.length,
-      diaryEntries: diaries.length,
-    );
+    return JourneyStats(trips: schedules.length, diaryEntries: diaries.length);
   }
 
   // 전체 스케줄 조회
@@ -58,7 +55,7 @@ class MockJourneyApi implements JourneyApi {
         tags: const ['Northern Lights', 'Blue Lagoon', 'Golden Circle'],
         memoriesCount: 0,
         heroImageUrl:
-        'https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1600&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1600&auto=format&fit=crop',
       ),
       Schedule(
         id: 2,
@@ -73,7 +70,7 @@ class MockJourneyApi implements JourneyApi {
         tags: const ['Beach', 'Gaslamp Quarter'],
         memoriesCount: 12,
         heroImageUrl:
-        'https://images.unsplash.com/photo-1501594907352-04cda38ebc29?q=80&w=1600&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1501594907352-04cda38ebc29?q=80&w=1600&auto=format&fit=crop',
       ),
       Schedule(
         id: 3,
@@ -88,7 +85,7 @@ class MockJourneyApi implements JourneyApi {
         tags: const ['Fushimi Inari', 'Gion', 'Arashiyama'],
         memoriesCount: 8,
         heroImageUrl:
-        'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?q=80&w=1600&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?q=80&w=1600&auto=format&fit=crop',
       ),
       Schedule(
         id: 4,
@@ -103,7 +100,7 @@ class MockJourneyApi implements JourneyApi {
         tags: const ['Louvre', 'Seine'],
         memoriesCount: 5,
         heroImageUrl:
-        'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=1600&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=1600&auto=format&fit=crop',
       ),
     ];
   }
@@ -113,7 +110,7 @@ class MockJourneyApi implements JourneyApi {
   Future<Schedule?> fetchScheduleById(int id) async {
     final list = await fetchSchedules();
     for (final s in list) {
-      if (s.id == id) return s;   // int 비교
+      if (s.id == id) return s; // int 비교
     }
     return null;
   }
@@ -125,7 +122,7 @@ class MockJourneyApi implements JourneyApi {
     return [
       // 전역 일기 (스케줄 미연동)
       DiaryEntry(
-        scheduleId: null,                          // ✅ 전역
+        scheduleId: null, // ✅ 전역
         authorInitials: 'JD',
         title: 'Magical Morning at Tsukiji',
         date: DateTime(DateTime.now().year, 1, 21),
@@ -136,12 +133,13 @@ class MockJourneyApi implements JourneyApi {
           'https://cdn.pixabay.com/photo/2025/08/15/07/25/ai-generated-9776380_1280.jpg',
           'https://cdn.pixabay.com/photo/2022/12/21/21/59/ai-generated-7671021_1280.jpg',
         ],
-        body: 'Woke up at 5 AM to visit the famous Tsukiji Fish Market. The tuna auction was incredible to witness — the speed and precision of the auctioneers is mesmerizing. Had the most amazing sushi breakfast afterwards. This is what traveling is all about — experiencing authentic local culture.',
+        body:
+            'Woke up at 5 AM to visit the famous Tsukiji Fish Market. The tuna auction was incredible to witness — the speed and precision of the auctioneers is mesmerizing. Had the most amazing sushi breakfast afterwards. This is what traveling is all about — experiencing authentic local culture.',
       ),
 
       // 특정 스케줄(예: id=3 Kyoto)에 묶인 일기
       DiaryEntry(
-        scheduleId: 3,                              // ✅ 스케줄 연동
+        scheduleId: 3, // ✅ 스케줄 연동
         authorInitials: 'MK',
         title: 'Evening in Gion',
         date: DateTime(DateTime.now().year, 3, 28),

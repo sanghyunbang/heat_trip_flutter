@@ -34,11 +34,26 @@ class PlaceDetailApi {
   /// - JSON이 아닌 XML이 오면 jsonDecode에서 터지므로, 상위 계층에서 `_type=json`
   ///   과 서비스키 인코딩(이중 인코딩 금지)을 꼭 확인하세요.
   Future<Map<String, dynamic>> _getFirstItem(Uri uri) async {
+    //   - serviceKey(인코딩 여부), MobileOS, MobileApp, _type=json, contentId, contentTypeId
+    print('[API] GET $uri');
+
     final res = await client.get(uri);
+    print('[API] status=${res.statusCode}');
+    print(
+      '[API] body.head=${res.body.substring(0, res.body.length.clamp(0, 1000))}',
+    );
+
     if (res.statusCode != 200) {
       throw Exception('HTTP ${res.statusCode}: ${res.body}');
     }
-    final decoded = jsonDecode(res.body);
+
+    final decoded = jsonDecode(res.body) as Map<String, dynamic>;
+    final header = (decoded['response']?['header']) as Map<String, dynamic>?;
+    final resultCode = header?['resultCode'];
+    final resultMsg = header?['resultMsg'];
+    print('[API] result=$resultCode $resultMsg');
+
+    // final decoded = jsonDecode(res.body);
     // 꼭 타입 확인
     if (decoded is! Map)
       throw Exception('Unexpected JSON root: ${decoded.runtimeType}');
@@ -91,8 +106,7 @@ class PlaceDetailApi {
   ///  - 이 값 역시 상위에서 받은 것을 그대로 전달합니다.
   Future<Map<String, dynamic>> fetchDetailIntroItem({
     required int contentId, // ← 라우트 파라미터에서 내려온 동일한 ID
-    required int
-    contentTypeId, // ← 라우트 파라미터에서 내려온 타입ID (12/14/15/25/28/32/38/39 등)
+    required contentTypeId, // ← 라우트 파라미터에서 내려온 타입ID (12/14/15/25/28/32/38/39 등)
   }) {
     final uri = introBaseUri.replace(
       queryParameters: {
