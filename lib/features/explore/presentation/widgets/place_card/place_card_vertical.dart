@@ -92,6 +92,7 @@ class PlaceCardVertical extends StatelessWidget {
                   priceLabel: priceLabel,
                   showHeart: showHeart,
                   padding: topBarPadding,
+                  contentId: data.safeContentId.toString(),
                 ),
               if (barImageGap > 0) SizedBox(height: barImageGap),
               PlaceImageBox(
