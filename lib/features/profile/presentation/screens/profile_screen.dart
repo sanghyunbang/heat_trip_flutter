@@ -106,6 +106,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             alignment: Alignment.centerRight,
             child: RightSideMenuPanel(
               onClose: () => Navigator.of(ctx).pop(),
+              isLoggedIn: isLoggedIn,
             ),
           ),
         );

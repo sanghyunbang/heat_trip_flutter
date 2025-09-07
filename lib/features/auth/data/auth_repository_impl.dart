@@ -146,4 +146,23 @@ class AuthRepositoryImpl {
       return false;
     }
   }
+
+  // 계정 삭제
+  Future<bool> deleteMyAccount(String token) async {
+    final url = Uri.parse('$baseUrl/auth/me'); // DELETE
+    try {
+      final res = await http.delete(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (res.statusCode == 200 || res.statusCode == 204) {
+        return true;
+      }
+      print('[X] deleteMyAccount 실패: ${res.statusCode} / ${res.body}');
+      return false;
+    } catch (e) {
+      print('[X] deleteMyAccount 에러: $e');
+      return false;
+    }
+  }
 }
