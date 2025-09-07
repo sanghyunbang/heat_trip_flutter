@@ -1,10 +1,22 @@
-// lib/features/profile/presentation/profile_screen.dart
+// lib/features/profile/presentation/screens/profile_screen.dart
+//
+// [변경 요약]
+// 1) 두 번째 탭을 BookmarkTab()으로 교체 (인스타 저장탭 같은 화면)
+// 2) 첫 번째 탭(감정 그래프 등) UI는 별도 파일 statics_tab.dart로 분리
+//
+// [유지한 것]
+// - 로그인/프로필 로딩 로직
+// - 우측 메뉴( RightSideMenuPanel ) 호출 방식
+// - 헤더(ProfileHeader)와 탭 컨트롤러 구조
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
 import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
+import 'package:heat_trip_flutter/features/profile/presentation/widgets/tabs/bookmark_tab.dart';
+import 'package:heat_trip_flutter/features/profile/presentation/widgets/tabs/statics_tab.dart';
 
-// 재사용 위젯들 (ProfileHeader, LineChartPainter, SkeletonBox, CourseItem, RightSideMenuPanel 등)
+// 공용 위젯들 (ProfileHeader, LineChartPainter, CourseItem, SkeletonBox, RightSideMenuPanel 등)
 import '../profile.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -20,7 +32,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   final authRepository = AuthRepositoryImpl();
 
   // === 상태 ===
-  bool isLoading = true;      // 프로필 전체 로딩
+  bool isLoading = true;      // 프로필 전체 로딩 스피너 표시 여부
   bool isLoggedIn = false;    // 로그인 여부
   String realName = '';       // 실명
   String nickname = '';       // 닉네임
@@ -31,7 +43,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 2, vsync: this); // 2개 탭 유지
     _loadUserProfile(); // 토큰 확인 → 프로필 로드
   }
 
@@ -48,22 +60,24 @@ class _ProfileScreenState extends State<ProfileScreen>
       if (!mounted) return;
 
       if (token == null) {
+        // 토큰이 없으면 비로그인 상태로 처리
         setState(() {
           isLoggedIn = false;
-          isLoading = false;
+          isLoading  = false;
         });
         return;
       }
 
       final userInfo = await authRepository.getMyProfile(token);
 
-      /// 디버깅용
+      // 디버깅용
+      // ignore: avoid_print
       print('[ProfileScreen] raw userInfo: $userInfo');
 
       if (!mounted) return;
 
       if (userInfo != null) {
-        // 서버 키 매핑: name, nickname, image_url
+        // 서버 키 매핑: name, nickname, imageUrl
         final imageUrl = (userInfo['imageUrl'] as String?)?.trim() ?? '';
 
         setState(() {
@@ -88,8 +102,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-
-  /// 우측에서 여는 메뉴 시트 (선택 기능)
+  /// 우측에서 여는 메뉴 시트
   void _openRightMenuSheet() {
     showGeneralDialog(
       context: context,
@@ -106,7 +119,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             alignment: Alignment.centerRight,
             child: RightSideMenuPanel(
               onClose: () => Navigator.of(ctx).pop(),
-              isLoggedIn: isLoggedIn,
+              isLoggedIn: isLoggedIn, // ← 로그인 상태를 패널에도 전달
             ),
           ),
         );
@@ -121,13 +134,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     context.goNamed('login');
   }
 
-  void _goLogin() {
-    context.goNamed('login');
-  }
-
-  void _goSignUp() {
-    context.goNamed('signUp');
-  }
+  void _goLogin() => context.goNamed('login');
+  void _goSignUp() => context.goNamed('signUp');
 
   @override
   Widget build(BuildContext context) {
@@ -135,10 +143,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Profile',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
+        title: const Text('Profile', style: TextStyle(fontWeight: FontWeight.w600)),
         actions: [
           IconButton(
             icon: const Icon(Icons.menu),
@@ -156,7 +161,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             ProfileHeader(
               backgroundColor: headerBg,
               tabController: _tabController,
-              avatarUrl: avatarUrl,     // ← 서버의 image_url 그대로
+              avatarUrl: avatarUrl,     // ← 서버의 imageUrl 그대로
               nickname: nickname,
               isLoggedIn: isLoggedIn,
               onEdit: () => context.goNamed('profileEdit'),
@@ -171,106 +176,11 @@ class _ProfileScreenState extends State<ProfileScreen>
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
-                  children: [
-                    // 1) Statics 탭
-                    ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                      children: [
-                        Card(
-                          elevation: 0,
-                          color: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '나의 감정 그래프',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                SizedBox(height: 6),
-                                Text(
-                                  'Monthly Emotion Trends',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.black54,
-                                  ),
-                                ),
-                                SizedBox(height: 12),
-                                SizedBox(
-                                  height: 140,
-                                  width: double.infinity,
-                                  child: CustomPaint(
-                                    painter: LineChartPainter(),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        const Text(
-                          '감정별 상태보기',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        const CourseItem(
-                          icon: Icons.sentiment_satisfied_alt,
-                          title: '기쁨',
-                          author: 'happiness',
-                          progress: 0.70,
-                        ),
-                        const SizedBox(height: 12),
-                        const CourseItem(
-                          icon: Icons.sentiment_very_dissatisfied,
-                          title: '슬픔',
-                          author: 'sadness',
-                          progress: 0.45,
-                        ),
-                        const SizedBox(height: 12),
-                        const CourseItem(
-                          icon: Icons.sentiment_very_dissatisfied_outlined,
-                          title: '두려움',
-                          author: 'fear',
-                          progress: 0.45,
-                        ),
-                      ],
-                    ),
-
-                    // 2) Bookmark 탭 (스켈레톤 예시)
-                    ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                      children: const [
-                        Wrap(
-                          spacing: 16,
-                          runSpacing: 16,
-                          children: [
-                            SkeletonBox(height: 110, width: 160),
-                            SkeletonBox(height: 110, width: 200),
-                            SkeletonBox(height: 140, width: double.infinity),
-                          ],
-                        ),
-                        SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(child: SkeletonBox(height: 60)),
-                            SizedBox(width: 16),
-                            Expanded(child: SkeletonBox(height: 60)),
-                          ],
-                        ),
-                        SizedBox(height: 16),
-                        SkeletonBox(height: 60),
-                      ],
-                    ),
+                  children: const [
+                    // 1) Statics 탭 (분리한 파일)
+                    StaticsTab(),
+                    // 2) Bookmark 탭 (상단 컬렉션 + 하단 그리드)
+                    BookmarkTab(),
                   ],
                 ),
               )
