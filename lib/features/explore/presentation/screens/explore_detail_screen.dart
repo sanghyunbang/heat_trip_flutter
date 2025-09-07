@@ -125,15 +125,45 @@ class _ExploreDetailScreenState extends State<ExploreDetailScreen> {
       body: CustomScrollView(
         slivers: [
           // (A) 상단 확장 앱바: 갤러리/공유/하트/뒤로가기
-          SliverDetailAppBar(
-            title: detail.title,
-            isFavorite: _isFavorite,
-            onBack: _safePop,
-            onToggleFavorite: () => setState(() => _isFavorite = !_isFavorite),
-            gallery: Gallery(
-              images: images,
-              index: _galleryIndex,
-              onChanged: (i) => setState(() => _galleryIndex = i),
+          // SliverDetailAppBar(
+          //   title: detail.title,
+          //   isFavorite: _isFavorite,
+          //   onBack: _safePop,
+          //   onToggleFavorite: () => setState(() => _isFavorite = !_isFavorite),
+          //   gallery: Gallery(
+          //     images: images,
+          //     index: _galleryIndex,
+          //     onChanged: (i) => setState(() => _galleryIndex = i),
+          //   ),
+          // ),
+          // (A) 상단 확장 앱바: 갤러리/공유/하트/뒤로가기 — 제목 오버레이 없음
+          SliverAppBar(
+            pinned: true,
+            expandedHeight: 300,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: _safePop,
+            ),
+            actions: [
+              IconButton(
+                icon: _isFavorite
+                    ? const Icon(Icons.favorite)
+                    : const Icon(Icons.favorite_border),
+                onPressed: () => setState(() => _isFavorite = !_isFavorite),
+              ),
+              IconButton(
+                icon: const Icon(Icons.share),
+                onPressed: () {}, // 공유 액션
+              ),
+            ],
+            // FlexibleSpaceBar.title을 절대 주지 않습니다 → 이미지 위 텍스트가 사라짐
+            flexibleSpace: FlexibleSpaceBar(
+              collapseMode: CollapseMode.parallax,
+              background: Gallery(
+                images: images,
+                index: _galleryIndex,
+                onChanged: (i) => setState(() => _galleryIndex = i),
+              ),
             ),
           ),
 
