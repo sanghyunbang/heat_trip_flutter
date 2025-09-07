@@ -10,17 +10,20 @@ import 'package:heat_trip_flutter/features/profile/presentation/screens/menu/pri
 import 'package:heat_trip_flutter/features/profile/presentation/screens/menu/about_screen.dart';
 import 'package:heat_trip_flutter/features/profile/presentation/screens/menu/account_delete_screen.dart';
 
-/// 현재 앱이 go_router를 쓰고 있어도,
-/// 위 패널은 오버레이 다이얼로그 위에서 push 해야 하므로
-/// Navigator.of(context, rootNavigator: true).push(...) 를 사용
-
 /// 우측에서 슬라이드 인되는 사이드 메뉴 패널
 /// - showGeneralDialog 의 child 로 사용
 /// - "테마설정", "약관 및 정책"은 드롭다운(ExpansionTile)로 2차 메뉴 표시
 class RightSideMenuPanel extends StatelessWidget {
   final VoidCallback onClose; // 패널 닫기 콜백(보통 Navigator.pop)
 
-  const RightSideMenuPanel({super.key, required this.onClose});
+  /// ✅ 로그인 여부(회원탈퇴 항목 노출 제어)
+  final bool isLoggedIn;
+
+  const RightSideMenuPanel({
+    super.key,
+    required this.onClose,
+    this.isLoggedIn = false, // 기본값: 비로그인
+  });
 
   /// 패널을 닫은 뒤, 하위 화면으로 네비게이션
   /// - 다이얼로그(pop)가 끝난 다음 push 해야 하기 때문에 microtask로 스케줄
@@ -159,16 +162,17 @@ class RightSideMenuPanel extends StatelessWidget {
                       ),
                     ),
 
-                    // 6) 회원탈퇴 (파괴적 액션 느낌으로 강조)
-                    _MenuLeaf(
-                      leading: const Icon(Icons.delete_outline, color: Colors.red),
-                      title: '회원탈퇴',
-                      isDestructive: true,
-                      onTap: () => _closeThenPush(
-                        context,
-                        const AccountDeleteScreen(),
+                    // 6) 회원탈퇴 (로그인 상태에서만 노출)
+                    if (isLoggedIn)
+                      _MenuLeaf(
+                        leading: const Icon(Icons.delete_outline, color: Colors.red),
+                        title: '회원탈퇴',
+                        isDestructive: true,
+                        onTap: () => _closeThenPush(
+                          context,
+                          const AccountDeleteScreen(),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
