@@ -244,10 +244,10 @@ class _ExploreScreenState extends State<ExploreScreen>
       builder: (_, __) {
         return Scaffold(
           backgroundColor: Colors.white,
-          appBar: ExploreAppBar(
-            tabController: _tab,
-            onPressSearch: _openSearch,
-          ),
+          // appBar: ExploreAppBar(
+          //   tabController: _tab,
+          //   onPressSearch: _openSearch,
+          // ),
           body: Column(
             children: [
               const SizedBox(height: 8),
