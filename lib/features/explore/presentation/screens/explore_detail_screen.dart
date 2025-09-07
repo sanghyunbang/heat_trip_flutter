@@ -46,6 +46,7 @@ class _ExploreDetailScreenState extends State<ExploreDetailScreen> {
   void initState() {
     super.initState();
     // VM 데이터 로드 트리거를 스케줄 (build 전 안전 실행)
+    // [1] 여기에서 부터 시작!
     Future.microtask(() {
       context.read<DetailVM>().load(
         contentId: widget.contentId,
