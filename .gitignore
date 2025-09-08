@@ -48,3 +48,53 @@ app.*.map.json
 .env
 .env.*
 *.env
+
+
+## 빌드 관련 부수적인것들 안보이게
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Android
+**/android/**/build/
+**/android/.gradle/
+**/android/local.properties
+
+# iOS
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+
+# IDE
+.idea/
+.vscode/
+
+# ── Flutter 툴이 자동 생성하는 플랫폼별 플러그인 등록 파일 ──
+# Android
+android/**/GeneratedPluginRegistrant.java
+
+# iOS
+ios/Runner/GeneratedPluginRegistrant.*
+
+# macOS
+macos/Flutter/GeneratedPluginRegistrant.swift
+
+# Linux
+linux/flutter/generated_plugin_registrant.cc
+linux/flutter/generated_plugins.cmake
+
+# Windows
+windows/flutter/generated_plugin_registrant.*
+windows/flutter/generated_plugins.cmake
+
+# 공통: flutter가 만드는 임시/생성 디렉터리
+**/flutter/ephemeral/
