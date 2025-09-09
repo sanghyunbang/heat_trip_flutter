@@ -1,4 +1,4 @@
-// android/build.gradle.kts  (root)
+// android/build.gradle.kts (root)
 buildscript {
     repositories {
         google()
