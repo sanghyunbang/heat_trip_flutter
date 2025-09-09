@@ -1,5 +1,7 @@
 import 'dart:async';
 import '../domain/models.dart';
+import 'package:heat_trip_flutter/features/record/data/model/schedule_response.dart';
+import 'package:heat_trip_flutter/features/record/data/schedule_repository_impl.dart';
 
 /// API 인터페이스(라이트 버전)
 /// - 나중에 HttpJourneyApi로 교체만 하면 화면은 그대로 사용 가능
@@ -12,7 +14,9 @@ abstract class JourneyApi {
 }
 
 /// 데모용 더미 API → 실제 서버 구현 시 수정
-class MockJourneyApi implements JourneyApi {
+class RealJourneyApi implements JourneyApi {
+  final ScheduleRepositoryImpl _repo = ScheduleRepositoryImpl();
+
   // 상단 통계 정보
   @override
   Future<JourneyStats> fetchStats() async {
