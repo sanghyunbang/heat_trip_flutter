@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:heat_trip_flutter/features/record/data/model/schedule_response.dart';
+import 'package:heat_trip_flutter/features/record/data/schedule_repository_impl.dart';
 import '../../data/journey_api.dart';
 import '../../domain/models.dart';
 import '../widgets/stats_card.dart';
@@ -17,11 +19,22 @@ class JourneyScreen extends StatefulWidget {
 class _JourneyScreenState extends State<JourneyScreen>
     with SingleTickerProviderStateMixin {
   // 간단 주입: 데모에서는 더미 API. (TODO: 실서버 시 교체)
-  final JourneyApi _api = MockJourneyApi();
+  final JourneyApi _api = RealJourneyApi();
 
   late final Future<JourneyStats> _statsF = _api.fetchStats();
-  late final Future<List<Schedule>> _schedulesF = _api.fetchSchedules();
+  late final Future<List<Schedule>> _schedulesF = _fetchSchedulesFromApi();
   late Future<List<DiaryEntry>> _diariesF = _api.fetchDiaries();
+  final ScheduleRepositoryImpl _scheduleRepo = ScheduleRepositoryImpl();
+
+  Future<List<Schedule>> _fetchSchedulesFromApi() async {
+    try {
+      final responses = await _scheduleRepo.fetchSchedules();
+      return responses.map(mapToSchedule).toList();
+    } catch (e) {
+      print('[JourneyScreen] 스케줄 불러오기 실패: $e');
+      return [];
+    }
+  }
 
   // TabController를 State에 보관해서 리빌드/색상 변경에도 선택 상태 유지
   late final TabController _tab;
@@ -239,4 +252,21 @@ class _JourneyTabs extends StatelessWidget {
       ],
     );
   }
+}
+
+Schedule mapToSchedule(ScheduleResponse res) {
+  return Schedule(
+    id: res.scheduleId,
+    title: res.title,
+    content: res.content,
+    dateFrom: res.dateFrom,
+    dateTo: res.dateTo,
+    createdAt: res.createdAt,
+    updatedAt: res.updatedAt,
+    userId: res.user?.userId ?? 0,
+    location: null, // 서버에 location 없으면 null 처리
+    tags: [], // 서버에 태그 없으면 빈 리스트
+    memoriesCount: 0, // 기본값 0
+    heroImageUrl: null, // null 처리
+  );
 }

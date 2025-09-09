@@ -6,29 +6,25 @@ import '../../domain/models.dart';
 import '../../data/journey_api.dart';
 
 class JourneyDetailScreen extends StatefulWidget {
-  const JourneyDetailScreen({
-    super.key,
-    required this.id,
-    this.initial,
-  });
+  const JourneyDetailScreen({super.key, required this.id, this.initial});
 
-  final int id;                 // ✅ URL에서 파싱된 int
-  final Schedule? initial;      // 선택: 초기 렌더 최적화용
+  final int id; // ✅ URL에서 파싱된 int
+  final Schedule? initial; // 선택: 초기 렌더 최적화용
 
   @override
   State<JourneyDetailScreen> createState() => _JourneyDetailScreenState();
 }
 
 class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
-  final JourneyApi _api = MockJourneyApi();
+  final JourneyApi _api = RealJourneyApi();
   Schedule? _data;
   bool _loading = false;
 
   @override
   void initState() {
     super.initState();
-    _data = widget.initial;   // 초기 즉시 렌더
-    _fetch();                 // 최신 데이터로 갱신
+    _data = widget.initial; // 초기 즉시 렌더
+    _fetch(); // 최신 데이터로 갱신
   }
 
   Future<void> _fetch() async {
@@ -50,7 +46,8 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
     }
 
     // 간단 통계
-    final hero = schedule.heroImageUrl ??
+    final hero =
+        schedule.heroImageUrl ??
         'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop';
     final photosCount = schedule.memoriesCount;
     // Days 계산 (null 처리 포함)
@@ -65,14 +62,18 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(schedule.title,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+            Text(
+              schedule.title,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            ),
             const SizedBox(height: 2),
-            Text('Journey details & memories',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                )),
+            Text(
+              'Journey details & memories',
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       ),
@@ -97,8 +98,11 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                         errorBuilder: (_, __, ___) => Container(
                           color: Colors.grey.shade200,
                           alignment: Alignment.center,
-                          child: const Icon(Icons.broken_image_outlined,
-                              size: 28, color: Colors.black26),
+                          child: const Icon(
+                            Icons.broken_image_outlined,
+                            size: 28,
+                            color: Colors.black26,
+                          ),
                         ),
                       ),
                     ),
@@ -120,9 +124,13 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(schedule.title,
-                          style: const TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.w800)),
+                      Text(
+                        schedule.title,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
@@ -131,8 +139,9 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                           Text(
                             schedule.location ?? '—',
                             style: TextStyle(
-                              color:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -150,15 +159,20 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      const Text('Tags',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 16)),
+                      const Text(
+                        'Tags',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 4,
                         runSpacing: 8,
                         children: [
-                          for (final t in schedule.tags.take(3)) _TagPill(text: t),
+                          for (final t in schedule.tags.take(3))
+                            _TagPill(text: t),
                         ],
                       ),
 
@@ -180,12 +194,11 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                           // Diary Entries 수는 실제 조회해서 반영
                           Expanded(
                             child: FutureBuilder<List<DiaryEntry>>(
-                              future:
-                              _api.fetchDiariesBySchedule(widget.id),
+                              future: _api.fetchDiariesBySchedule(widget.id),
                               builder: (context, snap) {
-                                final subtle = Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant;
+                                final subtle = Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant;
                                 if (snap.connectionState !=
                                     ConnectionState.done) {
                                   return Column(
@@ -195,17 +208,23 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                                         height: 16,
                                         width: 16,
                                         child: CircularProgressIndicator(
-                                            strokeWidth: 2),
+                                          strokeWidth: 2,
+                                        ),
                                       ),
                                       const SizedBox(height: 6),
-                                      Text('Diary Entries',
-                                          style: TextStyle(
-                                              fontSize: 12, color: subtle)),
+                                      Text(
+                                        'Diary Entries',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: subtle,
+                                        ),
+                                      ),
                                     ],
                                   );
                                 }
-                                final count =
-                                (snap.hasData ? snap.data!.length : 0);
+                                final count = (snap.hasData
+                                    ? snap.data!.length
+                                    : 0);
                                 return _StatMini(
                                   icon: Icons.menu_book_outlined,
                                   iconColor: const Color(0xFF8B5CF6),
@@ -244,12 +263,15 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                     );
                   },
                   icon: const Icon(Icons.add, color: Colors.white),
-                  label: const Text('New Diary Entry',
-                      style: TextStyle(color: Colors.white)),
+                  label: const Text(
+                    'New Diary Entry',
+                    style: TextStyle(color: Colors.white),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0B0B14),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     elevation: 0,
                   ),
                 ),
@@ -261,8 +283,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                 future: _api.fetchDiariesBySchedule(widget.id),
                 builder: (context, snap) {
                   if (snap.connectionState != ConnectionState.done) {
-                    return const Center(
-                        child: CircularProgressIndicator());
+                    return const Center(child: CircularProgressIndicator());
                   }
                   if (snap.hasError || !snap.hasData) {
                     return const Padding(
@@ -279,22 +300,30 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                       Row(
                         children: [
                           const Expanded(
-                            child: Text('Diary Entries',
-                                style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800)),
+                            child: Text(
+                              'Diary Entries',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFF1F2F5),
                               borderRadius: BorderRadius.circular(999),
                             ),
-                            child: Text('$diaryCount entries',
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600)),
+                            child: Text(
+                              '$diaryCount entries',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -305,7 +334,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                         // DiaryList(entries: entries),
                         DiaryList(
                           entries: entries,
-                          embedded: true,                   // 부모 스크롤 사용
+                          embedded: true, // 부모 스크롤 사용
                           padding: EdgeInsets.zero,
                         ),
                     ],
@@ -389,11 +418,14 @@ class _StatMini extends StatelessWidget {
           children: [
             Icon(icon, size: 18, color: iconColor),
             const SizedBox(width: 6),
-            Text(value,
-                style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.black)),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: Colors.black,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 4),
@@ -423,16 +455,22 @@ class _EmptyDiaryCard extends StatelessWidget {
         children: [
           Icon(Icons.draw_outlined, size: 46, color: subtle),
           const SizedBox(height: 14),
-          const Text('No diary entries yet',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          const Text(
+            'No diary entries yet',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 8),
-          Text('Start documenting your $title memories!',
-              style: TextStyle(fontSize: 13, color: subtle),
-              textAlign: TextAlign.center),
+          Text(
+            'Start documenting your $title memories!',
+            style: TextStyle(fontSize: 13, color: subtle),
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 14),
-          Text('Tap the "New Diary Entry" button above to get started',
-              style: TextStyle(fontSize: 12, color: subtle),
-              textAlign: TextAlign.center),
+          Text(
+            'Tap the "New Diary Entry" button above to get started',
+            style: TextStyle(fontSize: 12, color: subtle),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
