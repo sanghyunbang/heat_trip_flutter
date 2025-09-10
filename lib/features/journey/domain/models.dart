@@ -4,6 +4,7 @@
 export 'diary_entry.dart';
 export 'schedule.dart';
 export 'journeystats.dart';
+export 'journey.dart';
 
 enum ScheduleStatus { planned, inProgress, completed }
 
