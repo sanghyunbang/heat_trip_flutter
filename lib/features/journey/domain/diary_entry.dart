@@ -42,17 +42,26 @@ class DiaryEntry {
 
   /// JSON → DiaryEntry
   factory DiaryEntry.fromJson(Map<String, dynamic> json) {
+    final journey = json['journey'] ?? {};
+
     return DiaryEntry(
-      scheduleId: json['scheduleId'],
-      authorInitials: json['authorInitials'],
-      title: json['title'],
-      date: DateTime.parse(json['date']),
-      location: json['location'],
-      moodLabel: json['moodLabel'],
-      weatherLabel: json['weatherLabel'],
-      photos: List<String>.from(json['photos'] ?? []),
-      body: json['body'],
+      scheduleId: null, // 서버 응답에 없으면 null 처리
+      authorInitials: _initials(journey['userNickname'] ?? ''),
+      title: journey['title'] ?? '',
+      date: DateTime.tryParse(journey['date'] ?? '') ?? DateTime.now(),
+      location: journey['location'] ?? '',
+      moodLabel: journey['moodLabel'] ?? '',
+      weatherLabel: journey['weatherLabel'] ?? '',
+      photos: List<String>.from(journey['photos'] ?? []),
+      body: journey['body'] ?? '',
     );
+  }
+
+  static String _initials(String name) {
+    final parts = name.trim().split(' ');
+    if (parts.isEmpty) return '';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return parts.map((p) => p.substring(0, 1).toUpperCase()).join();
   }
 
   /// DiaryEntry → JSON
