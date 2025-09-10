@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
@@ -322,15 +323,21 @@ class _CollectionListScreenState extends State<CollectionListScreen> {
 
               return ListTile(
                 onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => CollectionDetailScreen(
-                        collectionId: c.id,
-                        title: c.name,
-                      ),
-                    ),
+                  context.pushNamed(
+                    'collection_detail',
+                    pathParameters: {'collectionId': '${c.id}'},
+                    queryParameters: {'title': c.name},
                   );
                 },
+                //   Navigator.of(context).push(
+                //     MaterialPageRoute(
+                //       builder: (_) => CollectionDetailScreen(
+                //         collectionId: c.id,
+                //         title: c.name,
+                //       ),
+                //     ),
+                //   );
+                // },
                 // ★ 정사각형 미리보기 썸네일
                 leading: ClipRRect(
                   borderRadius: BorderRadius.circular(10),

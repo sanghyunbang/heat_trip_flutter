@@ -7,6 +7,7 @@
 //  - Home에서 전달한 쿼리 파라미터(Map<String,String>)를 Provider로 안전 수신. [B]
 //  - initialFilters가 넘어오면 그것을 우선 적용. [C]
 //  - 탭/지역 변경 시 VM을 재빌드 후 refresh. [D]
+//  - ❗ SafeArea(top:true)로 상단 status bar 영역 확보. [E]
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -113,12 +114,12 @@ class _ExploreScreenState extends State<ExploreScreen>
     final List<String>? cat3ListHint = (cat3Csv == null || cat3Csv.isEmpty)
         ? null
         : cat3Csv
-              .split(',')
-              .map((s) => s.trim())
-              .where((s) => s.isNotEmpty)
-              .toList();
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
 
-    // 원하면 “초기값으로” 보관 (탭/지역 바꿔도 유지하려면 사용)
+    // 원하면 “초기값으로” 보관 (탭/지역 바뀌어도 유지하려면 사용)
     _initialCat3List ??= cat3ListHint;
 
     // 여기서는 탭/지역도 반영해서 일관된 ExploreFilters로 만든다.
@@ -244,28 +245,28 @@ class _ExploreScreenState extends State<ExploreScreen>
       builder: (_, __) {
         return Scaffold(
           backgroundColor: Colors.white,
-          // appBar: ExploreAppBar(
-          //   tabController: _tab,
-          //   onPressSearch: _openSearch,
-          // ),
-          body: Column(
-            children: [
-              const SizedBox(height: 8),
-              ExploreFiltersBar(
-                selectedRegion: _selectedRegion,
-                showReset: _selectedRegion != '전체',
-                onTapRegion: _openRegionSelect,
-                onReset: () {
-                  setState(() => _selectedRegion = '전체');
-                  _rebuildVmAndRefresh();
-                },
-              ),
-              const SizedBox(height: 8),
-              // 메인 콘텐츠
-              Expanded(
-                child: ExploreMasonryGrid(vm: vm, scrollController: _scroll),
-              ),
-            ],
+          body: SafeArea( // [E] 상단 status bar 영역만큼 확보
+            top: true,
+            bottom: false,
+            child: Column(
+              children: [
+                const SizedBox(height: 8),
+                ExploreFiltersBar(
+                  selectedRegion: _selectedRegion,
+                  showReset: _selectedRegion != '전체',
+                  onTapRegion: _openRegionSelect,
+                  onReset: () {
+                    setState(() => _selectedRegion = '전체');
+                    _rebuildVmAndRefresh();
+                  },
+                ),
+                const SizedBox(height: 8),
+                // 메인 콘텐츠
+                Expanded(
+                  child: ExploreMasonryGrid(vm: vm, scrollController: _scroll),
+                ),
+              ],
+            ),
           ),
         );
       },

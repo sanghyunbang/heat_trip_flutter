@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:heat_trip_flutter/core/widgets/layout/main_nav_shell.dart';
+import 'package:heat_trip_flutter/features/bookmark/bookmark_routes.dart';
 
 // tabs
 import 'package:heat_trip_flutter/features/start/start_routes.dart';
@@ -25,7 +26,10 @@ final GoRouter appRouter = GoRouter(
         // ✅ 기존 curation 브랜치 → foryou로 대체
         StatefulShellBranch(routes: forYouRoutes),
         StatefulShellBranch(routes: journeyRoutes),
-        StatefulShellBranch(routes: profileRoutes),
+        StatefulShellBranch(routes: [
+          ...profileRoutes,
+          ...bookmarkRoutes,
+        ]),
       ],
     ),
   ],
