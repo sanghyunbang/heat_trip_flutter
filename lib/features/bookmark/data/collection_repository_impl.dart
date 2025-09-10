@@ -18,7 +18,7 @@ class CollectionRepositoryImpl implements CollectionRepository {
     final r = await http.get(Uri.parse('$base/collections'), headers: await _headers());
     if (r.statusCode != 200) throw Exception('컬렉션 조회 실패');
     final list = (jsonDecode(r.body) as List).cast<Map<String, dynamic>>();
-    return list.map(CollectionSummary.fromJson).toList();
+    return list.map(CollectionSummary.fromJson).toList(); // ★ fromJson이 contentTypeId도 처리
   }
 
   @override

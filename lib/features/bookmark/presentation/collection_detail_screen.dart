@@ -1,3 +1,4 @@
+// lib/features/bookmark/presentation/collection_detail_screen.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -32,45 +33,45 @@ class _CollectionDetailScreenState extends State<CollectionDetailScreen> {
   Future<List<_Post>> _load() async {
     final api = _Api();
 
-    // 1) 이 컬렉션의 아이템 목록(최신순) 불러오기 (contentId + [optional] contentTypeId)
+    // 1) 컬렉션 아이템 목록(contentId + (optional) contentTypeId)
     final items = await api.fetchCollectionItems(widget.collectionId);
     if (items.isEmpty) return const <_Post>[];
 
-    // 2) 타입 없는 항목은 배치로 타입 resolve(선택적; API 없으면 생략)
-    final needTypeIds = items.where((e) => e.contentTypeId == null).map((e) => e.contentId).toList();
-    Map<String, int> typeMap = {};
-    if (needTypeIds.isNotEmpty) {
-      typeMap = await api.resolveTypesBatch(needTypeIds); // 실패해도 빈 맵 반환
+    // 2) 메타 배치 조회 (imageUrl + (optional) contentTypeId) — 이미지 프리뷰 + 타입 보강
+    final ids = items.map((e) => e.contentId).toList();
+    final metaMap = await api.resolveMetaBatch(ids); // {contentId: {imageUrl, contentTypeId}}
+
+    // 3) Post로 변환 (아이템에 타입 없으면 메타 배치의 타입으로 보강)
+    int? _toInt(dynamic v) {
+      if (v == null) return null;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString());
     }
 
-    // 3) 이미지 배치 resolve
-    final ids = items.map((e) => e.contentId).toList();
-    final imgMap = await api.resolveImageUrlsBatch(ids);
-
-    // 4) Post로 변환
     return items.map((it) {
-      final typeId = it.contentTypeId ?? typeMap[it.contentId];
+      final meta = metaMap[it.contentId];
+      final img = (meta?['imageUrl'] as String?) ?? '';
+      final typeFromMeta = _toInt(meta?['contentTypeId']);
+      final finalType = it.contentTypeId ?? typeFromMeta;
+
+      // 최종 타입이 없으면(아주 드문 케이스) 해당 항목은 스킵
+      if (finalType == null) return null;
+
       return _Post(
         contentId: it.contentId,
-        contentTypeId: typeId,
-        imageUrl: (imgMap[it.contentId] ?? ''),
+        contentTypeId: finalType,
+        imageUrl: img,
       );
-    }).toList();
+    }).whereType<_Post>().toList();
   }
 
   void _goDetail(BuildContext context, _Post post) {
-    // place_card와 동일: 명명된 라우트 'explore_detail'
-    if (post.contentTypeId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('상세로 이동할 수 없어요 (콘텐츠 유형 정보를 찾을 수 없음)')),
-      );
-      return;
-    }
+    // ✅ 명명된 라우트로 즉시 이동 (탭 시 바로 화면 전환)
     context.pushNamed(
       'explore_detail',
       pathParameters: {
         'contentId': post.contentId,
-        'contentTypeId': '${post.contentTypeId}',
+        'contentTypeId': post.contentTypeId.toString(),
       },
     );
   }
@@ -104,7 +105,10 @@ class _CollectionDetailScreenState extends State<CollectionDetailScreen> {
             padding: const EdgeInsets.all(2),
             itemCount: posts.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3, mainAxisSpacing: 2, crossAxisSpacing: 2, childAspectRatio: 1,
+              crossAxisCount: 3,
+              mainAxisSpacing: 2,
+              crossAxisSpacing: 2,
+              childAspectRatio: 1,
             ),
             itemBuilder: (context, i) => _PostTile(
               post: posts[i],
@@ -121,12 +125,12 @@ class _CollectionDetailScreenState extends State<CollectionDetailScreen> {
 
 class _Post {
   final String contentId;
-  final int? contentTypeId; // go_router 이동에 필요 (없으면 안내 토스트)
+  final int contentTypeId; // go_router 이동에 필요 (최종 보장)
   final String imageUrl;
   const _Post({
     required this.contentId,
+    required this.contentTypeId,
     required this.imageUrl,
-    this.contentTypeId,
   });
 }
 
@@ -138,11 +142,16 @@ class _PostTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasImage = post.imageUrl.isNotEmpty;
-    return GestureDetector(
-      onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(4),
-        child: hasImage ? _NetImage(post.imageUrl) : const _ThumbPlaceholder(),
+
+    // ✅ 탭 피드백/히트영역 안정화를 위해 Material+InkWell 사용
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: hasImage ? _NetImage(post.imageUrl) : const _ThumbPlaceholder(),
+        ),
       ),
     );
   }
@@ -162,7 +171,11 @@ class _NetImage extends StatelessWidget {
         loadingBuilder: (c, w, p) => p == null
             ? w
             : const Center(
-          child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)),
+          child: SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
         ),
         errorBuilder: (c, e, s) => const Center(
           child: Icon(Icons.broken_image_outlined, size: 28, color: Colors.black26),
@@ -187,7 +200,7 @@ class _ThumbPlaceholder extends StatelessWidget {
 
 class _ItemSummary {
   final String contentId;
-  final int? contentTypeId;
+  final int? contentTypeId; // ★ nullable: 백엔드가 아직 안 줄 수도 있음
   _ItemSummary({required this.contentId, this.contentTypeId});
 }
 
@@ -204,7 +217,7 @@ class _Api {
     };
   }
 
-  /// 특정 컬렉션의 아이템(contentId [+ contentTypeId]) 목록을 최신순으로 반환
+  /// 특정 컬렉션의 아이템(contentId + (optional) contentTypeId) 목록을 최신순으로 반환
   Future<List<_ItemSummary>> fetchCollectionItems(int collectionId) async {
     final res = await http.get(
       Uri.parse('$base/collections/$collectionId/items'),
@@ -214,18 +227,26 @@ class _Api {
       throw Exception('컬렉션 아이템 조회 실패(${res.statusCode})');
     }
     final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
-    return list.map((e) {
+
+    int? _toInt(dynamic v) {
+      if (v == null) return null;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString());
+    }
+
+    // 타입 없어도 그대로 반환(나중에 메타 배치에서 보강)
+    return list
+        .map((e) {
       final id = (e['contentId'] ?? '').toString();
-      final type = e['contentTypeId'];
-      return _ItemSummary(
-        contentId: id,
-        contentTypeId: type == null ? null : (type as num).toInt(),
-      );
-    }).where((it) => it.contentId.isNotEmpty).toList();
+      final type = _toInt(e['contentTypeId']);
+      return _ItemSummary(contentId: id, contentTypeId: type);
+    })
+        .where((it) => it.contentId.isNotEmpty)
+        .toList();
   }
 
-  /// 배치: contentId → imageUrl
-  Future<Map<String, String>> resolveImageUrlsBatch(List<String> contentIds) async {
+  /// 배치 메타: contentId → { imageUrl:String, contentTypeId:int? }
+  Future<Map<String, Map<String, dynamic>>> resolveMetaBatch(List<String> contentIds) async {
     if (contentIds.isEmpty) return {};
     final res = await http.post(
       Uri.parse('$base/bookmarks/images:batchResolve'),
@@ -234,35 +255,18 @@ class _Api {
     );
     if (res.statusCode != 200) return {};
     final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
-    final out = <String, String>{};
+    final out = <String, Map<String, dynamic>>{};
     for (final e in list) {
       final id = (e['contentId'] ?? '').toString();
-      final url = (e['imageUrl'] ?? e['firstimage'] ?? '').toString();
-      if (id.isNotEmpty && url.isNotEmpty) out[id] = url;
+      if (id.isEmpty) continue;
+      out[id] = {
+        'imageUrl': (e['imageUrl'] ?? e['firstimage'] ?? '').toString(),
+        if (e['contentTypeId'] != null)
+          'contentTypeId': (e['contentTypeId'] is num)
+              ? (e['contentTypeId'] as num).toInt()
+              : int.tryParse(e['contentTypeId'].toString()),
+      };
     }
     return out;
-  }
-
-  /// (선택) 배치: contentId → contentTypeId
-  /// 백엔드에 없으면 200이 아닌 상태가 될 수 있으며, 그 경우 빈 맵을 반환합니다.
-  Future<Map<String, int>> resolveTypesBatch(List<String> contentIds) async {
-    try {
-      final res = await http.post(
-        Uri.parse('$base/bookmarks/types:batchResolve'),
-        headers: await _headers(),
-        body: jsonEncode({'contentIds': contentIds}),
-      );
-      if (res.statusCode != 200) return {};
-      final list = (jsonDecode(res.body) as List).cast<Map<String, dynamic>>();
-      final out = <String, int>{};
-      for (final e in list) {
-        final id = (e['contentId'] ?? '').toString();
-        final t = e['contentTypeId'];
-        if (id.isNotEmpty && t != null) out[id] = (t as num).toInt();
-      }
-      return out;
-    } catch (_) {
-      return {};
-    }
   }
 }

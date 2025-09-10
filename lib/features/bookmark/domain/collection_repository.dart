@@ -3,14 +3,30 @@ class CollectionSummary {
   final String name;
   final int count;
   final String? latestItemContentId;
-  CollectionSummary({required this.id, required this.name, required this.count, this.latestItemContentId});
+  final int? latestItemContentTypeId; // ★ 추가
+
+  CollectionSummary({
+    required this.id,
+    required this.name,
+    required this.count,
+    this.latestItemContentId,
+    this.latestItemContentTypeId, // ★ 추가
+  });
 
   factory CollectionSummary.fromJson(Map<String, dynamic> j) => CollectionSummary(
     id: (j['id'] as num).toInt(),
     name: (j['name'] ?? '').toString(),
     count: (j['count'] as num?)?.toInt() ?? 0,
-    latestItemContentId: j['latestItemContentId'] == null ? null : j['latestItemContentId'].toString(),
+    latestItemContentId:
+    j['latestItemContentId'] == null ? null : j['latestItemContentId'].toString(),
+    latestItemContentTypeId: _toInt(j['latestItemContentTypeId']), // ★ 추가
   );
+}
+
+int? _toInt(dynamic v) {
+  if (v == null) return null;
+  if (v is num) return v.toInt();
+  return int.tryParse(v.toString());
 }
 
 abstract class CollectionRepository {
