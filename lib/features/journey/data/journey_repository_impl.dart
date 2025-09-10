@@ -7,6 +7,7 @@ import 'package:mime/mime.dart';
 import '../domain/schedule.dart';
 import '../domain/diary_entry.dart';
 import '../domain/journeyStats.dart';
+import '../domain/journey.dart';
 
 import '../../auth/service/token_storage.dart';
 
@@ -177,6 +178,27 @@ class JourneyRepositoryImpl {
     } else {
       print('Image upload failed: ${response.statusCode} ${response.body}');
       return null;
+    }
+  }
+
+  Future<List<Journey>> fetchJourneys() async {
+    final token = await TokenStorage.getToken();
+    if (token == null) throw Exception('No auth token');
+
+    final url = Uri.parse('$baseUrl/journeys/v2/entries');
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((e) => Journey.fromJson(e)).toList();
+    } else {
+      throw Exception('Failed to fetch journeys: ${response.statusCode}');
     }
   }
 }

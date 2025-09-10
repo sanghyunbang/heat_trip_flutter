@@ -1,5 +1,7 @@
 // schedule_response.dart
 
+import 'package:heat_trip_flutter/features/journey/domain/models.dart';
+
 class ScheduleResponse {
   final int scheduleId;
   final String title;
@@ -31,6 +33,25 @@ class ScheduleResponse {
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
       user: json['user'] != null ? User.fromJson(json['user']) : null,
+    );
+  }
+}
+
+extension ScheduleResponseMapper on ScheduleResponse {
+  Schedule toSchedule() {
+    return Schedule(
+      id: this.scheduleId,
+      title: this.title,
+      content: this.content,
+      dateFrom: this.dateFrom,
+      dateTo: this.dateTo,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+      userId: this.user?.userId ?? 0,
+      location: null, // API에 없으면 null or 기본값
+      tags: const [], // API에 없으면 빈 리스트
+      memoriesCount: 0, // API에 없으면 0
+      heroImageUrl: null, // API에 없으면 null
     );
   }
 }
