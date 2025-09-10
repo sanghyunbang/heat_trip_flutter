@@ -63,7 +63,7 @@ class JourneyRepositoryImpl {
     final token = await TokenStorage.getToken();
     if (token == null) throw Exception('No auth token');
 
-    final url = Uri.parse('$baseUrl/journeys/diaries');
+    final url = Uri.parse('$baseUrl/journeys/v2/entries');
     final response = await http.get(
       url,
       headers: {
@@ -71,6 +71,8 @@ class JourneyRepositoryImpl {
         'Content-Type': 'application/json',
       },
     );
+    print('🔎 [fetchDiaries] status: ${response.statusCode}');
+    print('📦 [fetchDiaries] body: ${response.body}');
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
