@@ -60,38 +60,13 @@ class RealJourneyApi implements JourneyApi {
   // 일기 조회
   @override
   Future<List<DiaryEntry>> fetchDiaries() async {
-    await Future.delayed(const Duration(milliseconds: 150));
-    return [
-      // 전역 일기 (스케줄 미연동)
-      DiaryEntry(
-        scheduleId: null, // ✅ 전역
-        authorInitials: 'JD',
-        title: 'Magical Morning at Tsukiji',
-        date: DateTime(DateTime.now().year, 1, 21),
-        location: 'Tsukiji, Tokyo',
-        moodLabel: 'Amazed',
-        weatherLabel: 'Partly cloudy, 12°C',
-        photos: const [
-          'https://cdn.pixabay.com/photo/2025/08/15/07/25/ai-generated-9776380_1280.jpg',
-          'https://cdn.pixabay.com/photo/2022/12/21/21/59/ai-generated-7671021_1280.jpg',
-        ],
-        body:
-            'Woke up at 5 AM to visit the famous Tsukiji Fish Market. The tuna auction was incredible to witness — the speed and precision of the auctioneers is mesmerizing. Had the most amazing sushi breakfast afterwards. This is what traveling is all about — experiencing authentic local culture.',
-      ),
-
-      // 특정 스케줄(예: id=3 Kyoto)에 묶인 일기
-      DiaryEntry(
-        scheduleId: 3, // ✅ 스케줄 연동
-        authorInitials: 'MK',
-        title: 'Evening in Gion',
-        date: DateTime(DateTime.now().year, 3, 28),
-        location: 'Gion, Kyoto',
-        moodLabel: 'Calm',
-        weatherLabel: 'Clear, 9°C',
-        photos: const [],
-        body: 'Strolled through Gion at dusk...',
-      ),
-    ];
+    try {
+      final response = await _jrepo.fetchDiaries(); // JourneyRepositoryImpl 호출
+      return response;
+    } catch (e) {
+      print('❌ fetchDiaries 에러: $e');
+      return [];
+    }
   }
 
   @override
