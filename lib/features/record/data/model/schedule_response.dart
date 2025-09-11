@@ -11,6 +11,7 @@ class ScheduleResponse {
   final DateTime createdAt;
   final DateTime updatedAt;
   final User? user;
+  final int journeyCount;
 
   ScheduleResponse({
     required this.scheduleId,
@@ -21,6 +22,7 @@ class ScheduleResponse {
     required this.createdAt,
     required this.updatedAt,
     required this.user,
+    required this.journeyCount,
   });
 
   factory ScheduleResponse.fromJson(Map<String, dynamic> json) {
@@ -33,6 +35,7 @@ class ScheduleResponse {
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
       user: json['user'] != null ? User.fromJson(json['user']) : null,
+      journeyCount: json['journeyCount'] ?? 0,
     );
   }
 }
@@ -50,7 +53,7 @@ extension ScheduleResponseMapper on ScheduleResponse {
       userId: this.user?.userId ?? 0,
       location: null, // API에 없으면 null or 기본값
       tags: const [], // API에 없으면 빈 리스트
-      memoriesCount: 0, // API에 없으면 0
+      memoriesCount: this.journeyCount, // API에 없으면 0
       heroImageUrl: null, // API에 없으면 null
     );
   }

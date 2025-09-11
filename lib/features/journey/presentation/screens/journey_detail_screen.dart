@@ -17,6 +17,8 @@ class JourneyDetailScreen extends StatefulWidget {
 
 class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
   final JourneyApi _api = RealJourneyApi();
+  List<DiaryEntry>? _entries;
+
   Schedule? _data;
   bool _loading = false;
 
@@ -31,8 +33,12 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
     setState(() => _loading = _data == null);
     try {
       final fresh = await _api.fetchScheduleById(widget.id);
+      final diaries = await _api.fetchDiariesBySchedule(widget.id);
       if (!mounted) return;
-      setState(() => _data = fresh ?? _data);
+      setState(() {
+        _data = fresh ?? _data;
+        _entries = diaries;
+      });
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -50,6 +56,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
         schedule.heroImageUrl ??
         'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop';
     final photosCount = schedule.memoriesCount;
+    final journeyCount = schedule.memoriesCount;
     // Days 계산 (null 처리 포함)
     final int? tripDays = (schedule.dateFrom != null && schedule.dateTo != null)
         ? schedule.dateTo!.difference(schedule.dateFrom!).inDays + 1
