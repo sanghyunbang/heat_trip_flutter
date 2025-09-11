@@ -235,38 +235,62 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 24),
                       const Divider(),
 
-                      // 소셜 로그인 버튼들(원본 그대로)
+                      // ⬇️ 여기부터 회원가입 링크 (카드 내부)
                       const SizedBox(height: 16),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Color(0xFFE5E7EB), width: 1), // ← 연회색 테두리
+                      Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              '아직 계정이 없으신가요? ',
+                              style: TextStyle(color: Colors.black54, fontSize: 13),
+                            ),
+                            TextButton(
+                              onPressed: () => context.goNamed('signUp'), // or: context.go('/auth/sign-up')
+                              child: const Text(
+                                '회원가입',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  // 디자인 톤에 맞추고 싶으면 accent 색을 써도 됩니다.
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        child: SocialLoginButton(
-                          iconPath: 'assets/icons/google.svg',
-                          label: 'Google로 로그인',
-                          backgroundColor: Colors.white,
-                          textColor: Colors.black,
-                          onPressed: () => _handleSocialLogin('google'),
-                        ),
                       ),
-                      const SizedBox(height: 12),
-                      SocialLoginButton(
-                        iconPath: 'assets/icons/kakao.svg',
-                        label: 'Kakao로 로그인',
-                        backgroundColor: const Color(0xFFFEE500),
-                        textColor: Colors.black,
-                        onPressed: () => _handleSocialLogin('kakao'),
-                      ),
-                      const SizedBox(height: 12),
-                      SocialLoginButton(
-                        iconPath: 'assets/icons/naver.svg',
-                        label: 'Naver로 로그인',
-                        backgroundColor: const Color(0xFF03C75A),
-                        textColor: Colors.white,
-                        onPressed: () => _handleSocialLogin('naver'),
-                      ),
+
+                      // 소셜 로그인 버튼들(원본 그대로)
+                      // const SizedBox(height: 16),
+                      // Container(
+                      //   decoration: BoxDecoration(
+                      //     color: Colors.white,
+                      //     borderRadius: BorderRadius.circular(12),
+                      //     border: Border.all(color: Color(0xFFE5E7EB), width: 1), // ← 연회색 테두리
+                      //   ),
+                      //   child: SocialLoginButton(
+                      //     iconPath: 'assets/icons/google.svg',
+                      //     label: 'Google로 로그인',
+                      //     backgroundColor: Colors.white,
+                      //     textColor: Colors.black,
+                      //     onPressed: () => _handleSocialLogin('google'),
+                      //   ),
+                      // ),
+                      // const SizedBox(height: 12),
+                      // SocialLoginButton(
+                      //   iconPath: 'assets/icons/kakao.svg',
+                      //   label: 'Kakao로 로그인',
+                      //   backgroundColor: const Color(0xFFFEE500),
+                      //   textColor: Colors.black,
+                      //   onPressed: () => _handleSocialLogin('kakao'),
+                      // ),
+                      // const SizedBox(height: 12),
+                      // SocialLoginButton(
+                      //   iconPath: 'assets/icons/naver.svg',
+                      //   label: 'Naver로 로그인',
+                      //   backgroundColor: const Color(0xFF03C75A),
+                      //   textColor: Colors.white,
+                      //   onPressed: () => _handleSocialLogin('naver'),
+                      // ),
                     ],
                   ),
                 ),

@@ -1,27 +1,47 @@
-/// 회원가입 시, 서버로 전달할 요청 정보를 담는 모델 클래스
-/// 이메일, 비밀번호, 닉네임, (이름, 성별) 포함
-
+// lib/features/auth/data/dto/register_request.dart
 class RegisterRequest {
-  final String email; // 회원가입 이메일
-  final String password; // 비밀번호
-  final String nickname; // 사용자 닉네임
-  final String name; // 사용자 이름
-  final String gender; // 사용자 성별
+  final String email;
+  final String password;
+  final String nickname;
+  final String name;
+  final String gender;
+
+  // ⬇️ 추가
+  final String ageGroup;           // 'over14' | 'under14'
+  final bool agreeTos;             // 필수
+  final bool agreePrivacy;         // 필수
+  final bool agreeMarketing;       // 선택
+  final String tosVersion;         // 예: 'v1.0'
+  final String privacyVersion;     // 예: 'v1.0'
+  final String? marketingVersion;  // 동의했을 때만 'v1.0', 아니면 null
 
   RegisterRequest({
     required this.email,
     required this.password,
-    required this.gender,
-    required this.name,
     required this.nickname,
+    required this.name,
+    required this.gender,
+    required this.ageGroup,
+    required this.agreeTos,
+    required this.agreePrivacy,
+    required this.agreeMarketing,
+    required this.tosVersion,
+    required this.privacyVersion,
+    this.marketingVersion,
   });
 
-  /// 서버에 보낼 JSON 형태로 변환해주는 메서드
   Map<String, dynamic> toJson() => {
-    'email': email,
-    'password': password,
-    'name': name,
-    'nickname': nickname,
-    'gender': gender,
-  };
+        'email': email,
+        'password': password,
+        'nickname': nickname,
+        'name': name,
+        'gender': gender,
+        'ageGroup': ageGroup,
+        'agreeTos': agreeTos,
+        'agreePrivacy': agreePrivacy,
+        'agreeMarketing': agreeMarketing,
+        'tosVersion': tosVersion,
+        'privacyVersion': privacyVersion,
+        'marketingVersion': marketingVersion,
+      };
 }

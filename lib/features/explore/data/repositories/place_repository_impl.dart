@@ -7,7 +7,7 @@
 //   final PlaceApi remote;
 //   PlaceRepositoryImpl(this.remote);
 
-//   final String baseUrl = dotenv.env['API_BASE_URL'] ?? '';
+//   final String baseUrl = Env.apiBase ?? '';
 
 //   // 현재 페이지 정보 주고 페이지네이션 값 받아오기
 

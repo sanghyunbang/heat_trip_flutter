@@ -1,4 +1,8 @@
 // lib/features/explore/explore_routes.dart
+//
+// Home → Explore(list) → Detail 라우팅
+// - /explore/list로 이동할 때 쿼리(Map<String,String>)를 Provider로 주입
+// - ExploreScreen이 쿼리 유무로 검색/커서 모드 자동 전환
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -22,33 +26,39 @@ List<RouteBase> buildExploreRoutes() {
   final mobileOS = dotenv.maybeGet('MOBILE_OS') ?? 'ETC';
   final mobileApp = dotenv.maybeGet('MOBILE_APP') ?? 'HeatTrip';
 
-  Uri buildCommonUri() =>
-      Uri.https('apis.data.go.kr', '/B551011/KorService2/detailCommon2', {
-        'serviceKey': serviceKey,
-        'MobileOS': mobileOS,
-        'MobileApp': mobileApp,
-        '_type': 'Json',
-      });
+  Uri buildCommonUri() => Uri.https(
+        'apis.data.go.kr',
+        '/B551011/KorService2/detailCommon2',
+        {
+          'serviceKey': serviceKey,
+          'MobileOS': mobileOS,
+          'MobileApp': mobileApp,
+          '_type': 'Json',
+        },
+      );
 
-  Uri buildIntroUri() =>
-      Uri.https('apis.data.go.kr', '/B551011/KorService2/detailIntro2', {
-        'serviceKey': serviceKey,
-        'MobileOS': mobileOS,
-        'MobileApp': mobileApp,
-        '_type': 'Json',
-      });
+  Uri buildIntroUri() => Uri.https(
+        'apis.data.go.kr',
+        '/B551011/KorService2/detailIntro2',
+        {
+          'serviceKey': serviceKey,
+          'MobileOS': mobileOS,
+          'MobileApp': mobileApp,
+          '_type': 'Json',
+        },
+      );
 
   return <RouteBase>[
-    // 🔹 Explore 탭의 첫 화면 = Home(정적 카드)
-    //    ⇒ HomeScreen이 샘플 이미지를 자체 렌더하므로 Provider 주입 불필요.
+    // 🔹 Explore 홈(정적 카드)
     GoRoute(
       path: '/explore',
       name: 'explore_home',
-      pageBuilder: (context, state) => const MaterialPage(child: HomeScreen()),
+      pageBuilder: (context, state) =>
+          const MaterialPage(child: HomeScreen()),
     ),
 
-    // 🔹 실제 목록(예전 Explore) — Home 카드 탭 시 여기로 이동
-    //    예: /explore/list?themeId=healing&contentTypeId=12&q=카페
+    // 🔹 목록 화면
+    //    예: /explore/list?themeId=healing&contentTypeId=12&q=카페&cat3=A02010800
     GoRoute(
       path: '/explore/list',
       name: 'explore_list',
@@ -56,7 +66,7 @@ List<RouteBase> buildExploreRoutes() {
         final query = state.uri.queryParameters; // Map<String,String>
         return MaterialPage(
           child: Provider<Map<String, String>>.value(
-            value: query, // Home에서 _goExplore에서 실어보낸 query를 그대로 주입!
+            value: query, // Home에서 실어보낸 query를 그대로 주입
             child: const ExploreScreen(),
           ),
         );

@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
+import 'package:heat_trip_flutter/core/config/env.dart';
 
 /// 컬렉션 1개 요약 정보
 class CollectionInfo {
@@ -43,7 +44,7 @@ class CollectionStore extends ChangeNotifier {
   static final CollectionStore instance = CollectionStore._internal();
 
   final String _base =
-  (dotenv.env['API_BASE_URL'] ?? '').replaceAll(RegExp(r'/+$'), '');
+  (Env.apiBase ?? '').replaceAll(RegExp(r'/+$'), '');
 
   Future<Map<String, String>> _headers() async {
     final token = await TokenStorage.getToken();

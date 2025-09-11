@@ -12,6 +12,7 @@ import 'package:heat_trip_flutter/features/bookmark/service/collection_store.dar
 // 프로젝트 내 다른 곳에서 재사용할 수 있으니 유지해도 무방합니다.
 import 'package:heat_trip_flutter/features/bookmark/presentation/collection_list_screen.dart';
 import 'package:heat_trip_flutter/features/bookmark/presentation/collection_detail_screen.dart';
+import 'package:heat_trip_flutter/core/config/env.dart';
 
 class BookmarkTab extends StatefulWidget {
   const BookmarkTab({
@@ -322,7 +323,7 @@ class _Post {
 /* ────────────── 서버 통신 유틸 ────────────── */
 
 class _Api {
-  final String base = (dotenv.env['API_BASE_URL'] ?? '').replaceAll(RegExp(r'/+$'), '');
+  final String base = (Env.apiBase ?? '').replaceAll(RegExp(r'/+$'), '');
 
   Future<Map<String, String>> _headers() async {
     final token = await TokenStorage.getToken();

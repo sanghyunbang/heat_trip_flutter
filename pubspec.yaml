@@ -97,6 +97,9 @@ flutter:
     - assets/Logo4.png
     - assets/
     - .env
+    - assets/terms/terms_ko.md
+    - assets/terms/privacy_ko.md
+    - assets/terms/marketing_ko.md
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

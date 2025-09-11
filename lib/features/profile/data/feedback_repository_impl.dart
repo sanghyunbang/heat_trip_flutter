@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
 import 'package:heat_trip_flutter/features/profile/domain/repository/feedback_repository.dart';
 import 'package:heat_trip_flutter/features/profile/data/dto/feedback_request.dart';
 import 'package:http/http.dart' as http;
+import 'package:heat_trip_flutter/core/config/env.dart';
 
 class FeedbackRepositoryImpl implements FeedbackRepository {
-  final String baseUrl = dotenv.env['API_BASE_URL'] ?? '';
+  final String baseUrl = Env.apiBase ?? '';
 
   @override
   Future<bool> sendFeedback({

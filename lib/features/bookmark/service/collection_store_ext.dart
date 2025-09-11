@@ -9,13 +9,14 @@ import 'package:http/http.dart' as http;
 
 import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
 import 'package:heat_trip_flutter/features/bookmark/service/collection_store.dart';
+import 'package:heat_trip_flutter/core/config/env.dart';
 
 extension BulkRemoveEverywhere on CollectionStore {
   /// 주어진 contentId를 포함하는 '모든' 컬렉션에서 제거하고 목록/카운트 갱신
   Future<void> removeContentEverywhere(String contentId) async {
     if (contentId.isEmpty) return;
 
-    final base = (dotenv.env['API_BASE_URL'] ?? '').replaceAll(RegExp(r'/+$'), '');
+    final base = (Env.apiBase ?? '').replaceAll(RegExp(r'/+$'), '');
     final token = await TokenStorage.getToken();
     if (token == null) return;
 

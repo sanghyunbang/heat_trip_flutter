@@ -28,6 +28,7 @@ import '../widgets_detail/emotion/features_tab.dart' as emo_features;
 import '../widgets_detail/emotion/feedback_tab.dart' as emo_feedback;
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:heat_trip_flutter/core/config/env.dart';
 
 class ExploreDetailScreen extends StatefulWidget {
   final int contentId;     // 상세 API 키
@@ -147,7 +148,7 @@ class _ExploreDetailScreenState extends State<ExploreDetailScreen> {
                 // 감정 탭 묶음은 별도 VM로 관리(네트워크 로드/제출 포함)
                 child: ChangeNotifierProvider(
                   create: (_) {
-                    final host = (dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080')
+                    final host = (Env.apiBase ?? 'http://localhost:8080')
                         .replaceFirst(RegExp(r'/*$'), ''); // 말단 슬래시 제거
 
                     // EmotionApi는 내부에서 "/api/explore/places"를 자동 덧붙임
