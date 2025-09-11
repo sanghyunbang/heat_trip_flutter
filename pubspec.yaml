@@ -65,6 +65,8 @@ dependencies:
 
   url_launcher: ^6.3.2
 
+  # 사진 오류 대체
+  cached_network_image: ^3.3.1 
 
 
 dev_dependencies:
