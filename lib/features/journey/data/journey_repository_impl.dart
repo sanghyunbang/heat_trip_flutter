@@ -10,9 +10,10 @@ import '../domain/journeyStats.dart';
 import '../domain/journey.dart';
 
 import '../../auth/service/token_storage.dart';
+import 'package:heat_trip_flutter/core/config/env.dart';
 
 class JourneyRepositoryImpl {
-  final String baseUrl = dotenv.env['API_BASE_URL'] ?? '';
+  final String baseUrl = Env.apiBase ?? '';
 
   // ------------------- 통계 조회
   Future<JourneyStats> fetchStats() async {

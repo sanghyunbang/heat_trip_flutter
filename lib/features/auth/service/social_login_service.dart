@@ -1,6 +1,7 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'token_storage.dart';
+import 'package:heat_trip_flutter/core/config/env.dart';
 
 /// 소셜 로그인 기능을 담당하는 클래스
 /// 이 클래스는 외부 브라우저를 열어 소셜 로그인 후 앱으로 돌아오는 기능을 제공합니다.
@@ -13,7 +14,7 @@ class SocialLoginService {
   static Future<bool> signIn(String provider) async {
     print("소셜 로그인 시작");
 
-    final baseUrl = dotenv.env['API_BASE_URL'];
+    final baseUrl = Env.apiBase;
 
     try {
       // 1. 백엔드에 정의된 소셜 로그인 시작 URL을 생성 (0731 기준 여기서 먼저 정함 -> 이후 백단에서 이걸로 설정)

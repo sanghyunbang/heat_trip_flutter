@@ -5,13 +5,14 @@ import 'package:heat_trip_flutter/features/auth/data/dto/login_request.dart';
 import 'package:heat_trip_flutter/features/auth/data/dto/register_request.dart';
 import 'package:heat_trip_flutter/features/profile/data/dto/update_profile_request.dart';
 import 'package:http/http.dart' as http;
+import 'package:heat_trip_flutter/core/config/env.dart';
 
 /// 실제 HTTP 요청을 통해 백엔드와 통신하는 클래스
 /// 회원가입 및 로그인 요청을 처리
 
 class AuthRepositoryImpl {
   // .env 파일에 저장된 API_BASE_URL을 불러옴
-  final String baseUrl = dotenv.env['API_BASE_URL'] ?? '';
+  final String baseUrl = Env.apiBase ?? '';
 
   /// 로그인 요청
   /// 서버에 이메일/비밀번호를 전달하고, 성공하면 서버가 JWT 발급

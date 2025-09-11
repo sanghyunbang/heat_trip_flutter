@@ -5,9 +5,9 @@ import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
 import 'package:heat_trip_flutter/features/record/data/schedule_repository_impl.dart';
 import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:heat_trip_flutter/features/record/data/model/schedule_response.dart';
 import 'package:heat_trip_flutter/features/record/presentation/widgets/record_ui.dart';
+import 'package:heat_trip_flutter/core/config/env.dart';
 
 class ScheduleEditScreen extends StatefulWidget {
   final ScheduleResponse? schedule;
@@ -100,7 +100,7 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
       return;
     }
 
-    final baseUrl = dotenv.env['API_BASE_URL'];
+    final baseUrl = Env.apiBase;
     final isEditing = widget.schedule != null;
 
     final url = isEditing

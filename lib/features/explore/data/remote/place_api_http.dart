@@ -13,9 +13,10 @@ import 'package:heat_trip_flutter/features/explore/data/models/place_detail_dto.
 import 'package:heat_trip_flutter/features/explore/data/models/place_item_dto.dart';
 import 'package:heat_trip_flutter/features/explore/data/remote/place_api.dart';
 import 'package:http/http.dart' as http;
+import 'package:heat_trip_flutter/core/config/env.dart';
 
 class PlaceApiHttp implements PlaceApi {
-  final String baseUrl = dotenv.env['API_BASE_URL'] ?? '';
+  final String baseUrl = Env.apiBase ?? '';
 
   final http.Client _client;
   final Duration _timeout;

@@ -8,8 +8,10 @@ import 'data/foryou_repository_impl.dart';
 import 'state/foryou_vm.dart';
 import 'presentation/screens/foryou_screen.dart';
 import '../curation/presentation/screens/curation_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:heat_trip_flutter/core/config/env.dart';
 
-const String kBaseUrl = 'http://10.0.2.2:8080';
+final String kBaseUrl = Env.apiBase ?? '';
 
 final List<RouteBase> forYouRoutes = [
   GoRoute(

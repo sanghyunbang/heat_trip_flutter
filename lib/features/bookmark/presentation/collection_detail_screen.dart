@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:heat_trip_flutter/core/config/env.dart';
 
 import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
 
@@ -205,7 +206,7 @@ class _ItemSummary {
 }
 
 class _Api {
-  final String base = (dotenv.env['API_BASE_URL'] ?? '').replaceAll(RegExp(r'/+$'), '');
+  final String base = (Env.apiBase ?? '').replaceAll(RegExp(r'/+$'), '');
 
   Future<Map<String, String>> _headers() async {
     final token = await TokenStorage.getToken();

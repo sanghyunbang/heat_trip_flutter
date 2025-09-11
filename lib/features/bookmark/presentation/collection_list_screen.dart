@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
 import 'package:heat_trip_flutter/features/bookmark/service/collection_store.dart';
 import 'package:heat_trip_flutter/features/bookmark/presentation/collection_detail_screen.dart';
+import 'package:heat_trip_flutter/core/config/env.dart';
 
 class CollectionListScreen extends StatefulWidget {
   const CollectionListScreen({super.key});
@@ -370,7 +371,7 @@ class _CollectionListScreenState extends State<CollectionListScreen> {
 
 class _ApiColl {
   final String base =
-  (dotenv.env['API_BASE_URL'] ?? '').replaceAll(RegExp(r'/+$'), '');
+  (Env.apiBase ?? '').replaceAll(RegExp(r'/+$'), '');
 
   Future<Map<String, String>> _headers() async {
     final token = await TokenStorage.getToken();

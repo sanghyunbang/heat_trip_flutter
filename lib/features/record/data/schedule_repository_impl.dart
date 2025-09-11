@@ -1,12 +1,12 @@
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
 import 'package:heat_trip_flutter/features/record/data/dto/schedule_request.dart';
 import 'package:heat_trip_flutter/features/record/data/model/schedule_response.dart';
 import 'package:http/http.dart' as http;
+import 'package:heat_trip_flutter/core/config/env.dart';
 
 class ScheduleRepositoryImpl {
-  final String baseUrl = dotenv.env['API_BASE_URL'] ?? '';
+  final String baseUrl = Env.apiBase ?? '';
 
   // ------------------- 스케쥴 생성
   Future<String?> schedulePost(ScheduleRequest request) async {
