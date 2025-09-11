@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -10,6 +11,8 @@ import 'package:heat_trip_flutter/features/record/presentation/screens/schedule_
 import 'package:heat_trip_flutter/features/record/presentation/screens/schedule_detail_screen.dart';
 import 'package:heat_trip_flutter/features/record/presentation/widgets/record_ui.dart';
 // ↑ record_ui.dart 안의 kTextMain, kTextMuted, kBorder, ViewTab, StatusChip, ScheduleListCard 등 사용
+
+import 'package:heat_trip_flutter/core/errors/app_exception.dart';
 
 /// 카드 메뉴
 enum _CardMenu { edit, delete }
@@ -56,13 +59,14 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     try {
       final data = await _repository.fetchSchedules();
       setState(() => _all = data);
+    } on AppException catch (e) {
+      setState(() => _error = e.message); // 👈 "Exception: " 없이 메시지 그대로
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = '일시적인 오류가 발생했어요. 잠시 후 다시 시도해 주세요.');
     } finally {
       setState(() => _loading = false);
     }
   }
-
   // ─────────────────────────────────────
   // 필터링
   // ─────────────────────────────────────
@@ -284,10 +288,48 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
       );
     }
     if (_error != null) {
+      final isAuth = _error!.contains('로그인이 필요');
       return Scaffold(
         appBar: _buildAppBar(context),
-        body: Center(child: Text('에러: $_error')),
         backgroundColor: Colors.white,
+        body: Center(
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: kBorder),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(isAuth ? Icons.lock_outline : Icons.error_outline, size: 36, color: kTextMuted),
+                const SizedBox(height: 10),
+                Text(
+                  _error!, // 👈 "Exception:" 없음
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                if (isAuth)
+                  FilledButton(
+                    onPressed: () {
+                      // TODO: 실제 로그인 라우트로 이동
+                      context.go('/auth/login');
+                      Navigator.pushNamed(context, '/auth/login');
+                    },
+                    child: const Text('로그인 하러 가기'),
+                  )
+                else
+                  OutlinedButton(
+                    onPressed: _load,
+                    child: const Text('다시 시도'),
+                  ),
+              ],
+            ),
+          ),
+        ),
       );
     }
 
