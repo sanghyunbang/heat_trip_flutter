@@ -133,7 +133,7 @@ class JourneyRepositoryImpl {
     final token = await TokenStorage.getToken();
     if (token == null) return 'Authentication required';
 
-    final url = Uri.parse('$baseUrl/journeys/entries');
+    final url = Uri.parse('$baseUrl/journeys/v2/entries');
     final response = await http.post(
       url,
       headers: {
