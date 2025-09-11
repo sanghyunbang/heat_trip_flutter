@@ -19,6 +19,8 @@ import 'package:heat_trip_flutter/features/explore/data_search/explore_search_ap
 import 'package:heat_trip_flutter/features/explore/data_search/explore_search_repository.dart';
 import 'package:heat_trip_flutter/features/explore/presentation/state/explore_list_vm.dart';
 
+import 'package:cached_network_image/cached_network_image.dart';
+
 class ExploreScreen extends StatefulWidget {
   final ExploreFilters? initialFilters;
   const ExploreScreen({super.key, this.initialFilters});
@@ -302,7 +304,27 @@ class _SearchListScaffoldState extends State<_SearchListScaffold> {
       }
     });
   }
+  // ✅ 플레이스홀더 (그대로 사용)
+  Widget _placeholderThumb({double w = 56, double h = 56}) => Container(
+    width: w, height: h,
+    color: const Color(0xFFE5E7EB),
+    alignment: Alignment.center,
+    child: const Icon(Icons.photo, size: 20, color: Color(0xFF9CA3AF)),
+  );
 
+  // ✅ URL 정규화: 앞뒤 공백, 프로토콜 누락(//...), 잘못된 한 슬래시(http:/) 보정
+  String _normalizeUrl(String raw) {
+    var s = raw.trim();
+    if (s.startsWith('//')) s = 'https:$s';
+    if (s.startsWith('http:/') && !s.startsWith('http://')) {
+      s = s.replaceFirst('http:/', 'http://');
+    }
+    if (s.startsWith('https:/') && !s.startsWith('https://')) {
+      s = s.replaceFirst('https:/', 'https://');
+    }
+    return s;
+  }
+  
   @override
   void dispose() {
     _controller.dispose();
@@ -350,12 +372,12 @@ class _SearchListScaffoldState extends State<_SearchListScaffold> {
                 final p = items[i];
                 final image = p.firstimage ?? p.firstimage2;
                 return ListTile(
-                  leading: (image == null)
-                      ? const Icon(Icons.image_not_supported)
-                      : ClipRRect(
+                  leading: (image != null &&
+            (image.startsWith('http://') || image.startsWith('https://')))
+                      ?  ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: Image.network(image, width: 56, height: 56, fit: BoxFit.cover),
-                        ),
+                        ) : const Icon(Icons.image_not_supported),
                   title: Text(p.title, maxLines: 1, overflow: TextOverflow.ellipsis),
                   subtitle: Text(
                     [
