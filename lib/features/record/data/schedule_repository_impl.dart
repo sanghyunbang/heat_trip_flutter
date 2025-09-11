@@ -4,6 +4,7 @@ import 'package:heat_trip_flutter/features/record/data/dto/schedule_request.dart
 import 'package:heat_trip_flutter/features/record/data/model/schedule_response.dart';
 import 'package:http/http.dart' as http;
 import 'package:heat_trip_flutter/core/config/env.dart';
+import 'package:heat_trip_flutter/core/errors/app_exception.dart';
 
 class ScheduleRepositoryImpl {
   final String baseUrl = Env.apiBase ?? '';
@@ -35,7 +36,9 @@ class ScheduleRepositoryImpl {
   // ------------------- 스케쥴 전체 조회
   Future<List<ScheduleResponse>> fetchSchedules() async {
     final token = await TokenStorage.getToken();
-    if (token == null) throw Exception('토큰이 없습니다.');
+    if (token == null) {
+      throw const AppException('로그인이 필요합니다.'); // 👈 깔끔한 메시지만
+    }
 
     final url = Uri.parse('$baseUrl/public/schedules');
     final response = await http.get(
@@ -50,7 +53,7 @@ class ScheduleRepositoryImpl {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((item) => ScheduleResponse.fromJson(item)).toList();
     } else {
-      throw Exception('스케줄 가져오기 실패: ${response.statusCode}');
+      throw AppException('스케줄 가져오기 실패 (${response.statusCode})');
     }
   }
 
