@@ -56,32 +56,56 @@ class StaticsTab extends StatelessWidget {
         // ----- 감정별 상태 보기 -----
         const Text(
           '감정별 상태보기',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+        ),
+        const SizedBox(height: 12),
+
+        // 기쁨: #EB9C64
+        Theme(
+          data: Theme.of(context).copyWith(
+            progressIndicatorTheme: const ProgressIndicatorThemeData(color: Color(0xFFEB9C64)),
+            iconTheme: const IconThemeData(color: Color(0xFFEB9C64)),
+          ),
+          child: const CourseItem(
+            icon: Icons.sentiment_satisfied_alt,
+            title: '기쁨',
+            author: 'happiness',
+            progress: 0.70,
           ),
         ),
+
         const SizedBox(height: 12),
-        const CourseItem(
-          icon: Icons.sentiment_satisfied_alt,
-          title: '기쁨',
-          author: 'happiness',
-          progress: 0.70,
+
+        // 슬픔: #25B1BF
+        Theme(
+          data: Theme.of(context).copyWith(
+            progressIndicatorTheme: const ProgressIndicatorThemeData(color: Color(0xFF25B1BF)),
+            iconTheme: const IconThemeData(color: Color(0xFF25B1BF)),
+          ),
+          child: const CourseItem(
+            icon: Icons.sentiment_very_dissatisfied,
+            title: '슬픔',
+            author: 'sadness',
+            progress: 0.45,
+          ),
         ),
+
         const SizedBox(height: 12),
-        const CourseItem(
-          icon: Icons.sentiment_very_dissatisfied,
-          title: '슬픔',
-          author: 'sadness',
-          progress: 0.45,
+
+        // 두려움: #EF4444
+        Theme(
+          data: Theme.of(context).copyWith(
+            progressIndicatorTheme: const ProgressIndicatorThemeData(color: Color(0xFFEF4444)),
+            iconTheme: const IconThemeData(color: Color(0xFFEF4444)),
+          ),
+          child: const CourseItem(
+            icon: Icons.sentiment_very_dissatisfied_outlined,
+            title: '두려움',
+            author: 'fear',
+            progress: 0.45,
+          ),
         ),
-        const SizedBox(height: 12),
-        const CourseItem(
-          icon: Icons.sentiment_very_dissatisfied_outlined,
-          title: '두려움',
-          author: 'fear',
-          progress: 0.45,
-        ),
+
       ],
     );
   }

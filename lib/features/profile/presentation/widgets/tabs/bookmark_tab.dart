@@ -42,7 +42,7 @@ class _BookmarkTabState extends State<BookmarkTab> {
     // 최초 로드
     _collectionsFut = _Api().fetchCollectionsAndResolvePreviews();
 
-    // ★ 컬렉션 상태 변경되면 자동 새로고침
+    // 컬렉션 상태 변경되면 자동 새로고침
     CollectionStore.instance.addListener(_refreshCollections);
   }
 
@@ -52,7 +52,7 @@ class _BookmarkTabState extends State<BookmarkTab> {
     super.dispose();
   }
 
-  // ★ 서버에서 컬렉션/카운트 다시 가져오기
+  // 서버에서 컬렉션/카운트 다시 가져오기
   void _refreshCollections() {
     if (!mounted) return;
     setState(() {
@@ -132,7 +132,7 @@ class _BookmarkTabState extends State<BookmarkTab> {
                     padding: EdgeInsets.zero,
                     minimumSize: const Size(0, 0),
                   ),
-                  child: const Text('모두 보기', style: TextStyle(fontSize: 13)),
+                  child: const Text('모두 보기', style: TextStyle(fontSize: 13, color: Color(0xFF929292))),
                 ),
               ],
             ),

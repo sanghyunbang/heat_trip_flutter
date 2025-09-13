@@ -36,17 +36,17 @@ class HeaderInfo extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 타입/가격대 칩 영역
+        // 타입 칩 영역
         Row(
           children: [
-            Chip(label: Text(_typeLabel(detail.contentType))),
+            _RoundedChip(label: _typeLabel(detail.contentType)),
             if ((detail.priceTier ?? '').isNotEmpty) ...[
               const SizedBox(width: 8),
-              Chip(label: Text(detail.priceTier!)),
+              _RoundedChip(label: detail.priceTier!),
             ],
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
 
         // 타이틀
         Text(
@@ -54,7 +54,7 @@ class HeaderInfo extends StatelessWidget {
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
         ),
 
-        const SizedBox(height: 6),
+        const SizedBox(height: 10),
 
         // 메타 정보 (평점/거리/예상시간)
         Wrap(
@@ -65,7 +65,7 @@ class HeaderInfo extends StatelessWidget {
               Row(
                 children: [
                   const Icon(Icons.star, size: 16, color: Colors.amber),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 6),
                   Text('${detail.rating}'),
                 ],
               ),
@@ -73,7 +73,7 @@ class HeaderInfo extends StatelessWidget {
               Row(
                 children: [
                   const Icon(Icons.location_on_outlined, size: 16),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 6),
                   Text(detail.distanceText!),
                 ],
               ),
@@ -88,6 +88,29 @@ class HeaderInfo extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _RoundedChip extends StatelessWidget {
+  const _RoundedChip({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      label: Text(
+        label,
+        // 글씨색만 #353535 적용 (폰트 크기/두께/패딩은 Chip 기본값 유지)
+        style: const TextStyle(color: Color(0xFF353535)),
+      ),
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(999),
+        side: const BorderSide(color: Color(0xFFE2E2E2)),
+      ),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
     );
   }
 }

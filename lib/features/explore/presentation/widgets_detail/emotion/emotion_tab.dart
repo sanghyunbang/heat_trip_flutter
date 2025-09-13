@@ -26,6 +26,11 @@ EmotionScore? _byId(String id) =>
 class EmotionTab extends StatelessWidget {
   const EmotionTab({super.key});
 
+  // ── 디자인 토큰 (기능 영향 없음) ───────────────────────────────
+  static const _brand = Color(0xFFEB9C64);
+  static const _cardBorder = Color(0xFFEAEAEA);
+  static const _muted = Color(0xFF6B7280);
+
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<DetailEmotionVM>();
@@ -45,14 +50,21 @@ class EmotionTab extends StatelessWidget {
       );
     }
 
-    // 간단 통계: |ΔV| 평균 → 0~1 비율로 가정
+    // 간단 통계: |ΔV| 평균 → 0~1 비율로 가정 (그대로)
     final avgImpact =
         vm.reviews.map((r)=>r.dV.abs()).fold(0.0, (a,b)=>a+b) / vm.reviews.length;
 
     return Column(
       children: [
-        /// 상단 요약 카드
+        /// 상단 요약 카드 (디자인만 변경)
         Card(
+          elevation: 0,
+          color: Colors.white,
+          surfaceTintColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: _cardBorder),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -66,14 +78,22 @@ class EmotionTab extends StatelessWidget {
         ),
         const SizedBox(height: 12),
 
-        /// 감정 변화 패턴 바 그래프(단순 막대)
+        /// 감정 변화 패턴 바 그래프(단순 막대) — 로직 동일, 스타일만
         Card(
+          elevation: 0,
+          color: Colors.white,
+          surfaceTintColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: _cardBorder),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('감정 변화 패턴', style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text('감정 변화 패턴',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15.5)),
                 const SizedBox(height: 12),
                 ...EMOTIONS.map((em){
                   final before = vm.reviews.where((r)=>r.beforeEmotionId==em.id).length;
@@ -85,25 +105,43 @@ class EmotionTab extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Row(children: [
                       // 왼쪽 라벨(이모지+이름)
-                      SizedBox(width: 64, child: Row(
-                        children: [Text(em.emoji), const SizedBox(width: 4), Text(em.name)]
-                      )),
-                      // 가운데 막대
+                      SizedBox(
+                        width: 86,
+                        child: Row(
+                          children: [
+                            Text(em.emoji, style: const TextStyle(fontSize: 16)),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                em.name,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 13.5),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // 가운데 막대 (배경/전경색만 변경)
                       Expanded(
                         child: Stack(
                           children: [
                             // 바탕 막대
-                            Container(height: 8, decoration: BoxDecoration(
-                              color: Colors.grey.shade300, borderRadius: BorderRadius.circular(4))),
+                            Container(
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
                             // 변화량 막대(좌/우 정렬)
                             Align(
                               alignment: net>=0?Alignment.centerLeft:Alignment.centerRight,
                               child: Container(
                                 height: 8,
-                                width: (ratio*100).clamp(0,100) * 2, // 과장표시(2배)
+                                width: (ratio*100).clamp(0,100) * 2, // 과장표시(2배) — 로직 그대로
                                 decoration: BoxDecoration(
-                                  color: net>=0?Colors.green:Colors.red,
-                                  borderRadius: BorderRadius.circular(4)
+                                  color: net>=0 ? Colors.green : Colors.redAccent,
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
                               ),
                             ),
@@ -112,11 +150,17 @@ class EmotionTab extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       // 오른쪽 숫자 (+3 / -2)
-                      SizedBox(width: 32, child: Text(
-                        net>0?'+$net':'$net',
-                        textAlign: TextAlign.right,
-                        style: TextStyle(color: net>0?Colors.green: net<0?Colors.red:null),
-                      )),
+                      SizedBox(
+                        width: 36,
+                        child: Text(
+                          net>0?'+$net':'$net',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            color: net>0? Colors.green : (net<0? Colors.redAccent : _muted),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     ]),
                   );
                 }),
@@ -126,37 +170,44 @@ class EmotionTab extends StatelessWidget {
         ),
         const SizedBox(height: 12),
 
-        /// 리뷰 카드 리스트
+        /// 리뷰 카드 리스트 (레이아웃/텍스트 톤만 손봄)
         ...vm.reviews.map((r){
           final b = _byId(r.beforeEmotionId);
           final a = _byId(r.afterEmotionId);
           return Card(
+            elevation: 0,
+            color: Colors.white,
+            surfaceTintColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: const BorderSide(color: _cardBorder),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 헤더(작성자)
-                  Text(r.author, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  // 감정 변화 요약
+                  Text(r.author, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 6),
+                  // 감정 변화 요약 (아이콘/간격만 다듬음)
                   Row(
                     children: [
-                      Text('${b?.emoji} ${b?.name}'),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_right_alt),
-                      const SizedBox(width: 8),
-                      Text('${a?.emoji} ${a?.name}'),
+                      Text('${b?.emoji} ${b?.name}', style: const TextStyle(fontSize: 13.5)),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.arrow_right_alt, size: 20, color: _muted),
+                      const SizedBox(width: 6),
+                      Text('${a?.emoji} ${a?.name}', style: const TextStyle(fontSize: 13.5)),
                       const Spacer(),
                       Row(children: [
-                        const Icon(Icons.thumb_up_alt_outlined, size:16),
-                        Text(' ${r.helpfulCount}')
+                        const Icon(Icons.thumb_up_alt_outlined, size:16, color: _muted),
+                        Text(' ${r.helpfulCount}', style: const TextStyle(color: _muted)),
                       ]),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   // 본문
-                  Text(r.content),
+                  Text(r.content, style: const TextStyle(height: 1.45)),
                 ],
               ),
             ),
@@ -166,12 +217,14 @@ class EmotionTab extends StatelessWidget {
     );
   }
 
-  /// 통계 카드의 간단한 위젯
+  /// 통계 카드의 간단한 위젯 (타이포/톤만)
   Widget _stat(String title, String value){
-    return Column(children: [
-      Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-      const SizedBox(height: 4),
-      Text(title, style: const TextStyle(color: Colors.grey)),
-    ]);
+    return Column(
+      children: [
+        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 4),
+        Text(title, style: TextStyle(color: _muted)),
+      ],
+    );
   }
 }

@@ -70,10 +70,6 @@ class _ProfileScreenState extends State<ProfileScreen>
 
       final userInfo = await authRepository.getMyProfile(token);
 
-      // 디버깅용
-      // ignore: avoid_print
-      print('[ProfileScreen] raw userInfo: $userInfo');
-
       if (!mounted) return;
 
       if (userInfo != null) {
