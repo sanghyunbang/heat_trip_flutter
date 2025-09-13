@@ -189,7 +189,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-        backgroundColor: theme.colorScheme.surface,
+        backgroundColor: Colors.white,
         body: SafeArea(
           bottom: false,
           child: CustomScrollView(

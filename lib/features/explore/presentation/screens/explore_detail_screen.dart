@@ -27,7 +27,6 @@ import '../widgets_detail/emotion/emotion_tab.dart' as emo;
 import '../widgets_detail/emotion/features_tab.dart' as emo_features;
 import '../widgets_detail/emotion/feedback_tab.dart' as emo_feedback;
 
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:heat_trip_flutter/core/config/env.dart';
 
 class ExploreDetailScreen extends StatefulWidget {
@@ -45,6 +44,8 @@ class ExploreDetailScreen extends StatefulWidget {
 }
 
 class _ExploreDetailScreenState extends State<ExploreDetailScreen> {
+  static const Color kPrimary = Color(0xFFEB9C64);
+
   int _galleryIndex = 0; // 갤러리 페이지 인덱스
 
   @override
@@ -73,6 +74,10 @@ class _ExploreDetailScreenState extends State<ExploreDetailScreen> {
   Widget build(BuildContext context) {
     final vm = context.watch<DetailVM>();
 
+    // 공통 스타일
+    final divider = const Divider(height: 1, thickness: .6, color: Color(0xFFE9E9E9));
+    final sectionTitleStyle = const TextStyle(fontWeight: FontWeight.w700, fontSize: 16);
+
     // 1) 로딩
     if (vm.loading) {
       return Scaffold(
@@ -94,6 +99,12 @@ class _ExploreDetailScreenState extends State<ExploreDetailScreen> {
                 Text('오류가 발생했습니다.\n${vm.error}', textAlign: TextAlign.center),
                 const SizedBox(height: 12),
                 FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: kPrimary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
                   onPressed: () async {
                     await context.read<DetailVM>().load(
                       contentId: widget.contentId,
@@ -125,50 +136,79 @@ class _ExploreDetailScreenState extends State<ExploreDetailScreen> {
     ].toSet().toList();
 
     // 4) 성공 UI: SliverAppBar(갤러리) + 본문(탭 UI)
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          // ✅ 중복 제거: 우리가 만든 SliverDetailAppBar 사용 (내부에서 BookmarkHeart 재사용)
-          SliverDetailAppBar(
-            title: '', // 사진 위 텍스트는 숨김
-            contentId: widget.contentId.toString(),
-            onBack: _safePop,
-            gallery: Gallery(
-              images: images,
-              index: _galleryIndex,
-              onChanged: (i) => setState(() => _galleryIndex = i),
-            ),
+    return Theme(
+      // 화면 단위로 포인트 컬러를 통일
+      data: Theme.of(context).copyWith(
+        colorScheme: Theme.of(context).colorScheme.copyWith(
+          primary: kPrimary,
+          secondary: kPrimary,
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: kPrimary,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
-
-          // 본문: 탭 UI (개요/감정경험/공간특성/나의경험)
-          SliverList(
-            delegate: SliverChildListDelegate.fixed([
-              Padding(
-                padding: const EdgeInsets.all(16),
-                // 감정 탭 묶음은 별도 VM로 관리(네트워크 로드/제출 포함)
-                child: ChangeNotifierProvider(
-                  create: (_) {
-                    final host = (Env.apiBase ?? 'http://localhost:8080')
-                        .replaceFirst(RegExp(r'/*$'), ''); // 말단 슬래시 제거
-
-                    // EmotionApi는 내부에서 "/api/explore/places"를 자동 덧붙임
-                    final api  = EmotionApi(
-                      http.Client(),
-                      apiBaseFromEnv: host,
-                    );
-
-                    final repo = EmotionRepository(api);
-                    final evm  = DetailEmotionVM(repo: repo, contentId: widget.contentId);
-                    evm.init(); // 특성/리뷰 병렬 로드
-                    evm.setTab(EmotionTab.overview); // 진입 시 "개요" 탭
-                    return evm;
-                  },
-                  child: _DetailTabs(detail: detail),
-                ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: kPrimary,
+            side: const BorderSide(color: kPrimary, width: 1.4),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            foregroundColor: kPrimary,
+            overlayColor: kPrimary.withOpacity(.08),
+          ),
+        ),
+      ),
+      child: Scaffold(
+        body: CustomScrollView(
+          slivers: [
+            // ✅ SliverDetailAppBar 사용
+            SliverDetailAppBar(
+              title: '', // 사진 위 텍스트는 숨김
+              contentId: widget.contentId.toString(),
+              onBack: _safePop,
+              gallery: Gallery(
+                images: images,
+                index: _galleryIndex,
+                onChanged: (i) => setState(() => _galleryIndex = i),
               ),
-            ]),
-          ),
-        ],
+            ),
+
+            // 본문: 탭 UI (개요/감정경험/공간특성/나의경험)
+            SliverList(
+              delegate: SliverChildListDelegate.fixed([
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: ChangeNotifierProvider(
+                    create: (_) {
+                      final host = (Env.apiBase ?? 'http://localhost:8080')
+                          .replaceFirst(RegExp(r'/*$'), ''); // 말단 슬래시 제거
+                      final api  = EmotionApi(http.Client(), apiBaseFromEnv: host);
+                      final repo = EmotionRepository(api);
+                      final evm  = DetailEmotionVM(repo: repo, contentId: widget.contentId);
+                      evm.init(); // 특성/리뷰 병렬 로드
+                      evm.setTab(EmotionTab.overview); // 진입 시 "개요" 탭
+                      return evm;
+                    },
+                    child: _DetailTabs(
+                      detail: detail,
+                      sectionTitleStyle: sectionTitleStyle,
+                      divider: divider,
+                      primary: kPrimary,
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -177,7 +217,16 @@ class _ExploreDetailScreenState extends State<ExploreDetailScreen> {
 /// 탭 렌더링: 상단 탭 버튼 + 본문 스위치
 class _DetailTabs extends StatelessWidget {
   final PlaceDetail detail;
-  const _DetailTabs({required this.detail});
+  final TextStyle sectionTitleStyle;
+  final Divider divider;
+  final Color primary;
+
+  const _DetailTabs({
+    required this.detail,
+    required this.sectionTitleStyle,
+    required this.divider,
+    required this.primary,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -187,22 +236,35 @@ class _DetailTabs extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ── 탭 버튼 행 ─────────────────────────────────────────────────
-        Row(
-          children: [
-            _TabButton(label: '개요', tab: EmotionTab.overview, evm: evm),
-            _TabButton(label: '감정 경험', tab: EmotionTab.emotion, evm: evm),
-            _TabButton(label: '공간 특성', tab: EmotionTab.features, evm: evm),
-            _TabButton(label: '나의 경험', tab: EmotionTab.feedback, evm: evm),
-          ],
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFEDEDED)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          child: Row(
+            children: [
+              _TabButton(label: '개요', tab: EmotionTab.overview, evm: evm, primary: primary),
+              _TabButton(label: '감정 경험', tab: EmotionTab.emotion, evm: evm, primary: primary),
+              _TabButton(label: '공간 특성', tab: EmotionTab.features, evm: evm, primary: primary),
+              _TabButton(label: '나의 경험', tab: EmotionTab.feedback, evm: evm, primary: primary),
+            ],
+          ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
 
         // ── 탭 본문 ───────────────────────────────────────────────────
         Builder(
           builder: (_) {
             switch (evm.active) {
               case EmotionTab.overview:
-                return _OverviewTab(detail: detail);
+                return _OverviewTab(
+                  detail: detail,
+                  sectionTitleStyle: sectionTitleStyle,
+                  divider: divider,
+                  primary: primary,
+                );
               case EmotionTab.emotion:
                 return const emo.EmotionTab();
               case EmotionTab.features:
@@ -219,10 +281,21 @@ class _DetailTabs extends StatelessWidget {
 
 class _OverviewTab extends StatelessWidget {
   final PlaceDetail detail;
-  const _OverviewTab({required this.detail});
+  final TextStyle sectionTitleStyle;
+  final Divider divider;
+  final Color primary;
+
+  const _OverviewTab({
+    required this.detail,
+    required this.sectionTitleStyle,
+    required this.divider,
+    required this.primary,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final subtle = Theme.of(context).colorScheme.onSurfaceVariant;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -230,14 +303,14 @@ class _OverviewTab extends StatelessWidget {
         const SizedBox(height: 12),
 
         if ((detail.overview ?? '').isNotEmpty) ...[
-          const Divider(),
-          const SizedBox(height: 12),
-          const Text('개요', style: TextStyle(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          Text(stripHtml(detail.overview!)),
+          divider,
+          const SizedBox(height: 14),
+          Text('개요', style: sectionTitleStyle),
+          const SizedBox(height: 8),
+          Text(stripHtml(detail.overview!), style: const TextStyle(height: 1.45)),
         ],
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 18),
         ContactCard(detail: detail),
         const SizedBox(height: 12),
         HoursCard(hours: detail.hours),
@@ -246,7 +319,7 @@ class _OverviewTab extends StatelessWidget {
         const SizedBox(height: 12),
         ReviewsCard(reviews: detail.reviews),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
@@ -275,37 +348,45 @@ class _TabButton extends StatelessWidget {
   final String label;
   final EmotionTab tab;
   final DetailEmotionVM evm;
+  final Color primary;
 
   const _TabButton({
     required this.label,
     required this.tab,
     required this.evm,
+    required this.primary,
   });
 
   @override
   Widget build(BuildContext context) {
     final on = evm.active == tab;
-    final color = Theme.of(context).colorScheme.primary;
 
     return Expanded(
       child: TextButton(
         onPressed: () => evm.setTab(tab),
         style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
         child: Column(
           children: [
             Text(
               label,
               style: TextStyle(
-                color: on ? color : null,
+                color: on ? primary : Colors.black87,
                 fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 14,
               ),
             ),
             const SizedBox(height: 6),
-            Container(
-              height: 2,
-              color: on ? color : Colors.transparent,
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              height: 2.4,
+              width: on ? 28 : 0,
+              decoration: BoxDecoration(
+                color: on ? primary : Colors.transparent,
+                borderRadius: BorderRadius.circular(99),
+              ),
             ),
           ],
         ),

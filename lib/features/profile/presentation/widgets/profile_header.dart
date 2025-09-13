@@ -161,11 +161,11 @@ class ProfileHeader extends StatelessWidget {
               ),
               child: TabBar(
                 controller: tabController,
-                labelColor: Theme.of(context).colorScheme.primary,
+                labelColor: Color(0xFFDE835F),
                 unselectedLabelColor: Colors.black45,
                 indicator: UnderlineTabIndicator(
                   borderSide: BorderSide(
-                    color: Theme.of(context).colorScheme.primary,
+                    color: Color(0xFFDE835F),
                     width: 3,
                   ),
                   insets: const EdgeInsets.symmetric(horizontal: 48, vertical: 6),

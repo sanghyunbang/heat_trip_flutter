@@ -52,9 +52,12 @@ class ScheduleRepositoryImpl {
     if (response.statusCode == 200 || response.statusCode == 201) {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((item) => ScheduleResponse.fromJson(item)).toList();
-    } else {
-      throw AppException('스케줄 가져오기 실패 (${response.statusCode})');
     }
+    // 스케줄이 전혀 없을 때 204를 빈 리스트로 간주
+    if (response.statusCode == 204) {
+      return <ScheduleResponse>[];
+    }
+    throw AppException('스케줄 가져오기 실패 (${response.statusCode})');
   }
 
   // ------------------- 스케쥴 삭제

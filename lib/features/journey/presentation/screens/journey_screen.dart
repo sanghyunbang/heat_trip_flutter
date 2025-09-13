@@ -212,8 +212,8 @@ class _JourneyTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const selectedBg = Color(0xFFEBE2CD); // 선택 배경
-    const selectedFg = Color(0xFF353535); // 선택 텍스트
+    const selectedBg = Color(0xFFEBEBEB); // 선택 배경
+    const selectedFg = Color(0xFFEB9C64); // 선택 텍스트
 
     return TabBar(
       controller: controller,
