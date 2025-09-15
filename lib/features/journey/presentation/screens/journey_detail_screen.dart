@@ -34,6 +34,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
     try {
       final fresh = await _api.fetchScheduleById(widget.id);
       final diaries = await _api.fetchDiariesBySchedule(widget.id);
+      print('📒 Diaries fetched: $diaries');
       if (!mounted) return;
       setState(() {
         _data = fresh ?? _data;
@@ -235,7 +236,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                                 return _StatMini(
                                   icon: Icons.menu_book_outlined,
                                   iconColor: const Color(0xFF8B5CF6),
-                                  value: '$count',
+                                  value: '$journeyCount',
                                   label: 'Diary Entries',
                                 );
                               },
@@ -286,68 +287,54 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
 
               // === Diary Entries 섹션 ===
               const SizedBox(height: 22),
-              FutureBuilder<List<DiaryEntry>>(
-                future: _api.fetchDiariesBySchedule(widget.id),
-                builder: (context, snap) {
-                  if (snap.connectionState != ConnectionState.done) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snap.hasError || !snap.hasData) {
-                    return const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Text('Failed to load diaries.'),
-                    );
-                  }
-                  final entries = snap.data!;
-                  final diaryCount = entries.length;
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Diary Entries',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                              ),
+              if (_entries == null)
+                const Center(child: CircularProgressIndicator())
+              else
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Diary Entries',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F2F5),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              '$diaryCount entries',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      if (diaryCount == 0)
-                        _EmptyDiaryCard(title: schedule.title)
-                      else
-                        // DiaryList(entries: entries),
-                        DiaryList(
-                          entries: entries,
-                          embedded: true, // 부모 스크롤 사용
-                          padding: EdgeInsets.zero,
                         ),
-                    ],
-                  );
-                },
-              ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F2F5),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '$journeyCount entries',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (_entries!.isEmpty)
+                      _EmptyDiaryCard(title: schedule.title)
+                    else
+                      DiaryList(
+                        entries: _entries!,
+                        embedded: true,
+                        padding: EdgeInsets.zero,
+                      ),
+                  ],
+                ),
 
               if (_loading)
                 const Padding(
