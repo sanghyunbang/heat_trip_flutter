@@ -72,7 +72,7 @@ class JourneyRepositoryImpl {
         'Content-Type': 'application/json',
       },
     );
-    print('🔎 [fetchDiaries] status: ${response.statusCode}');
+
     print('📦 [fetchDiaries] body: ${response.body}');
 
     if (response.statusCode == 200) {

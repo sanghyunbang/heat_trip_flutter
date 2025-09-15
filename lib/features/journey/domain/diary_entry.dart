@@ -45,7 +45,7 @@ class DiaryEntry {
     final journey = json['journey'] ?? {};
 
     return DiaryEntry(
-      scheduleId: null, // 서버 응답에 없으면 null 처리
+      scheduleId: journey['scheduleId'],
       authorInitials: _initials(journey['userNickname'] ?? ''),
       title: journey['title'] ?? '',
       date: DateTime.tryParse(journey['date'] ?? '') ?? DateTime.now(),
