@@ -14,7 +14,7 @@ import 'package:heat_trip_flutter/features/record/presentation/screens/schedule_
 import 'package:heat_trip_flutter/features/record/presentation/screens/schedule_detail_screen.dart';
 import 'package:heat_trip_flutter/features/record/presentation/widgets/record_ui.dart';
 // ↑ record_ui.dart 안의 kTextMain, kTextMuted, kBorder, kCard, ViewTab,
-//   WideSegmentBar, StatusChip, ScheduleListCard 등 사용
+//   WideSegmentBar, ScheduleListCard 등 사용
 
 import 'package:heat_trip_flutter/core/errors/app_exception.dart';
 
@@ -451,35 +451,60 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
     );
   }
 
-  /// 상단 요약(가까운 일정 / 누적 일수 / 여행 횟수)
+  /// 상단 요약: 진행 중이면 라벨=Now & 제목만, 없으면 라벨=Next & 제목(D-n)
   Widget _summaryRow() {
-    if (_all.isEmpty) return const SizedBox();
+    final items = _filteredForList; // 🔁 검색/필터 반영된 목록
+    if (items.isEmpty) return const SizedBox();
+
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    final upcoming = _all.where((s) {
+    // 상태 그룹화
+    final planned = <ScheduleResponse>[];
+    final ongoing = <ScheduleResponse>[];
+    final completed = <ScheduleResponse>[];
+
+    for (final s in items) {
       final start = DateTime(s.dateFrom.year, s.dateFrom.month, s.dateFrom.day);
-      return start.isAtSameMomentAs(today) || start.isAfter(today);
-    }).toList()
-      ..sort((a, b) => a.dateFrom.compareTo(b.dateFrom));
+      final end = DateTime(s.dateTo.year, s.dateTo.month, s.dateTo.day);
 
-    final closest = upcoming.isNotEmpty ? upcoming.first : null;
-    final closestDaysLeft = closest == null
-        ? null
-        : DateTime(
-      closest.dateFrom.year,
-      closest.dateFrom.month,
-      closest.dateFrom.day,
-    ).difference(today).inDays +
-        1;
-
-    int totalDays = 0;
-    for (var s in _all) {
-      if (s.dateTo.isBefore(now)) {
-        totalDays += s.dateTo.difference(s.dateFrom).inDays + 1;
+      if (end.isBefore(today)) {
+        completed.add(s);
+      } else if (!start.isAfter(today) && !end.isBefore(today)) {
+        ongoing.add(s);
+      } else {
+        planned.add(s);
       }
     }
-    final completed = _all.where((s) => s.dateTo.isBefore(now)).length;
+
+    planned.sort((a, b) => a.dateFrom.compareTo(b.dateFrom));
+    ongoing.sort((a, b) => a.dateFrom.compareTo(b.dateFrom));
+
+    // ① Now/Next 카드의 라벨과 값
+    late final String primaryLabel;
+    late final String primaryValue;
+    if (ongoing.isNotEmpty) {
+      primaryLabel = 'Now';                          // 라벨은 Now
+      primaryValue = ongoing.first.title;            // 값은 제목만
+    } else if (planned.isNotEmpty) {
+      primaryLabel = 'Next';                         // 라벨은 Next
+      final start = DateTime(
+        planned.first.dateFrom.year,
+        planned.first.dateFrom.month,
+        planned.first.dateFrom.day,
+      );
+      final n = start.difference(today).inDays;      // 오늘=0, 내일=1
+      primaryValue = '${planned.first.title} (D-$n)';// 값은 제목 (D-n)
+    } else {
+      primaryLabel = 'Next';
+      primaryValue = 'None';
+    }
+
+    // ② Completed: 완료된 일정 갯수
+    final int completedCount = completed.length;
+
+    // ③ Total Trips: 현재 목록 개수(필터 반영)
+    final int totalTrips = items.length;
 
     Widget info({
       required IconData icon,
@@ -524,21 +549,21 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
       children: [
         info(
           icon: Icons.event,
-          label: 'Next',
-          value: closest != null ? '${closest.title} (D-${closestDaysLeft})' : 'None',
-          color: const Color(0xFF7C3AED),
+          label: primaryLabel,     // Now 또는 Next
+          value: primaryValue,     // 제목 또는 제목(D-n) 또는 None
+          color: const Color(0xFF7C3AED), // 보라
         ),
         info(
-          icon: Icons.today,
-          label: 'Total days',
-          value: '$totalDays',
-          color: const Color(0xFF0EA5E9),
+          icon: Icons.check_circle,
+          label: 'Completed',
+          value: '$completedCount',
+          color: const Color(0xFF0EA5E9), // 시안
         ),
         info(
           icon: Icons.flight_takeoff,
-          label: 'Trips',
-          value: '$completed',
-          color: const Color(0xFFEF4444),
+          label: 'Total Trips',
+          value: '$totalTrips',
+          color: const Color(0xFFEF4444), // 레드
         ),
       ],
     );
@@ -580,6 +605,24 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }
 
   // ─────────────────────────────────────
+  // 카드 공용 - StatusLabel
+  // ─────────────────────────────────────
+  ({String label, Color color}) _uiStatusFor(ScheduleResponse s) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final start = DateTime(s.dateFrom.year, s.dateFrom.month, s.dateFrom.day);
+    final end = DateTime(s.dateTo.year, s.dateTo.month, s.dateTo.day);
+
+    if (end.isBefore(today)) {
+      return (label: 'Completed', color: Colors.blueGrey);
+    }
+    if (!start.isAfter(today) && !end.isBefore(today)) {
+      return (label: 'In Progress', color: Colors.green);
+    }
+    return (label: 'Planned', color: Colors.orange);
+  }
+
+  // ─────────────────────────────────────
   // 카드 공용
   // ─────────────────────────────────────
   Widget _cardMenuButton(ScheduleResponse s) {
@@ -587,26 +630,35 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
       tooltip: 'More',
       position: PopupMenuPosition.over,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 160),
-      itemBuilder: (context) => const [
+      offset: const Offset(0, 8),
+      elevation: 0,
+      color: Colors.white,
+      surfaceTintColor: Colors.white,
+      shadowColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: kBorder, width: 1),
+      ),
+      constraints: const BoxConstraints(minWidth: 196),
+      itemBuilder: (context) => [
         PopupMenuItem<_CardMenu>(
           value: _CardMenu.edit,
-          child: ListTile(
-            dense: true,
-            leading: Icon(Icons.edit, size: 18),
-            title: Text('Edit'),
-            horizontalTitleGap: 8,
-            minLeadingWidth: 18,
+          padding: EdgeInsets.zero,
+          child: const _MenuActionRow(
+            icon: Icons.edit_outlined,
+            label: 'Edit',
+            fg: Color(0xFF111827),
           ),
         ),
+        const PopupMenuDivider(height: 6),
         PopupMenuItem<_CardMenu>(
           value: _CardMenu.delete,
-          child: ListTile(
-            dense: true,
-            leading: Icon(Icons.delete_outline, size: 18),
-            title: Text('Delete'),
-            horizontalTitleGap: 8,
-            minLeadingWidth: 18,
+          padding: EdgeInsets.zero,
+          child: const _MenuActionRow(
+            icon: Icons.delete_outline,
+            label: 'Delete',
+            fg: Color(0xFFDC2626),
+            danger: true,
           ),
         ),
       ],
@@ -633,11 +685,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }
 
   Widget _cardFor(ScheduleResponse s, DateFormat fm) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final isPast = s.dateTo.isBefore(now);
-    final isOngoing = !isPast && !s.dateFrom.isAfter(today);
-    final status = isOngoing ? 'pending' : (isPast ? 'confirmed' : 'confirmed');
+    final statusMeta = _uiStatusFor(s);
 
     void _openDetail() {
       Navigator.push(
@@ -661,7 +709,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                StatusChip(status),
+                _StatusLabel(text: statusMeta.label, color: statusMeta.color),
                 const SizedBox(width: 6),
                 _cardMenuButton(s),
               ],
@@ -676,9 +724,8 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   // 달력 탭
   // ─────────────────────────────────────
   Widget _calendarContent(DateFormat fm) {
-    final selectedItems = _selectedDay == null
-        ? <ScheduleResponse>[]
-        : _schedulesOn(_selectedDay!);
+    final selectedItems =
+    _selectedDay == null ? <ScheduleResponse>[] : _schedulesOn(_selectedDay!);
 
     final today = DateTime(
       DateTime.now().year,
@@ -793,8 +840,10 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
             itemCount: upcomingSchedules.length.clamp(0, 10),
             itemBuilder: (context, i) {
               final s = upcomingSchedules[i];
-              final start = DateTime(s.dateFrom.year, s.dateFrom.month, s.dateFrom.day);
-              final end = DateTime(s.dateTo.year, s.dateTo.month, s.dateTo.day);
+              final start =
+              DateTime(s.dateFrom.year, s.dateFrom.month, s.dateFrom.day);
+              final end =
+              DateTime(s.dateTo.year, s.dateTo.month, s.dateTo.day);
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Material(
@@ -803,7 +852,8 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(14),
                     onTap: () {
-                      final todayInRange = !today.isBefore(start) && !today.isAfter(end);
+                      final todayInRange =
+                          !today.isBefore(start) && !today.isAfter(end);
                       setState(() => _selectedDay = todayInRange ? today : start);
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         final ctx = _selectedSectionKey.currentContext;
@@ -864,29 +914,87 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }
 
   // ─────────────────────────────────────
-  // 삭제 확인 & 실제 삭제 호출
+  // 삭제 확인 & 실제 삭제 호출 (디자인 개선)
   // ─────────────────────────────────────
   Future<void> _confirmDelete(ScheduleResponse schedule) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: kBorder, width: 1),
         ),
-        title: const Text('삭제 확인'),
-        content: Text('"${schedule.title}" 스케쥴을 삭제하시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('취소'),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 상단 위험 아이콘 (연한 레드 배경 + 보더)
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),                  // red-50
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFFCA5A5)), // red-300
+                ),
+                alignment: Alignment.center,
+                child: const Icon(Icons.delete_outline, color: Color(0xFFDC2626)), // red-600
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                '삭제하시겠어요?',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '"${schedule.title}" 스케쥴을 삭제하면 되돌릴 수 없어요.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: kTextMuted, height: 1.3),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  // 취소 (Outlined)
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: kBorder),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        foregroundColor: kTextMain,
+                        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      child: const Text('취소'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // 삭제 (Red Filled)
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.white),
+                      label: const Text('삭제', style: TextStyle(color: Colors.white)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626), // red-600
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                        overlayColor: Colors.white.withOpacity(.06),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('삭제'),
-          ),
-        ],
+        ),
       ),
     );
 
@@ -899,8 +1007,106 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
         await _load();
       } else {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error)));
       }
     }
+  }
+}
+
+// ─────────────────────────────────────
+// 작고 담백한 StatusLabel (리스트 카드 우측 상단)
+// ─────────────────────────────────────
+class _StatusLabel extends StatelessWidget {
+  final String text;
+  final Color color;
+  const _StatusLabel({required this.text, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F6F8),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 1),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: kTextMain,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────
+// 점(⋯) 메뉴 커스텀 타일
+// ─────────────────────────────────────
+class _MenuActionRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color fg;
+  final bool danger;
+
+  const _MenuActionRow({
+    required this.icon,
+    required this.label,
+    required this.fg,
+    this.danger = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: danger ? const Color(0xFFFEE2E2) : const Color(0xFFF3F4F6),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: danger ? const Color(0xFFFCA5A5) : const Color(0xFFE5E7EB),
+              ),
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 16, color: fg),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: fg,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 /// - 이 약관은 보편적 조항을 담은 템플릿입니다. 실제 배포 전 법률 검토가 필요합니다.
 /// - 아래 TODO 상수들을 실제 서비스 정보로 교체하세요.
 const String kAppName = 'Heat Trip';          // TODO
-const String kCompanyName = 'hit다Hit';  // TODO
+const String kCompanyName = 'CetaceaLab';  // TODO
 const String kContactEmail = 'support@example.com'; // TODO
 const String kContactAddress = 'Seoul, Republic of Korea'; // TODO
 const String kTermsVersion = 'v1.0';              // TODO
