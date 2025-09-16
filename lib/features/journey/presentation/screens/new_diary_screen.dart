@@ -41,6 +41,7 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
     super.dispose();
   }
 
+  /// 단일 날짜 선택 유지 + 다이얼로그 내부에서만 M3 스타일 오버라이드
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -48,8 +49,90 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
       firstDate: DateTime(now.year - 5),
       lastDate: DateTime(now.year + 5),
       initialDate: _date,
+      helpText: 'Select date',
+      confirmText: 'Save',
+      cancelText: 'Cancel',
+      initialEntryMode: DatePickerEntryMode.calendar,
+      builder: (context, child) {
+        final base = Theme.of(context);
+        const seed = Color(0xFF0B0B14);
+
+        return Theme(
+          data: base.copyWith(
+            useMaterial3: true,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: seed,
+              brightness: base.brightness,
+            ),
+            datePickerTheme: base.datePickerTheme.copyWith(
+              // 다이얼로그 외곽
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+              backgroundColor: Colors.white,                 // 달력 본문 배경 흰색
+              surfaceTintColor: Colors.transparent,          // M3 보랏빛 틴트 제거
+              elevation: 0,                                  // 틴트 생기는 표면 고도 0
+
+              // 헤더 톤
+              headerBackgroundColor: Colors.white,
+              headerForegroundColor: Colors.black87,
+              headerHeadlineStyle: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 20,
+              ),
+              headerHelpStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.black54,
+              ),
+
+              // ✅ 여기들이 핵심: WidgetStateProperty로 래핑
+              dayShape: const WidgetStatePropertyAll<OutlinedBorder>(
+                CircleBorder(),
+              ),
+              dayForegroundColor: WidgetStateProperty.resolveWith<Color?>(
+                    (states) =>
+                states.contains(WidgetState.selected) ? Colors.white : null,
+              ),
+              dayBackgroundColor: WidgetStateProperty.resolveWith<Color?>(
+                    (states) =>
+                states.contains(WidgetState.selected) ? seed : null,
+              ),
+              dayOverlayColor:
+              const WidgetStatePropertyAll<Color>(Colors.black12),
+
+              todayForegroundColor:
+              const WidgetStatePropertyAll<Color>(Colors.black87),
+              todayBackgroundColor:
+              const WidgetStatePropertyAll<Color>(Colors.transparent),
+
+              yearForegroundColor: WidgetStateProperty.resolveWith<Color?>(
+                    (states) =>
+                states.contains(WidgetState.selected) ? Colors.white : null,
+              ),
+              yearBackgroundColor: WidgetStateProperty.resolveWith<Color?>(
+                    (states) =>
+                states.contains(WidgetState.selected) ? seed : null,
+              ),
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: seed,
+                textStyle: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            dialogTheme: base.dialogTheme.copyWith(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
-    if (picked != null) setState(() => _date = picked);
+
+    if (picked != null) setState(() => _date = picked); // 단일 날짜 선택 유지
   }
 
   void _addPhotoUrlDialog() async {
@@ -158,7 +241,6 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                 ),
               if (widget.scheduleId != null) const SizedBox(height: 12),
 
-              // --- 이하 UI는 이전과 동일 (생략 없이 전체) ---
               _Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
