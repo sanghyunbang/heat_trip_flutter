@@ -4,16 +4,16 @@ import 'package:meta/meta.dart';
 
 @immutable
 class Pad {
-  final int pleasure; // -2..2
-  final int arousal; // -2..2
-  final int dominance; // -2..2
+  final double pleasure; // -2..2
+  final double arousal; // -2..2
+  final double dominance; // -2..2
   const Pad({
     required this.pleasure,
     required this.arousal,
     required this.dominance,
   });
 
-  Pad copyWith({int? pleasure, int? arousal, int? dominance}) => Pad(
+  Pad copyWith({double? pleasure, double? arousal, double? dominance}) => Pad(
     pleasure: pleasure ?? this.pleasure,
     arousal: arousal ?? this.arousal,
     dominance: dominance ?? this.dominance,
