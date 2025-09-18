@@ -1,4 +1,5 @@
 class DiaryEntry {
+  final int? id;
   final int? scheduleId;
   final String authorInitials;
   final String title;
@@ -10,6 +11,7 @@ class DiaryEntry {
   final String body;
 
   const DiaryEntry({
+    this.id,
     this.scheduleId,
     required this.authorInitials,
     required this.title,
@@ -45,6 +47,7 @@ class DiaryEntry {
     final journey = json['journey'] ?? {};
 
     return DiaryEntry(
+      id: journey['id'] ?? 0,
       scheduleId: journey['scheduleId'],
       authorInitials: _initials(journey['userNickname'] ?? ''),
       title: journey['title'] ?? '',
@@ -65,15 +68,23 @@ class DiaryEntry {
   }
 
   /// DiaryEntry → JSON
-  Map<String, dynamic> toJson() => {
-    if (scheduleId != null) 'scheduleId': scheduleId,
-    'authorInitials': authorInitials,
-    'title': title,
-    'date': date.toIso8601String(), // .split('T')[0], LocalDate 대응
-    'location': location,
-    'moodLabel': moodLabel,
-    'weatherLabel': weatherLabel,
-    'photos': photos,
-    'body': body,
-  };
+  Map<String, dynamic> toJson({bool includeId = true}) {
+    final map = <String, dynamic>{
+      if (scheduleId != null) 'scheduleId': scheduleId,
+      'authorInitials': authorInitials,
+      'title': title,
+      'date': date.toIso8601String(),
+      'location': location,
+      'moodLabel': moodLabel,
+      'weatherLabel': weatherLabel,
+      'photos': photos,
+      'body': body,
+    };
+
+    if (includeId) {
+      map['id'] = id;
+    }
+
+    return map;
+  }
 }
