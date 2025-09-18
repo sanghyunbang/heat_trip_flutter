@@ -174,7 +174,7 @@ class EmotionInsightCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
-                      Icons.psychology_alt_rounded,
+                      Icons.sentiment_satisfied_alt,
                       color: Colors.white,
                       size: 16,
                     ),
@@ -198,7 +198,7 @@ class EmotionInsightCard extends StatelessWidget {
                   onPressed: onRecord,
                   icon: const Icon(Icons.edit, size: 14),
                   label: const Text(
-                    '수정',
+                    '입력',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                   ),
                   style: FilledButton.styleFrom(
