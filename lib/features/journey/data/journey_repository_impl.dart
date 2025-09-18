@@ -141,7 +141,7 @@ class JourneyRepositoryImpl {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },
-      body: jsonEncode(entry.toJson()),
+      body: jsonEncode(entry.toJson(includeId: false)),
     );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {

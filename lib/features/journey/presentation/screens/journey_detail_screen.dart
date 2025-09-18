@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:heat_trip_flutter/features/journey/presentation/screens/diary_detail_screen.dart';
 import 'package:heat_trip_flutter/features/journey/presentation/widgets/diary_list.dart';
 
 import '../../domain/models.dart';
@@ -332,6 +333,14 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                         entries: _entries!,
                         embedded: true,
                         padding: EdgeInsets.zero,
+                        onTap: (entry) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => DiaryDetailScreen(entry: entry),
+                            ),
+                          );
+                        },
                       ),
                   ],
                 ),

@@ -23,6 +23,18 @@ class DiaryTab extends StatelessWidget {
           child: DiaryList(
             entries: entries,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            onTap: (entry) {
+              final scheduleId = entry.scheduleId; // models에 scheduleId가 있다고 가정
+
+              context.pushNamed(
+                'diaryDetail',
+                pathParameters: {
+                  'id': scheduleId.toString(),
+                  'entryId': entry.scheduleId.toString(),
+                },
+                extra: entry,
+              );
+            },
           ),
         ),
       ],
@@ -46,7 +58,9 @@ class _NewDiaryButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.black,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           elevation: 0,
         ),
         icon: const Icon(Icons.add),
