@@ -27,7 +27,7 @@ class AppBottomNavBar extends StatelessWidget {
           label: 'Schedule',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.stars_rounded),
+          icon: Icon(Icons.star_border_rounded),
           activeIcon: Icon(Icons.stars_rounded),
           label: 'For You',
         ),
