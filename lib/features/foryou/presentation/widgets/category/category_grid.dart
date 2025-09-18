@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../domain/entities.dart';
-import '../ui/card_shell.dart';
+import '../ui/card_shell.dart' show OutlinedCardShell; // ⬅️ 명시적 import
 import 'category_tile.dart';
 
 class CategoryGrid extends StatelessWidget {
@@ -9,7 +9,9 @@ class CategoryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CardShell(
+    return OutlinedCardShell(
+      // 필요 시 withShadow: true 로 아주 얕은 입체감 추가 가능
+      // withShadow: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

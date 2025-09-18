@@ -34,12 +34,19 @@ class RankRequest {
   final List<String> goals; // ex) ['quiet_reflection']
   final int topK;
 
+  // 🆕 사용자가 시트에서 고른 감정(라벨/이모지). 선택 안했으면 null.
+  // - UI에서 "선택된 감정"을 고정 표출하기 위해 사용 (PAD 조정과 독립)
+  final String? moodKey; // ex) '기쁨', '무기력' ...
+  final String? moodEmoji; // ex) '😊'
+
   const RankRequest({
     required this.pad,
     this.energy = 0,
     this.socialNeed = 0,
     this.goals = const [],
     this.topK = 10,
+    this.moodKey,
+    this.moodEmoji,
   });
 
   RankRequest copyWith({
@@ -48,12 +55,16 @@ class RankRequest {
     double? socialNeed,
     List<String>? goals,
     int? topK,
+    String? moodKey,
+    String? moodEmoji,
   }) => RankRequest(
     pad: pad ?? this.pad,
     energy: energy ?? this.energy,
     socialNeed: socialNeed ?? this.socialNeed,
     goals: goals ?? this.goals,
     topK: topK ?? this.topK,
+    moodKey: moodKey ?? this.moodKey,
+    moodEmoji: moodEmoji ?? this.moodEmoji,
   );
 
   Map<String, dynamic> toJson() => {
@@ -62,6 +73,8 @@ class RankRequest {
     'socialNeed': socialNeed,
     'goals': goals,
     'topK': topK,
+    if (moodKey != null) 'moodKey': moodKey,
+    if (moodEmoji != null) 'moodEmoji': moodEmoji,
   };
 }
 

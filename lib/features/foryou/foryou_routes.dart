@@ -7,7 +7,7 @@ import 'data/api_client.dart';
 import 'data/foryou_repository_impl.dart';
 import 'state/foryou_vm.dart';
 import 'presentation/screens/foryou_screen.dart';
-import '../curation/presentation/screens/curation_screen.dart';
+// import '../curation/presentation/screens/curation_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:heat_trip_flutter/core/config/env.dart';
 
@@ -40,7 +40,7 @@ final List<RouteBase> forYouRoutes = [
       GoRoute(
         path: 'curation',
         name: 'forYouCuration',
-        builder: (_, __) => const CurationScreen(),
+        builder: (_, __) => const ForYouScreen(),
       ),
     ],
   ),
