@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import 'domain/entities.dart';
-import 'data/api_client.dart';
-import 'data/foryou_repository_impl.dart';
-import 'state/foryou_vm.dart';
-import 'presentation/screens/foryou_screen.dart';
-// import '../curation/presentation/screens/curation_screen.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:heat_trip_flutter/features/foryou/domain/entities.dart';
+import 'package:heat_trip_flutter/features/foryou/data/api_client.dart';
+import 'package:heat_trip_flutter/features/foryou/data/foryou_repository_impl.dart';
+import 'package:heat_trip_flutter/features/foryou/state/foryou_vm.dart';
+import 'package:heat_trip_flutter/features/foryou/presentation/screens/foryou_screen.dart';
+import 'package:heat_trip_flutter/features/foryou/presentation/widgets/foryou_curation_sheet.dart';
+
+// ✅ kBaseUrl을 이 파일에서 확실히 정의
 import 'package:heat_trip_flutter/core/config/env.dart';
 
 final String kBaseUrl = Env.apiBase ?? '';
@@ -17,7 +18,6 @@ final List<RouteBase> forYouRoutes = [
   GoRoute(
     path: '/foryou',
     name: 'forYou',
-    // 👇 builder에서 Provider를 만들고, 반드시 "새 컨텍스트"로 ForYouScreen을 빌드
     builder: (context, state) {
       final vm = ForYouVM(
         repo: ForYouRepositoryImpl(ApiClient(baseUrl: kBaseUrl)),
@@ -25,22 +25,26 @@ final List<RouteBase> forYouRoutes = [
           pad: Pad(pleasure: 1, arousal: -1, dominance: 1),
           energy: 0,
           socialNeed: -1,
-          goals: ['quiet_reflection'],
+          goals: ['quiet_reflection'], // ✅ 표준 키
           topK: 10,
         ),
       );
 
       return ChangeNotifierProvider<ForYouVM>(
         create: (_) => vm..load(),
-        // ⬇️ 이 Builder가 핵심: Provider "아래"의 컨텍스트로 화면을 빌드
-        child: Builder(builder: (_) => const ForYouScreen()),
+        child: const ForYouScreen(),
       );
     },
     routes: [
       GoRoute(
         path: 'curation',
         name: 'forYouCuration',
-        builder: (_, __) => const ForYouScreen(),
+        builder: (context, state) {
+          // ✅ VM에서 현재 RankRequest를 꺼내어 시트에 전달
+          final vm = context.read<ForYouVM>();
+          final RankRequest req = vm.request; // ← ForYouVM에 getter 추가 필요
+          return ForYouCurationSheet(initial: req);
+        },
       ),
     ],
   ),
