@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:heat_trip_flutter/features/journey/presentation/screens/diary_edit_screen.dart';
 import 'package:heat_trip_flutter/features/record/data/model/schedule_response.dart';
 import 'package:heat_trip_flutter/features/record/data/schedule_repository_impl.dart';
 import '../../data/journey_api.dart';
@@ -49,6 +50,41 @@ class _JourneyScreenState extends State<JourneyScreen>
   void dispose() {
     _tab.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleEdit(DiaryEntry entry) async {
+    final updatedEntry = await Navigator.push<DiaryEntry>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DiaryEditScreen(entry: entry), // <-- 수정 화면 구현 필요
+      ),
+    );
+
+    if (updatedEntry != null) {
+      setState(() {
+        _diariesF = _api.fetchDiaries(); // 리스트 다시 로딩
+      });
+    }
+  }
+
+  Future<void> _handleDelete(DiaryEntry entry) async {
+    try {
+      await _api.deleteDiary(entry.id!); // <- 실제 API 호출
+      setState(() {
+        _diariesF = _api.fetchDiaries(); // 목록 새로고침
+      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('다이어리를 삭제했어요.')));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('삭제 실패: $e')));
+      }
+    }
   }
 
   @override
@@ -174,7 +210,11 @@ class _JourneyScreenState extends State<JourneyScreen>
                         child: Text('Failed to load diaries.'),
                       );
                     }
-                    return DiaryTab(entries: snap.data!);
+                    return DiaryTab(
+                      entries: snap.data!,
+                      onEdit: _handleEdit,
+                      onDelete: _handleDelete,
+                    );
                   },
                 ),
               ],

@@ -1,3 +1,5 @@
+// 📁 journey_detail_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:heat_trip_flutter/features/journey/presentation/screens/diary_detail_screen.dart';
@@ -9,8 +11,8 @@ import '../../data/journey_api.dart';
 class JourneyDetailScreen extends StatefulWidget {
   const JourneyDetailScreen({super.key, required this.id, this.initial});
 
-  final int id; // ✅ URL에서 파싱된 int
-  final Schedule? initial; // 선택: 초기 렌더 최적화용
+  final int id;
+  final Schedule? initial;
 
   @override
   State<JourneyDetailScreen> createState() => _JourneyDetailScreenState();
@@ -19,15 +21,14 @@ class JourneyDetailScreen extends StatefulWidget {
 class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
   final JourneyApi _api = RealJourneyApi();
   List<DiaryEntry>? _entries;
-
   Schedule? _data;
   bool _loading = false;
 
   @override
   void initState() {
     super.initState();
-    _data = widget.initial; // 초기 즉시 렌더
-    _fetch(); // 최신 데이터로 갱신
+    _data = widget.initial;
+    _fetch();
   }
 
   Future<void> _fetch() async {
@@ -35,7 +36,6 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
     try {
       final fresh = await _api.fetchScheduleById(widget.id);
       final diaries = await _api.fetchDiariesBySchedule(widget.id);
-      print('📒 Diaries fetched: $diaries');
       if (!mounted) return;
       setState(() {
         _data = fresh ?? _data;
@@ -53,13 +53,12 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // 간단 통계
     final hero =
         schedule.heroImageUrl ??
         'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop';
+
     final photosCount = schedule.memoriesCount;
-    final journeyCount = schedule.memoriesCount;
-    // Days 계산 (null 처리 포함)
+    final journeyCount = _entries?.length ?? 0;
     final int? tripDays = (schedule.dateFrom != null && schedule.dateTo != null)
         ? schedule.dateTo!.difference(schedule.dateFrom!).inDays + 1
         : null;
@@ -94,34 +93,30 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // === 상단 히어로 이미지 + 상태 배지 ===
+              // Hero image
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: Stack(
-                  children: [
-                    AspectRatio(
-                      aspectRatio: 16 / 8.4,
-                      child: Image.network(
-                        hero,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: Colors.grey.shade200,
-                          alignment: Alignment.center,
-                          child: const Icon(
-                            Icons.broken_image_outlined,
-                            size: 28,
-                            color: Colors.black26,
-                          ),
-                        ),
+                child: AspectRatio(
+                  aspectRatio: 16 / 8.4,
+                  child: Image.network(
+                    hero,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: const Color(0xFFF3F3F3),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.broken_image_outlined,
+                        size: 28,
+                        color: Color(0xFF9E9E9E),
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
 
               const SizedBox(height: 8),
 
-              // === 정보 카드 (위치/기간/태그/미니 통계) ===
+              // Info card
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -189,7 +184,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                       const Divider(height: 1),
                       const SizedBox(height: 8),
 
-                      // 미니 통계 (Photos / Diary Entries / Days)
+                      // Mini stats
                       Row(
                         children: [
                           Expanded(
@@ -200,47 +195,12 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                               label: 'Photos',
                             ),
                           ),
-                          // Diary Entries 수는 실제 조회해서 반영
                           Expanded(
-                            child: FutureBuilder<List<DiaryEntry>>(
-                              future: _api.fetchDiariesBySchedule(widget.id),
-                              builder: (context, snap) {
-                                final subtle = Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant;
-                                if (snap.connectionState !=
-                                    ConnectionState.done) {
-                                  return Column(
-                                    children: [
-                                      const SizedBox(height: 2),
-                                      const SizedBox(
-                                        height: 16,
-                                        width: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        'Diary Entries',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: subtle,
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                }
-                                final count = (snap.hasData
-                                    ? snap.data!.length
-                                    : 0);
-                                return _StatMini(
-                                  icon: Icons.menu_book_outlined,
-                                  iconColor: const Color(0xFF8B5CF6),
-                                  value: '$journeyCount',
-                                  label: 'Diary Entries',
-                                );
-                              },
+                            child: _StatMini(
+                              icon: Icons.menu_book_outlined,
+                              iconColor: const Color(0xFF8B5CF6),
+                              value: '$journeyCount',
+                              label: 'Diary Entries',
                             ),
                           ),
                           Expanded(
@@ -258,35 +218,33 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                 ),
               ),
 
-              // === 새 일기 버튼 ===
+              // New diary button
               const SizedBox(height: 12),
               SizedBox(
                 height: 48,
                 width: double.infinity,
-                child: ElevatedButton.icon(
+                child: FilledButton.icon(
                   onPressed: () {
-                    // 새 일기 작성화면으로 이동 (스케줄 id가 있는 상태)
                     context.pushNamed(
                       'newDiaryForSchedule',
                       pathParameters: {'id': widget.id.toString()},
                     );
                   },
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  label: const Text(
-                    'New Diary Entry',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0B0B14),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('New Diary Entry'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF191C21),
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                    overlayColor: Colors.white.withOpacity(.06),
                   ),
                 ),
               ),
 
-              // === Diary Entries 섹션 ===
               const SizedBox(height: 22),
 
               if (_entries == null)
@@ -365,13 +323,10 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
     if (from != null && to == null) return f(from);
     if (from == null && to != null) return f(to);
 
-    final f0 = from!;
-    final t0 = to!;
-    return '${f(f0)} ~ ${f(t0)}';
+    return '${f(from!)} ~ ${f(to!)}';
   }
 }
 
-/// 태그 (화이트 + 옅은 테두리 필)
 class _TagPill extends StatelessWidget {
   const _TagPill({required this.text});
   final String text;
@@ -397,7 +352,6 @@ class _TagPill extends StatelessWidget {
   }
 }
 
-/// 미니 통계 블록 (아이콘 + 수치 + 라벨)
 class _StatMini extends StatelessWidget {
   const _StatMini({
     required this.icon,
@@ -423,11 +377,7 @@ class _StatMini extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               value,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: Colors.black,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             ),
           ],
         ),
@@ -438,7 +388,6 @@ class _StatMini extends StatelessWidget {
   }
 }
 
-/// 일기 빈 상태 카드
 class _EmptyDiaryCard extends StatelessWidget {
   const _EmptyDiaryCard({required this.title});
   final String title;

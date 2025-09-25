@@ -204,4 +204,46 @@ class JourneyRepositoryImpl {
       throw Exception('Failed to fetch journeys: ${response.statusCode}');
     }
   }
+
+  Future<void> deleteDiary(int diaryId) async {
+    final token = await TokenStorage.getToken();
+    if (token == null) throw Exception('Authentication required');
+
+    final url = Uri.parse('$baseUrl/journeys/v2/entries/$diaryId');
+    final response = await http.delete(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception('Failed to delete diary: ${response.statusCode}');
+    }
+  }
+
+  Future<DiaryEntry> updateDiary(DiaryEntry entry) async {
+    final token = await TokenStorage.getToken();
+    if (token == null) throw Exception('Authentication required');
+    if (entry.id == null) throw Exception('Diary ID is required for update');
+
+    final url = Uri.parse('$baseUrl/journeys/v2/entries/${entry.id}');
+    final response = await http.put(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(entry.toJson(includeId: false)),
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final data = jsonDecode(response.body);
+      return DiaryEntry.fromJson(data);
+    } else {
+      print('Failed to update diary: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to update diary');
+    }
+  }
 }
