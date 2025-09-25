@@ -87,4 +87,30 @@ class DiaryEntry {
 
     return map;
   }
+
+  DiaryEntry copyWith({
+    int? id,
+    int? scheduleId,
+    String? authorInitials,
+    String? title,
+    DateTime? date,
+    String? location,
+    String? moodLabel,
+    String? weatherLabel,
+    List<String>? photos,
+    String? body,
+  }) {
+    return DiaryEntry(
+      id: id ?? this.id,
+      scheduleId: scheduleId ?? this.scheduleId,
+      authorInitials: authorInitials ?? this.authorInitials,
+      title: title ?? this.title,
+      date: date ?? this.date,
+      location: location ?? this.location,
+      moodLabel: moodLabel ?? this.moodLabel,
+      weatherLabel: weatherLabel ?? this.weatherLabel,
+      photos: photos ?? this.photos,
+      body: body ?? this.body,
+    );
+  }
 }

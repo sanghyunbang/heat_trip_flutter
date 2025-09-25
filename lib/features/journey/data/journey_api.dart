@@ -13,6 +13,8 @@ abstract class JourneyApi {
   Future<List<DiaryEntry>> fetchDiaries(); // 전체 일기 조회
   Future<List<DiaryEntry>> fetchDiariesBySchedule(int scheduleId); // 스케줄별 일기
   Future<List<Journey>> fetchJourneys();
+  Future<void> deleteDiary(int id);
+  Future<DiaryEntry> updateDiary(DiaryEntry entry);
 }
 
 /// 데모용 더미 API → 실제 서버 구현 시 수정 (수정됨)
@@ -73,5 +75,15 @@ class RealJourneyApi implements JourneyApi {
   Future<List<DiaryEntry>> fetchDiariesBySchedule(int scheduleId) async {
     final all = await fetchDiaries();
     return all.where((e) => e.scheduleId == scheduleId).toList(); // ✅ null 제외
+  }
+
+  @override
+  Future<void> deleteDiary(int id) async {
+    await _jrepo.deleteDiary(id); // 실제 호출
+  }
+
+  @override
+  Future<DiaryEntry> updateDiary(DiaryEntry entry) async {
+    return await _jrepo.updateDiary(entry);
   }
 }

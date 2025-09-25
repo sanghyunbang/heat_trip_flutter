@@ -6,7 +6,15 @@ import 'diary_list.dart';
 /// Diary 탭 컨테이너: 상단 버튼 + 리스트
 class DiaryTab extends StatelessWidget {
   final List<DiaryEntry> entries;
-  const DiaryTab({super.key, required this.entries});
+  final void Function(DiaryEntry entry)? onEdit;
+  final void Function(DiaryEntry entry)? onDelete;
+
+  const DiaryTab({
+    super.key,
+    required this.entries,
+    this.onEdit,
+    this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +30,8 @@ class DiaryTab extends StatelessWidget {
         Expanded(
           child: DiaryList(
             entries: entries,
+            onEdit: onEdit,
+            onDelete: onDelete,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
             onTap: (entry) {
               final scheduleId = entry.scheduleId; // models에 scheduleId가 있다고 가정
