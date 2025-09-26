@@ -2,19 +2,39 @@ import 'package:flutter/material.dart';
 import '../../domain/models.dart';
 
 class DiaryDetailScreen extends StatelessWidget {
-  final DiaryEntry entry;
+  final DiaryEntry? entry; // Nullable로 변경
 
-  const DiaryDetailScreen({super.key, required this.entry});
+  const DiaryDetailScreen({super.key, this.entry});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
 
+    // entry가 null일 때 보여줄 기본 화면
+    if (entry == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            'No Diary Entry',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          elevation: 0.5,
+        ),
+        backgroundColor: const Color(0xFFF8F8F8),
+        body: const Center(
+          child: Text('Diary entry not found.', style: TextStyle(fontSize: 16)),
+        ),
+      );
+    }
+
+    // entry가 있을 때 기존 UI 렌더링
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          entry.title,
+          entry!.title,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
@@ -28,24 +48,24 @@ class DiaryDetailScreen extends StatelessWidget {
           /// 🗓️ 날짜 / 😄 감정 / 🌤 날씨
           _InfoCard(
             children: [
-              _InfoRow(icon: Icons.calendar_today, label: entry.dateLabel),
+              _InfoRow(icon: Icons.calendar_today, label: entry!.dateLabel),
               _InfoRow(
                 icon: Icons.emoji_emotions_outlined,
-                label: entry.moodLabel,
+                label: entry!.moodLabel,
               ),
               _InfoRow(
                 icon: Icons.wb_sunny_outlined,
-                label: entry.weatherLabel,
+                label: entry!.weatherLabel,
               ),
             ],
           ),
           const SizedBox(height: 16),
 
           /// 📍 장소
-          if (entry.location.isNotEmpty)
+          if (entry!.location.isNotEmpty)
             _InfoCard(
               children: [
-                _InfoRow(icon: Icons.place_outlined, label: entry.location),
+                _InfoRow(icon: Icons.place_outlined, label: entry!.location),
               ],
             ),
           const SizedBox(height: 16),
@@ -59,14 +79,14 @@ class DiaryDetailScreen extends StatelessWidget {
               border: Border.all(color: const Color(0xFFE6E6E6)),
             ),
             child: Text(
-              entry.body,
+              entry!.body,
               style: const TextStyle(fontSize: 16, height: 1.6),
             ),
           ),
           const SizedBox(height: 24),
 
           /// 🖼 사진 그리드 or 스크롤
-          if (entry.photos.isNotEmpty) ...[
+          if (entry!.photos.isNotEmpty) ...[
             const Text(
               '📸 사진',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -76,10 +96,10 @@ class DiaryDetailScreen extends StatelessWidget {
               height: 200,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                itemCount: entry.photos.length,
+                itemCount: entry!.photos.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 12),
                 itemBuilder: (context, index) {
-                  final photoUrl = entry.photos[index];
+                  final photoUrl = entry!.photos[index];
                   return ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: Image.network(

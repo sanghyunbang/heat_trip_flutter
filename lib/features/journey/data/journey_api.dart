@@ -79,11 +79,13 @@ class RealJourneyApi implements JourneyApi {
 
   @override
   Future<void> deleteDiary(int id) async {
+    print(" ㅡㅡㅡㅡㅡㅡㅡjourney api - [delete] diary 호출됨, 호출된 id : $id");
     await _jrepo.deleteDiary(id); // 실제 호출
   }
 
   @override
   Future<DiaryEntry> updateDiary(DiaryEntry entry) async {
+    print(" ㅡㅡㅡㅡㅡㅡㅡjourney api - [update] diary 호출됨, 호출된 entry : ${entry} ");
     return await _jrepo.updateDiary(entry);
   }
 }
