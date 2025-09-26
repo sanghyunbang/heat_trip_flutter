@@ -73,7 +73,7 @@ class JourneyRepositoryImpl {
       },
     );
 
-    print('📦 [fetchDiaries] body: ${response.body}');
+    print('  ㅡㅡㅡㅡㅡㅡㅡjourney impl - 📦[fetchDiaries] body: ${response.body[0]}');
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -206,6 +206,7 @@ class JourneyRepositoryImpl {
   }
 
   Future<void> deleteDiary(int diaryId) async {
+    print("   journey impl - deleteDiary 진입, 들어온 diaryId : $diaryId");
     final token = await TokenStorage.getToken();
     if (token == null) throw Exception('Authentication required');
 
@@ -224,11 +225,15 @@ class JourneyRepositoryImpl {
   }
 
   Future<DiaryEntry> updateDiary(DiaryEntry entry) async {
+    print(
+      "   ㅡㅡㅡㅡㅡㅡㅡjourney impl - updateDiary 진입, 진입한 값 : ${entry} \n entry id = ${entry.id}",
+    );
     final token = await TokenStorage.getToken();
     if (token == null) throw Exception('Authentication required');
     if (entry.id == null) throw Exception('Diary ID is required for update');
 
-    final url = Uri.parse('$baseUrl/journeys/v2/entries/${entry.id}');
+    final Did = entry.id;
+    final url = Uri.parse('$baseUrl/journeys/v2/entries/$Did');
     final response = await http.put(
       url,
       headers: {

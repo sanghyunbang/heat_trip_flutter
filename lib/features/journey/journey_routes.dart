@@ -34,14 +34,17 @@ final List<RouteBase> journeyRoutes = [
             path: 'diary/:entryId',
             name: 'diaryDetail',
             builder: (context, state) {
-              final entryIdStr = state.pathParameters['entryId']!;
-              final entryId = int.parse(entryIdStr);
+              final entryIdStr = state.pathParameters['entryId'];
+
+              // entryId가 없거나 숫자가 아니면 null
+              final entryId = int.tryParse(entryIdStr ?? '');
+
+              // extra로 전달된 diaryEntry
               final diaryEntry = state.extra as DiaryEntry?;
 
               if (diaryEntry == null) {
-                return Scaffold(
-                  body: Center(child: Text('Diary entry not found')),
-                );
+                // diaryEntry 없으면 빈 화면, 또는 다른 안내 문구, 혹은 기본 화면
+                return DiaryDetailScreen(entry: null);
               }
 
               return DiaryDetailScreen(entry: diaryEntry);
