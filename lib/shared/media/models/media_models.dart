@@ -4,7 +4,7 @@
 // - 업로드 카테고리 enum(서버 UploadCategory와 문자열 이름이 일치해야 함)
 
 /// 서버 UploadCategory와 이름을 맞춥니다 (ex: REVIEW, DIARY, PROFILE).
-enum UploadCategory { JOURNEY, REVIEW, PROFILE, DIARY }
+enum UploadCategory { JOURNEY_IMAGE, PROFILE_IMAGE, REVIEW_IMAGE }
 
 /// 문자열 → enum 파서 (서버 응답 'category'가 문자열로 오기 때문)
 UploadCategory parseCategory(String s) =>
@@ -61,13 +61,13 @@ class UploadedMedia {
 
   /// 서버 응답(JSON) → 객체 변환
   factory UploadedMedia.fromJson(Map<String, dynamic> j) => UploadedMedia(
-        id: (j['id'] as num).toInt(),
-        key: j['key'] as String,
-        url: j['url'] as String,
-        contentType: j['contentType'] as String?,
-        size: (j['size'] as num?)?.toInt(),
-        category: parseCategory(j['category'] as String),
-        refType: j['refType'] as String?,
-        refId: j['refId'] as String?,
-      );
+    id: (j['id'] as num).toInt(),
+    key: j['key'] as String,
+    url: j['url'] as String,
+    contentType: j['contentType'] as String?,
+    size: (j['size'] as num?)?.toInt(),
+    category: parseCategory(j['category'] as String),
+    refType: j['refType'] as String?,
+    refId: j['refId'] as String?,
+  );
 }

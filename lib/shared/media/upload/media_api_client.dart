@@ -40,11 +40,13 @@ class MediaApiClient {
     // 파일 파트 추가
     for (final f in files) {
       final mime = lookupMimeType(f.path) ?? 'application/octet-stream';
-      req.files.add(await http.MultipartFile.fromPath(
-        'files', // 서버 파라미터명
-        f.path,
-        contentType: MediaType.parse(mime),
-      ));
+      req.files.add(
+        await http.MultipartFile.fromPath(
+          'files', // 서버 파라미터명
+          f.path,
+          contentType: MediaType.parse(mime),
+        ),
+      );
     }
 
     // 일반 필드
@@ -82,11 +84,13 @@ class MediaApiClient {
     final req = http.MultipartRequest('PUT', uri);
 
     final mime = lookupMimeType(file.path) ?? 'application/octet-stream';
-    req.files.add(await http.MultipartFile.fromPath(
-      'file', // 서버 파라미터명
-      file.path,
-      contentType: MediaType.parse(mime),
-    ));
+    req.files.add(
+      await http.MultipartFile.fromPath(
+        'file', // 서버 파라미터명
+        file.path,
+        contentType: MediaType.parse(mime),
+      ),
+    );
 
     final token = tokenProvider == null ? null : await tokenProvider!();
     req.headers.addAll(_authHeaders(token));
@@ -100,7 +104,7 @@ class MediaApiClient {
         id: (j['id'] as num).toInt(),
         key: j['key'] as String,
         url: j['url'] as String,
-        category: UploadCategory.PROFILE,
+        category: UploadCategory.PROFILE_IMAGE,
       );
     }
     throw Exception('replaceFile failed: ${res.statusCode} ${res.body}');
@@ -120,7 +124,10 @@ class MediaApiClient {
 
   /// DELETE /media?refType=...&refId=...
   /// - 특정 리소스에 연결된 모든 미디어 삭제
-  Future<void> deleteByRef({required String refType, required String refId}) async {
+  Future<void> deleteByRef({
+    required String refType,
+    required String refId,
+  }) async {
     final token = tokenProvider == null ? null : await tokenProvider!();
     final uri = Uri.parse('$baseUrl/media?refType=$refType&refId=$refId');
     final res = await http.delete(uri, headers: _authHeaders(token));
@@ -142,8 +149,9 @@ class MediaApiClient {
   /// GET /media/presigned?key=...&minutes=...
   /// - 비공개 객체 접근 시, 일시적 URL 발급
   Future<String> getPresigned(String key, {int minutes = 10}) async {
-    final res = await http
-        .get(Uri.parse('$baseUrl/media/presigned?key=$key&minutes=$minutes'));
+    final res = await http.get(
+      Uri.parse('$baseUrl/media/presigned?key=$key&minutes=$minutes'),
+    );
     if (res.statusCode ~/ 100 == 2) {
       return (jsonDecode(res.body) as Map<String, dynamic>)['url'] as String;
     }
