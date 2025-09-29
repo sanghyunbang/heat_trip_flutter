@@ -49,7 +49,10 @@ class _AvatarPickerState extends State<AvatarPicker> {
 
   Future<void> _change() async {
     // 1) 갤러리에서 사진 1장 선택
-    final picked = await _picker.captureImage() ?? await _picker.pickSingleVideoFromGallery(); // 우선 카메라, 실패 시 갤러리 비디오 체크(예시)
+    final picked =
+        await _picker.captureImage() ??
+        await _picker
+            .pickSingleVideoFromGallery(); // 우선 카메라, 실패 시 갤러리 비디오 체크(예시)
     if (picked == null || picked.isVideo) {
       // 프로필은 이미지만 허용하는 것이 보통이므로 비디오는 무시
       final img = await _picker.pickMultiImages();
@@ -77,7 +80,7 @@ class _AvatarPickerState extends State<AvatarPicker> {
         // 없으면 새 업로드 (PROFILE 카테고리)
         final list = await repo.uploadImages(
           items: [PickedMedia(path: _local!.path, isVideo: false)],
-          category: UploadCategory.PROFILE,
+          category: UploadCategory.PROFILE_IMAGE,
           refType: 'PROFILE',
           refId: 'ME', // 필요 시 실제 사용자 ID로 교체
         );
@@ -102,7 +105,10 @@ class _AvatarPickerState extends State<AvatarPicker> {
     // 표시할 아바타 소스 선택: 로컬 미리보기 > 네트워크 > 플레이스홀더
     Widget avatar;
     if (_local != null) {
-      avatar = CircleAvatar(radius: radius, backgroundImage: FileImage(_local!));
+      avatar = CircleAvatar(
+        radius: radius,
+        backgroundImage: FileImage(_local!),
+      );
     } else if (_url != null) {
       avatar = CircleAvatar(
         radius: radius,

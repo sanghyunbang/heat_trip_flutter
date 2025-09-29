@@ -1,10 +1,25 @@
-// lib/features/profile/presentation/profile_edit_screen.dart
-import 'dart:convert';
+// lib/features/profile/presentation/screens/profile_edit_screen.dart
+//
+// 목적
+// - AvatarPicker(공유 위젯)를 사용하여 실제 업로드(S3/DB 메타 저장)를 수행하고,
+//   응답의 url을 화면 상태와 SP 캐시에 반영.
+// - 저장 버튼은 UpdateProfileRequest(imageUrl 포함)를 호출하고 성공 시 pop(true). [⑦]
+//
+// 전제
+// - DI에서 MediaRepository가 Provider로 주입되어 있어야 AvatarPicker가 정상 동작. [① 재확인]
+// - 백엔드 UpdateProfile이 imageUrl 필드를 저장 후 GET /auth/me에서 갱신된 값을 반환해야 함. [⑧]
 
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
 import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
 import 'package:heat_trip_flutter/features/profile/data/dto/update_profile_request.dart';
+
+// ↓ shared/media 배럴 (models, repository, widgets 포함)
+import 'package:heat_trip_flutter/shared/media/media.dart';
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
@@ -16,31 +31,39 @@ class ProfileEditScreen extends StatefulWidget {
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // ── 컨트롤러 ──
+  // ── 텍스트 컨트롤러 ──
   final _nicknameCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _ageCtrl = TextEditingController(); // 선택 입력
 
-  // 성별: FEMALE / MALE / OTHER (기본/모름: OTHER)
-  String _gender = 'OTHER';
-  String? _avatarUrl;
+  // ── 상태 값 ──
+  String _gender = 'OTHER'; // FEMALE / MALE / OTHER
+  String? _avatarUrl; // 서버/캐시에서 가져온 프로필 이미지 URL
+  int? _avatarMediaId; // (선택) 서버 mediaId를 보관하면 PUT /media/{id} 교체 가능
   bool _saving = false;
 
-  // 서버 연동
+  // ── 서버 연동(프로필 API) ──
   final _authRepo = AuthRepositoryImpl();
   bool _loadingProfile = true;
   String? _loadError;
 
-  // 여행 타입(단일 선택)
+  // ── 여행 타입(단일 선택) ──
   static const List<String> _travelTypeOptions = [
-    '힐링','액티비티','문화·예술','미식','자연','도시여행','바다','산·트레킹'
+    '힐링',
+    '액티비티',
+    '문화·예술',
+    '미식',
+    '자연',
+    '도시여행',
+    '바다',
+    '산·트레킹',
   ];
   String? _selectedTravelType;
 
-  // 디자인 색상(성별/여행타입만 사용)
+  // ── 디자인 ──
   static const Color kPrimary = Color(0xFFEB9C64);
-  static const Color kStroke  = Color(0xFFE5E7EB);
+  static const Color kStroke = Color(0xFFE5E7EB);
 
   @override
   void initState() {
@@ -57,11 +80,22 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     super.dispose();
   }
 
+  /// 서버에서 프로필 정보를 불러와 화면에 매핑
+  /// - (선택) SP에 저장된 avatarUrl 캐시를 먼저 보여줘서 초기 UX 개선
   Future<void> _loadFromServer() async {
     setState(() {
       _loadingProfile = true;
       _loadError = null;
     });
+
+    // (옵션) 캐시된 URL을 먼저 프리뷰에 표시
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final cached = sp.getString('avatarUrl');
+      if (cached != null && cached.isNotEmpty) {
+        setState(() => _avatarUrl = cached);
+      }
+    } catch (_) {}
 
     try {
       final token = await TokenStorage.getToken();
@@ -87,8 +121,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
       // ===== 매핑 =====
       _nicknameCtrl.text = (data['nickname'] ?? '').toString();
-      _nameCtrl.text     = (data['name'] ?? '').toString();
-      _emailCtrl.text    = (data['email'] ?? '').toString();
+      _nameCtrl.text = (data['name'] ?? '').toString();
+      _emailCtrl.text = (data['email'] ?? '').toString();
 
       // FEMALE / MALE / OTHER 로 정규화
       final gRaw = (data['gender'] ?? '').toString().toUpperCase().trim();
@@ -101,9 +135,16 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       }
 
       // 이미지 URL 키 대응 (imageUrl / image_url / avatarUrl)
-      final img = (data['imageUrl'] ?? data['image_url'] ?? data['avatarUrl'])?.toString().trim();
-      _avatarUrl = (img != null && img.isNotEmpty) ? img : null;
-      print('[ProfileEdit] parsed avatarUrl: $_avatarUrl');
+      final img = (data['imageUrl'] ?? data['image_url'] ?? data['avatarUrl'])
+          ?.toString()
+          .trim();
+      _avatarUrl = (img != null && img.isNotEmpty) ? img : _avatarUrl;
+
+      // (선택) 서버가 mediaId를 내려주면 보관 (교체 API 사용 시 유리)
+      final mediaId = data['avatarMediaId'];
+      if (mediaId != null) {
+        _avatarMediaId = int.tryParse(mediaId.toString());
+      }
 
       // 나이(선택)
       final dynamic age = data['age'];
@@ -114,10 +155,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         if (dt != null) _ageCtrl.text = _computeAge(dt).toString();
       }
 
-      // 여행 타입 - 단일(선택)
-      // ── 여행 타입(단일) ──
+      // 여행 타입(단일)
       final single = (data['travelType'] ?? '').toString().trim();
       _selectedTravelType = _travelTypeOptions.contains(single) ? single : null;
+
+      // 최신 URL을 캐시에 반영(선택)
+      if (_avatarUrl != null && _avatarUrl!.isNotEmpty) {
+        final sp = await SharedPreferences.getInstance();
+        await sp.setString('avatarUrl', _avatarUrl!);
+      }
 
       setState(() => _loadingProfile = false);
     } catch (e) {
@@ -133,48 +179,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     int age = now.year - birth.year;
     final hadBirthday =
         (now.month > birth.month) ||
-            (now.month == birth.month && now.day >= birth.day);
+        (now.month == birth.month && now.day >= birth.day);
     if (!hadBirthday) age--;
     return age.clamp(0, 150);
   }
 
-  void _openAvatarSheet() {
-    showModalBottomSheet(
-      context: context,
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('아바타 선택(데모)', style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _OutlinedPillButton(label: '기본', onTap: () { setState(() => _avatarUrl = null); Navigator.pop(context); }),
-                    _OutlinedPillButton(label: '샘플1', onTap: () { setState(() => _avatarUrl = 'https://picsum.photos/seed/heat1/200'); Navigator.pop(context); }),
-                    _OutlinedPillButton(label: '샘플2', onTap: () { setState(() => _avatarUrl = 'https://picsum.photos/seed/heat2/200'); Navigator.pop(context); }),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Text('※ 실제 업로드/카메라 연동 없이 화면만 확인하는 데모입니다.',
-                    style: TextStyle(fontSize: 12, color: Colors.black54)),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
+  /// 저장 버튼: 폼 검증 → 토큰 확인 → UpdateProfileRequest 생성 → API 호출 → 성공 시 pop(true). [⑦]
   Future<void> _saveProfile() async {
-    // 닉네임/이름/이메일 필수만 검증. 나이/여행타입은 선택
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _saving = true);
@@ -183,9 +194,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     if (token == null) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('로그인이 필요합니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다.')));
       return;
     }
 
@@ -196,14 +207,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     final req = UpdateProfileRequest(
       name: _nameCtrl.text.trim(),
       nickname: _nicknameCtrl.text.trim(),
-      gender: _gender,                     // "FEMALE" | "MALE" | "OTHER"
-      age: age,                            // nullable
-      imageUrl: _avatarUrl,                // nullable
-      travelType: _selectedTravelType,     // nullable
+      gender: _gender,
+      age: age,
+      imageUrl: _avatarUrl, // ★ AvatarPicker에서 갱신한 url
+      travelType: _selectedTravelType,
     );
 
-    // 디버그: 실제로 뭐가 나가는지 확인
-    print('[PUT /auth/me] body: ${jsonEncode(req.toJson())}');
+    // 디버그: 실제 전송 바디 확인
+    debugPrint('[PUT /auth/me] body: ${jsonEncode(req.toJson())}');
 
     final ok = await _authRepo.updateMyProfile(token, req);
 
@@ -211,220 +222,265 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     setState(() => _saving = false);
 
     if (ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('프로필이 저장되었습니다.')),
-      );
-      Navigator.of(context).pop(); // 수정 후 이전 화면으로
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('프로필이 저장되었습니다.')));
+      Navigator.of(context).pop(true); // ★ ProfileScreen에서 재로딩 트리거. [⑦]
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('저장에 실패했습니다. 다시 시도해주세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('저장에 실패했습니다. 다시 시도해주세요.')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_loadingProfile) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('프로필 수정'),
-      ),
+      appBar: AppBar(title: const Text('프로필 수정')),
       body: SafeArea(
         child: _loadError != null
-            ? Center(child: Text(_loadError!, style: const TextStyle(color: Colors.black54)))
+            ? Center(
+                child: Text(
+                  _loadError!,
+                  style: const TextStyle(color: Colors.black54),
+                ),
+              )
             : SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              children: [
-                // ── 아바타 ──
-                _AvatarPreview(
-                  avatarUrl: _avatarUrl,
-                  onChange: _openAvatarSheet,
-                ),
-                const SizedBox(height: 24),
-
-                // ── 닉네임 ──
-                TextFormField(
-                  controller: _nicknameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: '닉네임',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLength: 20,
-                  validator: (v) {
-                    final s = v?.trim() ?? '';
-                    if (s.isEmpty) return '닉네임을 입력하세요';
-                    if (s.length < 2) return '2자 이상 입력하세요';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // ── 이름 ──
-                TextFormField(
-                  controller: _nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: '이름',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (v) {
-                    final s = v?.trim() ?? '';
-                    if (s.isEmpty) return '이름을 입력하세요';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // ── 이메일 ──
-                TextFormField(
-                  controller: _emailCtrl,
-                  readOnly: true,
-                  decoration: const InputDecoration(
-                    labelText: '이메일',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (v) {
-                    final s = v?.trim() ?? '';
-                    if (s.isEmpty) return '이메일을 입력하세요';
-                    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(s)) {
-                      return '이메일 형식이 올바르지 않습니다';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // ── 성별: 아이콘 칩 ──
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('성별', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[800])),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _IconChoice(
-                      label: '여성',
-                      icon: Icons.female,
-                      selected: _gender == 'FEMALE',
-                      onTap: () => setState(() => _gender = 'FEMALE'),
-                    ),
-                    _IconChoice(
-                      label: '남성',
-                      icon: Icons.male,
-                      selected: _gender == 'MALE',
-                      onTap: () => setState(() => _gender = 'MALE'),
-                    ),
-                    _IconChoice(
-                      label: '기타',
-                      icon: Icons.transgender,
-                      selected: _gender == 'OTHER',
-                      onTap: () => setState(() => _gender = 'OTHER'),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 30),
-
-                // ── 선택사항 타이틀 ──
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
+                padding: const EdgeInsets.all(16),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
                     children: [
-                      Expanded(child: Container(height: 1, color: kStroke)),
-                      const SizedBox(width: 10),
-                      const Text('선택사항', style: TextStyle(fontWeight: FontWeight.w800, color: Colors.black54)),
-                      const SizedBox(width: 10),
-                      Expanded(child: Container(height: 1, color: kStroke)),
+                      // ─────────────────────────────
+                      // 아바타 (실제 업로드 위젯)
+                      // - AvatarPicker는 내부에서:
+                      //   * ImagePicker로 이미지 선택
+                      //   * MediaRepository.uploadImages(...) 호출
+                      //   * 서버 응답의 url을 즉시 onUploaded로 전달
+                      // - 여기서는 onUploaded에서 상태/SP 캐시 갱신만 하면 됨.
+                      // ─────────────────────────────
+                      AvatarPicker(
+                        initialUrl: _avatarUrl,
+                        existingMediaId:
+                            _avatarMediaId, // 있으면 PUT /media/{id} 교체 사용
+                        onUploaded: (UploadedMedia m) async {
+                          setState(() {
+                            _avatarUrl = m.url; // 즉시 프리뷰/저장값 반영
+                            _avatarMediaId = m.id;
+                          });
+                          // 캐시에 최신 URL 저장(선택)
+                          final sp = await SharedPreferences.getInstance();
+                          await sp.setString('avatarUrl', m.url);
+                        },
+                      ),
+                      const SizedBox(height: 24),
+
+                      // ── 닉네임 ──
+                      TextFormField(
+                        controller: _nicknameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: '닉네임',
+                          border: OutlineInputBorder(),
+                        ),
+                        maxLength: 20,
+                        validator: (v) {
+                          final s = v?.trim() ?? '';
+                          if (s.isEmpty) return '닉네임을 입력하세요';
+                          if (s.length < 2) return '2자 이상 입력하세요';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // ── 이름 ──
+                      TextFormField(
+                        controller: _nameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: '이름',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (v) {
+                          final s = v?.trim() ?? '';
+                          if (s.isEmpty) return '이름을 입력하세요';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // ── 이메일(읽기전용) ──
+                      TextFormField(
+                        controller: _emailCtrl,
+                        readOnly: true,
+                        decoration: const InputDecoration(
+                          labelText: '이메일',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (v) {
+                          final s = v?.trim() ?? '';
+                          if (s.isEmpty) return '이메일을 입력하세요';
+                          if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(s)) {
+                            return '이메일 형식이 올바르지 않습니다';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // ── 성별: 아이콘 칩 ──
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '성별',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _IconChoice(
+                            label: '여성',
+                            icon: Icons.female,
+                            selected: _gender == 'FEMALE',
+                            onTap: () => setState(() => _gender = 'FEMALE'),
+                          ),
+                          _IconChoice(
+                            label: '남성',
+                            icon: Icons.male,
+                            selected: _gender == 'MALE',
+                            onTap: () => setState(() => _gender = 'MALE'),
+                          ),
+                          _IconChoice(
+                            label: '기타',
+                            icon: Icons.transgender,
+                            selected: _gender == 'OTHER',
+                            onTap: () => setState(() => _gender = 'OTHER'),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      // ── 선택사항 제목 구분선 ──
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Container(height: 1, color: kStroke),
+                            ),
+                            const SizedBox(width: 10),
+                            const Text(
+                              '선택사항',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: Colors.black54,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Container(height: 1, color: kStroke),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // ── 나이 ──
+                      TextFormField(
+                        controller: _ageCtrl,
+                        decoration: const InputDecoration(
+                          labelText: '나이',
+                          hintText: '예: 27',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (v) {
+                          final s = v?.trim() ?? '';
+                          if (s.isEmpty) return null; // 선택사항
+                          final n = int.tryParse(s);
+                          if (n == null || n < 1 || n > 120) {
+                            return '1~120 사이의 숫자를 입력하세요';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      // ── 여행 타입: 원형 칩 ──
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '여행 타입 (선택)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 14,
+                        runSpacing: 16,
+                        children: _travelTypeOptions.map((type) {
+                          final selected = _selectedTravelType == type; // 단일
+                          return _RoundChip(
+                            icon: _travelIcon(type),
+                            label: type,
+                            selected: selected,
+                            onTap: () {
+                              setState(() {
+                                _selectedTravelType = selected ? null : type;
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+
+                      const SizedBox(height: 35),
+
+                      // ── 저장 버튼 ──
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton(
+                          onPressed: _saving ? null : _saveProfile,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kPrimary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          child: _saving
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('저장'),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
-
-                // ── 나이 ──
-                TextFormField(
-                  controller: _ageCtrl,
-                  decoration: const InputDecoration(
-                    labelText: '나이',
-                    hintText: '예: 27',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: (v) {
-                    final s = v?.trim() ?? '';
-                    if (s.isEmpty) return null; // 선택사항
-                    final n = int.tryParse(s);
-                    if (n == null || n < 1 || n > 120) {
-                      return '1~120 사이의 숫자를 입력하세요';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-
-                // ── 여행 타입: 원형 칩 ──
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('여행 타입 (선택)',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[800])),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 14,
-                  runSpacing: 16,
-                  children: _travelTypeOptions.map((type) {
-                    final selected = _selectedTravelType == type; // 단일 비교
-                    return _RoundChip(
-                      icon: _travelIcon(type),
-                      label: type,
-                      selected: selected,
-                      onTap: () {
-                        setState(() {
-                          _selectedTravelType = selected ? null : type; // 클릭 시 토글
-                        });
-                      },
-                    );
-                  }).toList(),
-                ),
-
-                const SizedBox(height: 35),
-
-                // ── 저장 버튼 ──
-                SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton(
-                    onPressed: _saving ? null : _saveProfile,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kPrimary,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    child: _saving
-                        ? const SizedBox(
-                        width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('저장'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+              ),
       ),
     );
   }
@@ -453,107 +509,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   }
 }
 
-/// ===== 기존 아바타 미리보기 =====
-class _AvatarPreview extends StatelessWidget {
-  const _AvatarPreview({
-    required this.avatarUrl,
-    required this.onChange,
-  });
-
-  final String? avatarUrl;
-  final VoidCallback onChange;
-
-  @override
-  Widget build(BuildContext context) {
-    const double radius = 56.0;
-    final url = avatarUrl?.trim() ?? '';
-    final hasUrl = url.isNotEmpty;
-
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white,
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(.08), blurRadius: 10)],
-          ),
-          child: ClipOval(
-            child: hasUrl
-                ? Image.network(
-              url,
-              key: ValueKey(url),
-              width: radius * 2,
-              height: radius * 2,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _fallback(radius),
-              loadingBuilder: (ctx, child, progress) {
-                if (progress == null) return child;
-                return SizedBox(
-                  width: radius * 2,
-                  height: radius * 2,
-                  child: const Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                );
-              },
-            )
-                : _fallback(radius),
-          ),
-        ),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-          onPressed: onChange,
-          icon: const Icon(Icons.edit_outlined),
-          label: const Text('이미지 변경(데모)'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF554E4F), // ← 아이콘+텍스트 색
-            side: const BorderSide(color: Color(0xFF554E4F)), // 테두리
-          ),
-        )
-
-      ],
-    );
-  }
-
-  Widget _fallback(double radius) {
-    return Container(
-      width: radius * 2,
-      height: radius * 2,
-      color: Colors.grey.shade200,
-      child: const Center(
-        child: Icon(Icons.person, size: 48, color: Colors.black38),
-      ),
-    );
-  }
-}
-
-class _OutlinedPillButton extends StatelessWidget {
-  const _OutlinedPillButton({required this.label, required this.onTap});
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton(
-      onPressed: onTap,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.black87,
-        side: const BorderSide(color: _ProfileEditScreenState.kStroke),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        textStyle: const TextStyle(fontWeight: FontWeight.w600),
-      ),
-      child: Text(label),
-    );
-  }
-}
-
-/// ====== 칩 컴포넌트(성별/여행타입에서 사용) ======
+/// ====== 공통 칩 컴포넌트 ======
 class _IconChoice extends StatelessWidget {
   const _IconChoice({
     required this.label,
@@ -569,9 +525,15 @@ class _IconChoice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color bg  = selected ? _ProfileEditScreenState.kPrimary.withOpacity(.18) : Colors.white;
-    final Color fg  = selected ? _ProfileEditScreenState.kPrimary : Colors.black45;
-    final Color ring= selected ? _ProfileEditScreenState.kPrimary : _ProfileEditScreenState.kStroke;
+    final Color bg = selected
+        ? _ProfileEditScreenState.kPrimary.withOpacity(.18)
+        : Colors.white;
+    final Color fg = selected
+        ? _ProfileEditScreenState.kPrimary
+        : Colors.black45;
+    final Color ring = selected
+        ? _ProfileEditScreenState.kPrimary
+        : _ProfileEditScreenState.kStroke;
 
     return InkWell(
       onTap: onTap,
@@ -589,7 +551,14 @@ class _IconChoice extends StatelessWidget {
             child: Icon(icon, color: fg),
           ),
           const SizedBox(height: 6),
-          Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.black54,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -611,9 +580,15 @@ class _RoundChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color bg  = selected ? _ProfileEditScreenState.kPrimary.withOpacity(.18) : Colors.white;
-    final Color fg  = selected ? _ProfileEditScreenState.kPrimary : Colors.black45;
-    final Color ring= selected ? _ProfileEditScreenState.kPrimary : _ProfileEditScreenState.kStroke;
+    final Color bg = selected
+        ? _ProfileEditScreenState.kPrimary.withOpacity(.18)
+        : Colors.white;
+    final Color fg = selected
+        ? _ProfileEditScreenState.kPrimary
+        : Colors.black45;
+    final Color ring = selected
+        ? _ProfileEditScreenState.kPrimary
+        : _ProfileEditScreenState.kStroke;
 
     return InkWell(
       onTap: onTap,
@@ -636,7 +611,11 @@ class _RoundChip extends StatelessWidget {
             Text(
               label,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.black54,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -644,3 +623,13 @@ class _RoundChip extends StatelessWidget {
     );
   }
 }
+
+/* ─────────────────────────── 각주 ───────────────────────────
+[⑦] 저장 성공 시 Navigator.pop(true)를 호출하여, 이전 화면(ProfileScreen)이
+     await context.pushNamed('profileEdit')의 결과값을 true로 받고
+     _loadUserProfile()을 재호출하게 만듭니다.
+
+[⑧] 백엔드는 UpdateProfile(imageUrl)을 반영해야 하며,
+     이후 GET /auth/me 응답에 업데이트된 imageUrl이 포함되어야 합니다.
+     (그렇지 않으면 프로필 화면 재조회 후에도 이전 값으로 보입니다.)
+────────────────────────────────────────────────────────── */
