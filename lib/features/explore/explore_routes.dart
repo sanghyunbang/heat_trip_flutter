@@ -3,6 +3,11 @@
 // Home → Explore(list) → Detail 라우팅
 // - /explore/list로 이동할 때 쿼리(Map<String,String>)를 Provider로 주입
 // - ExploreScreen이 쿼리 유무로 검색/커서 모드 자동 전환
+//
+// ✅ 변경 사항
+// - 상세 라우트에서 go_router의 `state.extra`로 전달된 seedImage(String?)를 수신
+// - ExploreDetailScreen(seedImage: ...)에 그대로 전달하여,
+//   외부 API 실패 시에도 목록의 썸네일을 상단 갤러리에 fallback으로 표시
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -26,35 +31,29 @@ List<RouteBase> buildExploreRoutes() {
   final mobileOS = dotenv.maybeGet('MOBILE_OS') ?? 'ETC';
   final mobileApp = dotenv.maybeGet('MOBILE_APP') ?? 'HeatTrip';
 
-  Uri buildCommonUri() => Uri.https(
-        'apis.data.go.kr',
-        '/B551011/KorService2/detailCommon2',
-        {
-          'serviceKey': serviceKey,
-          'MobileOS': mobileOS,
-          'MobileApp': mobileApp,
-          '_type': 'Json',
-        },
-      );
+  // ⚠️ KTO는 `_type=json` (소문자) 권장
+  Uri buildCommonUri() =>
+      Uri.https('apis.data.go.kr', '/B551011/KorService2/detailCommon2', {
+        'serviceKey': serviceKey,
+        'MobileOS': mobileOS,
+        'MobileApp': mobileApp,
+        '_type': 'json',
+      });
 
-  Uri buildIntroUri() => Uri.https(
-        'apis.data.go.kr',
-        '/B551011/KorService2/detailIntro2',
-        {
-          'serviceKey': serviceKey,
-          'MobileOS': mobileOS,
-          'MobileApp': mobileApp,
-          '_type': 'Json',
-        },
-      );
+  Uri buildIntroUri() =>
+      Uri.https('apis.data.go.kr', '/B551011/KorService2/detailIntro2', {
+        'serviceKey': serviceKey,
+        'MobileOS': mobileOS,
+        'MobileApp': mobileApp,
+        '_type': 'json',
+      });
 
   return <RouteBase>[
     // 🔹 Explore 홈(정적 카드)
     GoRoute(
       path: '/explore',
       name: 'explore_home',
-      pageBuilder: (context, state) =>
-          const MaterialPage(child: HomeScreen()),
+      pageBuilder: (context, state) => const MaterialPage(child: HomeScreen()),
     ),
 
     // 🔹 목록 화면
@@ -81,6 +80,12 @@ List<RouteBase> buildExploreRoutes() {
         final contentId = int.parse(state.pathParameters['contentId']!);
         final contentTypeId = int.parse(state.pathParameters['contentTypeId']!);
 
+        // ✅ 카드에서 extra로 보낸 seedImage(String?) 수신
+        final String? seedImage = state.extra is String
+            ? state.extra as String
+            : null;
+
+        // DI: API/Repo/VM
         final api = PlaceDetailApi(
           client: http.Client(),
           commonBaseUri: buildCommonUri(),
@@ -99,6 +104,7 @@ List<RouteBase> buildExploreRoutes() {
             child: ExploreDetailScreen(
               contentId: contentId,
               contentTypeId: contentTypeId,
+              seedImage: seedImage, // ✅ 상세에 전달
             ),
           ),
         );

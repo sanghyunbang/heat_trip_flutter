@@ -9,18 +9,22 @@
 /// ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:convert';
+import 'dart:async' as dart_async; // ✅ 내장 TimeoutException 별칭(우리 커스텀과 충돌 방지)
+import 'dart:io' show SocketException, HandshakeException;
+
 import 'package:http/http.dart' as http;
+import 'package:heat_trip_flutter/core/errors/app_exception.dart';
 
 class PlaceDetailApi {
   /// http 클라이언트 (테스트 용이성을 위해 외부 주입)
   final http.Client client;
 
   /// 공통 상세(overview/mapx/mapy/주소 등)를 주는 베이스 URI
-  /// 예) https://apis.data.go.kr/B551011/KorService2/detailCommon2?serviceKey=...&MobileOS=AND&MobileApp=HeatTrip&_type=json
+  /// 예) https://apis.data.go.kr/B551011/KorService2/detailCommon2?serviceKey=...&_type=json
   final Uri commonBaseUri;
 
   /// 타입별 상세(인트로: usetime/parking/infocenter 등)를 주는 베이스 URI
-  /// 예) https://apis.data.go.kr/B551011/KorService2/detailIntro2?serviceKey=...&MobileOS=AND&MobileApp=HeatTrip&_type=json
+  /// 예) https://apis.data.go.kr/B551011/KorService2/detailIntro2?serviceKey=...&_type=json
   final Uri introBaseUri;
 
   PlaceDetailApi({
@@ -29,91 +33,121 @@ class PlaceDetailApi {
     required this.introBaseUri,
   });
 
-  /// 내부 유틸: KTO 응답 공통 형태(response.body.items.item[0])에서 '첫 번째 아이템'만 꺼냅니다.
-  /// - 이 API는 "리스트"를 감싸서 내려주므로 보통 1개만 필요하면 first 사용.
-  /// - JSON이 아닌 XML이 오면 jsonDecode에서 터지므로, 상위 계층에서 `_type=json`
-  ///   과 서비스키 인코딩(이중 인코딩 금지)을 꼭 확인하세요.
+  // ────────────────────────────────────────────────────────────────────────────
+  // 내부 유틸: KTO 응답 공통 형태(response.body.items.item[0])에서 '첫 번째 아이템'만 꺼냅니다.
+  // **예외 처리 포인트 A**
+  //  - 네트워크: SocketException / HandshakeException / Timeout → App*Exception으로 변환
+  //  - 포맷: dart:convert FormatException → AppFormatException
+  //  - HTTP 코드: 200이 아니면 HttpFailureException
+  //  - JSON 구조 이상: AppFormatException
+  // ────────────────────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> _getFirstItem(Uri uri) async {
-    //   - serviceKey(인코딩 여부), MobileOS, MobileApp, _type=json, contentId, contentTypeId
-    print('[API] GET $uri');
-
-    final res = await client.get(uri);
-    print('[API] status=${res.statusCode}');
-    print(
-      '[API] body.head=${res.body.substring(0, res.body.length.clamp(0, 1000))}',
-    );
-
-    if (res.statusCode != 200) {
-      throw Exception('HTTP ${res.statusCode}: ${res.body}');
+    // 안전장치: HTTPS와 올바른 호스트만 허용(Hostname mismatch 방지)
+    if (uri.scheme != 'https') {
+      throw const AppMessageException('보안 연결(HTTPS)만 허용됩니다.');
+    }
+    const allowedHosts = {'apis.data.go.kr'};
+    if (!allowedHosts.contains(uri.host)) {
+      throw AppMessageException('잘못된 호스트로 요청되었습니다: ${uri.host}');
     }
 
-    final decoded = jsonDecode(res.body) as Map<String, dynamic>;
-    final header = (decoded['response']?['header']) as Map<String, dynamic>?;
-    final resultCode = header?['resultCode'];
-    final resultMsg = header?['resultMsg'];
-    print('[API] result=$resultCode $resultMsg');
+    try {
+      final res = await client.get(uri).timeout(const Duration(seconds: 12));
 
-    // final decoded = jsonDecode(res.body);
-    // 꼭 타입 확인
-    if (decoded is! Map)
-      throw Exception('Unexpected JSON root: ${decoded.runtimeType}');
+      if (res.statusCode != 200) {
+        throw HttpFailureException(res.statusCode, '공공데이터 포털 응답 오류');
+      }
 
-    final response = decoded['response'];
-    final body = (response is Map) ? response['body'] : null;
-    final items = (body is Map) ? body['items'] : null;
-    final item = (items is Map) ? items['item'] : null;
+      final decoded = jsonDecode(res.body); // 포맷 오류는 아래 on FormatException
+      if (decoded is! Map) throw const AppFormatException();
 
-    // ① item 이 List 인 경우
-    if (item is List && item.isNotEmpty) {
-      final first = item.first;
-      if (first is Map<String, dynamic>) return first;
-      if (first is Map) return Map<String, dynamic>.from(first);
-      throw Exception('Unexpected item[0] type: ${first.runtimeType}');
+      final response = decoded['response'];
+      final header = (response is Map) ? response['header'] : null;
+      final resultCode = (header is Map) ? header['resultCode'] : null;
+      final resultMsg = (header is Map) ? header['resultMsg'] : null;
+
+      // 공공데이터포털 특유의 오류코드 (필요 시 케이스 추가)
+      if (resultCode != null && resultCode != '0000') {
+        throw AppMessageException('API 응답 오류: $resultMsg($resultCode)');
+      }
+
+      final body = (response is Map) ? response['body'] : null;
+      final items = (body is Map) ? body['items'] : null;
+      final item = (items is Map) ? items['item'] : null;
+
+      if (item is List && item.isNotEmpty) {
+        final first = item.first;
+        if (first is Map) return Map<String, dynamic>.from(first);
+        throw AppFormatException();
+      }
+      if (item is Map) return Map<String, dynamic>.from(item);
+
+      // 데이터 없음/형식 오류 → 상위에서 빈 DTO로 대체 가능
+      throw const AppFormatException();
     }
-
-    // ② item 이 Map 인 경우(단일 반환 케이스)
-    if (item is Map<String, dynamic>) return item;
-    if (item is Map) return Map<String, dynamic>.from(item);
-
-    throw Exception('Empty or unexpected `item` type: ${item.runtimeType}');
+    // 네트워크 계층 → 사용자 친화 메시지 변환
+    on SocketException {
+      throw const NetworkException('네트워크 연결을 확인해 주세요.');
+    } on HandshakeException {
+      throw const ServerException('보안 연결에 실패했습니다(인증서/호스트 불일치).');
+    } on dart_async.TimeoutException {
+      throw const AppTimeoutException();
+    }
+    // 포맷/디코드 오류 → 일관 메시지
+    on FormatException {
+      throw const AppFormatException();
+    }
+    // 이미 AppException 변환된 건 그대로 올림
+    on AppException {
+      rethrow;
+    }
+    // 그 외 알 수 없는 오류
+    catch (_) {
+      throw const UnknownException();
+    }
   }
 
-  /// 공통 상세 호출
-  ///  - 여기의 `contentId`는 "상위 레이어에서 넘겨준 값"입니다.
-  ///  - 실제 URI는 `commonBaseUri`의 공통 쿼리에 contentId만 추가해서 생성합니다.
-  Future<Map<String, dynamic>> fetchDetailCommonItem({
-    required int
-    contentId, // ← 어디서 오나? PlaceCard → Router → Screen → VM → Repository를 통해 전달됨.
-  }) {
-    // replace(queryParameters)로 per-call 파라미터(contentId)를 Merge
-    final uri = commonBaseUri.replace(
-      queryParameters: {
-        ...commonBaseUri
-            .queryParameters, // serviceKey/MobileOS/MobileApp/_type 등
-        'contentId': contentId.toString(), // ← 최종적으로 여기에 붙습니다.
-        // 필요 시 여기서 defaultYN/addrinfoYN/mapinfoYN/overviewYN도 켭니다(권장).
-        // 'defaultYN': 'Y',
-        // 'addrinfoYN': 'Y',
-        // 'mapinfoYN': 'Y',
-        // 'overviewYN': 'Y',
+  // ────────────────────────────────────────────────────────────────────────────
+  // 공통 상세 호출
+  //  - 주어진 contentId만 쿼리에 합쳐 Uri를 생성합니다.
+  //  - **예외 처리 포인트 A**에서 모든 예외 변환
+  // ────────────────────────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> fetchDetailCommonItem({required int contentId}) {
+    // Host/Scheme 실수를 원천 차단하기 위해 Uri.https 사용
+    final uri = Uri.https(
+      'apis.data.go.kr',
+      '/B551011/KorService2/detailCommon2',
+      {
+        ...commonBaseUri.queryParameters, // serviceKey, MobileOS, MobileApp 등
+        'contentId': contentId.toString(),
+        // 권장 옵션
+        'defaultYN': 'Y',
+        'addrinfoYN': 'Y',
+        'mapinfoYN': 'Y',
+        'overviewYN': 'Y',
+        '_type': 'json',
       },
     );
     return _getFirstItem(uri);
   }
 
-  /// 타입별 상세 호출
-  ///  - `contentTypeId`는 detailIntro에서 필수 파라미터입니다.
-  ///  - 이 값 역시 상위에서 받은 것을 그대로 전달합니다.
+  // ────────────────────────────────────────────────────────────────────────────
+  // 타입별 상세 호출(detailIntro)
+  //  - contentTypeId는 필수
+  //  - **예외 처리 포인트 A**에서 모든 예외 변환
+  // ────────────────────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> fetchDetailIntroItem({
-    required int contentId, // ← 라우트 파라미터에서 내려온 동일한 ID
-    required contentTypeId, // ← 라우트 파라미터에서 내려온 타입ID (12/14/15/25/28/32/38/39 등)
+    required int contentId,
+    required int contentTypeId,
   }) {
-    final uri = introBaseUri.replace(
-      queryParameters: {
-        ...introBaseUri
-            .queryParameters, // serviceKey/MobileOS/MobileApp/_type 등
+    final uri = Uri.https(
+      'apis.data.go.kr',
+      '/B551011/KorService2/detailIntro2',
+      {
+        ...introBaseUri.queryParameters, // serviceKey, MobileOS, MobileApp 등
         'contentId': contentId.toString(),
-        'contentTypeId': contentTypeId.toString(), // ← 여기 붙습니다.
+        'contentTypeId': contentTypeId.toString(),
+        '_type': 'json',
       },
     );
     return _getFirstItem(uri);
