@@ -5,7 +5,8 @@
 /// - 레이아웃 분기 (vertical/horizontal)
 /// - 상세 페이지 이동 로직(go_router) 보유
 ///
-/// 나머지 UI는 세부 컴포넌트로 분리해 가독성/재사용성 개선.
+/// ✅ 변경: 카드의 썸네일 URL을 go_router `extra`로 함께 전달.
+///         PlaceItem에 `firstImage`가 없으므로 `firstimage/firstimage2`만 사용.
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -18,39 +19,25 @@ import 'place_card_horizontal.dart';
 enum PlaceCardLayout { horizontal, vertical }
 
 class PlaceCard extends StatelessWidget {
-  /// 서버에서 내려온 원본 데이터
   final PlaceItem data;
-
-  /// 레이아웃 타입: 가로/세로
   final PlaceCardLayout layout;
-
-  /// 이미지 높이(세로형 전용). null이면 16:9 비율 유지
   final double? imageHeight;
-
-  /// compact 모드: 타이포/패딩 축소
   final bool compact;
 
-  /// 상단 바 옵션들
-  final String? categoryLabel; // 왼쪽 카테고리 배지
-  final String? priceLabel;    // 오른쪽 가격 배지
-  final bool showHeart;        // 하트 버튼 노출 여부
+  final String? categoryLabel;
+  final String? priceLabel;
+  final bool showHeart;
 
-  /// 메타/리뷰/태그
   final double? rating;
-  final String? distance;      // 예: "1.2km"
-  final String? duration;      // 예: "20m"
+  final String? distance;
+  final String? duration;
   final List<String>? tags;
 
-  /// 가로형에서만 사용하는 썸네일 폭
   final double thumbnailWidth;
-
-  /// 카드/이미지 모서리/외곽 옵션
   final double outerRadius;
   final double imageCornerRadius;
   final double imageElevation;
   final double barImageGap;
-
-  /// 상단바 표시/패딩
   final bool showTopBar;
   final EdgeInsets topBarPadding;
 
@@ -73,19 +60,37 @@ class PlaceCard extends StatelessWidget {
     this.imageElevation = 1,
     this.barImageGap = 4,
     this.showTopBar = true,
-    this.topBarPadding = const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    this.topBarPadding = const EdgeInsets.symmetric(
+      horizontal: 10,
+      vertical: 6,
+    ),
   });
 
   /// 상세 페이지로 이동
   /// - go_router를 통한 명명된 라우트 push
+  /// - ✅ 카드의 썸네일 URL을 `extra`로 함께 전달
   void _goDetail(BuildContext context) {
     final cid = data.safeContentId;
     final ctid = data.safeContentTypeId;
 
+    // ✅ PlaceItem에 존재하는 실제 이미지 필드 사용 (firstimage / firstimage2)
+    String? seed = _pickSeedImage(data);
+    if (seed != null && seed.trim().isEmpty) seed = null;
+
     context.pushNamed(
       'explore_detail',
       pathParameters: {'contentId': '$cid', 'contentTypeId': '$ctid'},
+      extra: seed, // ✅ routes에서 state.extra as String? 으로 받음
     );
+  }
+
+  String? _pickSeedImage(PlaceItem d) {
+    // 프로젝트의 DTO에 맞게 실제 필드만 남김
+    final candidates = <String?>[d.firstimage, d.firstimage2];
+    for (final s in candidates) {
+      if (s != null && s.trim().isNotEmpty) return s;
+    }
+    return null;
   }
 
   @override
@@ -95,7 +100,6 @@ class PlaceCard extends StatelessWidget {
         return PlaceCardHorizontal(
           data: data,
           onTap: () => _goDetail(context),
-          // 재사용 가능한 옵션 전달
           thumbnailWidth: thumbnailWidth,
           imageCornerRadius: imageCornerRadius,
         );
