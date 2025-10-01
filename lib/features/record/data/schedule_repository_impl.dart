@@ -37,7 +37,7 @@ class ScheduleRepositoryImpl {
   Future<List<ScheduleResponse>> fetchSchedules() async {
     final token = await TokenStorage.getToken();
     if (token == null) {
-      throw const AppException('로그인이 필요합니다.'); // 👈 깔끔한 메시지만
+      throw const AuthRequiredException(); // 👈 깔끔한 메시지만
     }
 
     final url = Uri.parse('$baseUrl/public/schedules');
@@ -57,7 +57,7 @@ class ScheduleRepositoryImpl {
     if (response.statusCode == 204) {
       return <ScheduleResponse>[];
     }
-    throw AppException('스케줄 가져오기 실패 (${response.statusCode})');
+    throw AuthRequiredException();
   }
 
   // ------------------- 스케쥴 삭제
