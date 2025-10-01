@@ -104,7 +104,7 @@ List<RouteBase> buildExploreRoutes() {
             child: ExploreDetailScreen(
               contentId: contentId,
               contentTypeId: contentTypeId,
-              seedImage: seedImage, // ✅ 상세에 전달
+              //seedImage: seedImage, // ✅ 상세에 전달
             ),
           ),
         );

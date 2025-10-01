@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:heat_trip_flutter/features/journey/presentation/screens/diary_detail_screen.dart';
+import 'package:heat_trip_flutter/features/journey/presentation/screens/diary_edit_screen.dart';
 import 'package:heat_trip_flutter/features/journey/presentation/widgets/diary_list.dart';
 
 import '../../domain/models.dart';
@@ -43,6 +44,34 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
       });
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _handleEdit(DiaryEntry entry) async {
+    final updatedEntry = await Navigator.push<DiaryEntry>(
+      context,
+      MaterialPageRoute(builder: (_) => DiaryEditScreen(entry: entry)),
+    );
+    if (updatedEntry != null) {
+      await _fetch();
+    }
+  }
+
+  Future<void> _handleDelete(DiaryEntry entry) async {
+    try {
+      await _api.deleteDiary(entry.id!);
+      await _fetch();
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('다이어리를 삭제했어요.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('삭제 실패: $e')));
+      }
     }
   }
 
@@ -93,7 +122,6 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Hero image
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: AspectRatio(
@@ -113,10 +141,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 8),
-
-              // Info card
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -162,7 +187,6 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-
                       const Text(
                         'Tags',
                         style: TextStyle(
@@ -179,12 +203,9 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                             _TagPill(text: t),
                         ],
                       ),
-
                       const SizedBox(height: 16),
                       const Divider(height: 1),
                       const SizedBox(height: 8),
-
-                      // Mini stats
                       Row(
                         children: [
                           Expanded(
@@ -217,8 +238,6 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                   ),
                 ),
               ),
-
-              // New diary button
               const SizedBox(height: 12),
               SizedBox(
                 height: 48,
@@ -244,9 +263,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 22),
-
               if (_entries == null)
                 const Center(child: CircularProgressIndicator())
               else
@@ -299,10 +316,11 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                             ),
                           );
                         },
+                        onEdit: _handleEdit,
+                        onDelete: _handleDelete,
                       ),
                   ],
                 ),
-
               if (_loading)
                 const Padding(
                   padding: EdgeInsets.only(top: 12),
@@ -318,11 +336,9 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
   String _formatRange(DateTime? from, DateTime? to) {
     String f(DateTime d) =>
         '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
     if (from == null && to == null) return 'Dates TBA';
     if (from != null && to == null) return f(from);
     if (from == null && to != null) return f(to);
-
     return '${f(from!)} ~ ${f(to!)}';
   }
 }
