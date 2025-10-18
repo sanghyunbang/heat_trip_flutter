@@ -4,20 +4,20 @@ import 'package:flutter/material.dart';
 /// - 로그인됨:  [Edit] [닉네임] [Logout] + (아래) TabBar 노출
 /// - 비로그인:  [Login] [게스트라벨] [Sign up] + (아래) TabBar 숨김
 class ProfileHeader extends StatelessWidget {
-  final Color backgroundColor;        // 헤더 배경색
-  final TabController tabController;  // 상단 탭 컨트롤러(로그인 시에만 사용)
-  final String avatarUrl;             // 아바타 이미지 URL
-  final String nickname;              // 로그인 시 닉네임
-  final bool isLoggedIn;              // ✅ 로그인 여부
+  final Color backgroundColor; // 헤더 배경색
+  final TabController tabController; // 상단 탭 컨트롤러(로그인 시에만 사용)
+  final String avatarUrl; // 아바타 이미지 URL
+  final String nickname; // 로그인 시 닉네임
+  final bool isLoggedIn; // ✅ 로그인 여부
 
   // 로그인됨일 때 동작
-  final VoidCallback onEdit;          // Edit 클릭 콜백
-  final VoidCallback onLogout;        // Logout 클릭 콜백
+  final VoidCallback onEdit; // Edit 클릭 콜백
+  final VoidCallback onLogout; // Logout 클릭 콜백
 
   // 비로그인일 때 동작(선택)
-  final VoidCallback? onLogin;        // Login 클릭 콜백
-  final VoidCallback? onSignUp;       // Sign up 클릭 콜백
-  final String guestLabel;            // 비로그인 중앙 라벨 텍스트
+  final VoidCallback? onLogin; // Login 클릭 콜백
+  final VoidCallback? onSignUp; // Sign up 클릭 콜백
+  final String guestLabel; // 비로그인 중앙 라벨 텍스트
 
   const ProfileHeader({
     super.key,
@@ -52,21 +52,27 @@ class ProfileHeader extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: isLoggedIn
                       ? TextButton(
-                    onPressed: onEdit,
-                    style: _textBtnStyle(leftAligned: true),
-                    child: const Text(
-                      'Edit',
-                      style: TextStyle(fontSize: 14, color: Colors.black54),
-                    ),
-                  )
+                          onPressed: onEdit,
+                          style: _textBtnStyle(leftAligned: true),
+                          child: const Text(
+                            'Edit',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        )
                       : TextButton(
-                    onPressed: onLogin, // null이면 비활성
-                    style: _textBtnStyle(leftAligned: true),
-                    child: const Text(
-                      'Login',
-                      style: TextStyle(fontSize: 14, color: Colors.black54),
-                    ),
-                  ),
+                          onPressed: onLogin, // null이면 비활성
+                          style: _textBtnStyle(leftAligned: true),
+                          child: const Text(
+                            'Login',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ),
                 ),
               ),
 
@@ -86,21 +92,27 @@ class ProfileHeader extends StatelessWidget {
                   alignment: Alignment.centerRight,
                   child: isLoggedIn
                       ? TextButton(
-                    onPressed: onLogout,
-                    style: _textBtnStyle(),
-                    child: const Text(
-                      'Logout',
-                      style: TextStyle(fontSize: 14, color: Colors.black54),
-                    ),
-                  )
+                          onPressed: onLogout,
+                          style: _textBtnStyle(),
+                          child: const Text(
+                            'Logout',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        )
                       : TextButton(
-                    onPressed: onSignUp,
-                    style: _textBtnStyle(),
-                    child: const Text(
-                      'Sign up',
-                      style: TextStyle(fontSize: 14, color: Colors.black54),
-                    ),
-                  ),
+                          onPressed: onSignUp,
+                          style: _textBtnStyle(),
+                          child: const Text(
+                            'Sign up',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -114,38 +126,35 @@ class ProfileHeader extends StatelessWidget {
               shape: BoxShape.circle,
               color: Colors.white,
               boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(.08),
-                  blurRadius: 10,
-                )
+                BoxShadow(color: Colors.black.withOpacity(.08), blurRadius: 10),
               ],
             ),
             child: ClipOval(
               child: hasUrl
                   ? Image.network(
-                safeUrl,
-                key: ValueKey(safeUrl), // URL 바뀌면 강제 리빌드
-                width: 108,
-                height: 108,
-                fit: BoxFit.cover,
-                // 네트워크 실패 시 플레이스홀더
-                errorBuilder: (_, __, ___) => _fallbackAvatar(),
-                // 느린 네트워크에서 로딩 표시
-                loadingBuilder: (ctx, child, progress) {
-                  if (progress == null) return child;
-                  return SizedBox(
-                    width: 108,
-                    height: 108,
-                    child: const Center(
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                  );
-                },
-              )
+                      safeUrl,
+                      key: ValueKey(safeUrl), // URL 바뀌면 강제 리빌드
+                      width: 108,
+                      height: 108,
+                      fit: BoxFit.cover,
+                      // 네트워크 실패 시 플레이스홀더
+                      errorBuilder: (_, __, ___) => _fallbackAvatar(),
+                      // 느린 네트워크에서 로딩 표시
+                      loadingBuilder: (ctx, child, progress) {
+                        if (progress == null) return child;
+                        return SizedBox(
+                          width: 108,
+                          height: 108,
+                          child: const Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        );
+                      },
+                    )
                   : _fallbackAvatar(),
             ),
           ),
@@ -164,14 +173,14 @@ class ProfileHeader extends StatelessWidget {
                 labelColor: Color(0xFFDE835F),
                 unselectedLabelColor: Colors.black45,
                 indicator: UnderlineTabIndicator(
-                  borderSide: BorderSide(
-                    color: Color(0xFFDE835F),
-                    width: 3,
+                  borderSide: BorderSide(color: Color(0xFFDE835F), width: 3),
+                  insets: const EdgeInsets.symmetric(
+                    horizontal: 48,
+                    vertical: 6,
                   ),
-                  insets: const EdgeInsets.symmetric(horizontal: 48, vertical: 6),
                 ),
                 tabs: const [
-                  Tab(text: 'statics'),
+                  // Tab(text: 'statics'),
                   Tab(text: 'bookmark'),
                 ],
               ),

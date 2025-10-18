@@ -7,8 +7,16 @@ class ForYouRepositoryImpl implements ForYouRepository {
   ForYouRepositoryImpl(this._api);
 
   @override
-  Future<List<RankedPlace>> fetchRanked({required RankRequest request}) async {
-    final res = await _api.post('/api/curation/rank', body: request.toJson());
+  Future<List<RankedPlace>> fetchRanked({
+    required RankRequest request,
+    double? userLat,
+    double? userLng,
+  }) async {
+    final body = {...request.toJson()};
+    if (userLat != null) body['userLat'] = userLat;
+    if (userLng != null) body['userLng'] = userLng;
+
+    final res = await _api.post('/api/curation/rank', body: body);
     if (res.statusCode != 200) {
       throw Exception('Rank API failed: ${res.statusCode}');
     }
