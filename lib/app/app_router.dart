@@ -12,6 +12,7 @@ import 'package:heat_trip_flutter/features/profile/profile_routes.dart';
 
 // ✅ 새로 추가
 import 'package:heat_trip_flutter/features/foryou/foryou_routes.dart';
+import 'package:heat_trip_flutter/features/foryou_v2/routes.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/start',
@@ -24,12 +25,9 @@ final GoRouter appRouter = GoRouter(
         StatefulShellBranch(routes: buildExploreRoutes()),
         StatefulShellBranch(routes: recordRoutes),
         // ✅ 기존 curation 브랜치 → foryou로 대체
-        StatefulShellBranch(routes: forYouRoutes),
+        StatefulShellBranch(routes: forYouV2Routes),
         StatefulShellBranch(routes: journeyRoutes),
-        StatefulShellBranch(routes: [
-          ...profileRoutes,
-          ...bookmarkRoutes,
-        ]),
+        StatefulShellBranch(routes: [...profileRoutes, ...bookmarkRoutes]),
       ],
     ),
   ],
