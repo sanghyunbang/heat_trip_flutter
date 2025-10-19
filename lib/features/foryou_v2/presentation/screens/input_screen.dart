@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../domain/models.dart';
 
-/// 입력 화면: PAD/에너지/사교/키워드/메모
-/// 디자인: 카드/그라데이션/칩으로 ShadCN 느낌 이식
+/// 입력 화면: 주요 감정 + PAD/에너지/사교/키워드/메모
+/// - 주요 감정 선택이 *필수*
+/// - 선택하지 않으면 제출 버튼 비활성화
 class InputScreen extends StatefulWidget {
   final RankRequest initial;
   const InputScreen({super.key, required this.initial});
@@ -12,11 +13,25 @@ class InputScreen extends StatefulWidget {
 }
 
 class _InputScreenState extends State<InputScreen> {
+  // 값 상태
   late double p, a, d, energy, social;
-  late String? moodKey, moodEmoji;
+  String? moodKey; // ★ 필수
+  String? moodEmoji; // 선택(표시용)
   late TextEditingController notesCtrl;
+
+  // 목적 키워드
   final TextEditingController keywordCtrl = TextEditingController();
   final List<String> purposeKeywords = [];
+
+  // 주요 감정(키-이모지) 프리셋
+  static const _moods = <(String key, String emoji)>[
+    ('우울', '🌧️'),
+    ('불안', '⚡'),
+    ('분노', '🔥'),
+    ('지침', '🥱'),
+    ('평온', '🌿'),
+    ('설렘', '✨'),
+  ];
 
   @override
   void initState() {
@@ -26,8 +41,8 @@ class _InputScreenState extends State<InputScreen> {
     d = widget.initial.pad.dominance;
     energy = widget.initial.energy;
     social = widget.initial.socialNeed;
-    moodKey = widget.initial.moodKey;
-    moodEmoji = widget.initial.moodEmoji;
+    moodKey = widget.initial.moodKey; // 초기값 반영
+    moodEmoji = widget.initial.moodEmoji; // 초기값 반영
     notesCtrl = TextEditingController(text: widget.initial.notes ?? '');
     purposeKeywords.addAll(widget.initial.purposeKeywords);
   }
@@ -39,6 +54,7 @@ class _InputScreenState extends State<InputScreen> {
     super.dispose();
   }
 
+  // 공용 슬라이더 카드
   Widget _sliderCard({
     required String title,
     required double value,
@@ -109,6 +125,8 @@ class _InputScreenState extends State<InputScreen> {
     );
   }
 
+  bool get _canSubmit => (moodKey != null && moodKey!.trim().isNotEmpty);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -121,32 +139,104 @@ class _InputScreenState extends State<InputScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          // 헤더 카드
+          // ★ 헤더 + 주요 감정 선택(필수)
           Card(
             elevation: 0.6,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            child: ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFF7B42), Color(0xFFFF5670)],
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 헤드
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFF7B42), Color(0xFFFF5670)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.auto_awesome,
+                        color: Colors.white,
+                      ),
+                    ),
+                    title: const Text(
+                      '당신의 감정을 알려주세요',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    subtitle: const Text(
+                      '주요 감정을 먼저 선택한 뒤, PAD/에너지/사교/키워드를 입력하세요.',
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.auto_awesome, color: Colors.white),
+
+                  const SizedBox(height: 8),
+                  const Text(
+                    '주요 감정 (필수)',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _moods.map((m) {
+                      final selected = moodKey == m.$1;
+                      return ChoiceChip(
+                        label: Text('${m.$2} ${m.$1}'),
+                        selected: selected,
+                        onSelected: (_) {
+                          setState(() {
+                            moodKey = m.$1;
+                            moodEmoji = m.$2;
+                          });
+                        },
+                        selectedColor: const Color(0xFFFFE7E0),
+                        shape: StadiumBorder(
+                          side: BorderSide(
+                            color: selected
+                                ? Colors.deepOrange
+                                : Colors.orange.shade200,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+
+                  if (!_canSubmit) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: const [
+                        Icon(
+                          Icons.info_outline,
+                          size: 16,
+                          color: Colors.redAccent,
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          '주요 감정을 선택해야 계속할 수 있어요.',
+                          style: TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                ],
               ),
-              title: const Text(
-                '당신의 감정을 알려주세요',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-              subtitle: const Text('PAD/에너지/사교/키워드를 입력하면 맞춤 추천을 생성합니다.'),
             ),
           ),
+
           const SizedBox(height: 10),
 
+          // PAD 슬라이더들
           _sliderCard(
             title: 'Pleasure (즐거움)',
             value: p,
@@ -214,6 +304,15 @@ class _InputScreenState extends State<InputScreen> {
                             border: OutlineInputBorder(),
                             isDense: true,
                           ),
+                          onSubmitted: (_) {
+                            final t = keywordCtrl.text.trim();
+                            if (t.isNotEmpty) {
+                              setState(() {
+                                purposeKeywords.add(t);
+                                keywordCtrl.clear();
+                              });
+                            }
+                          },
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -269,27 +368,33 @@ class _InputScreenState extends State<InputScreen> {
               ),
             ),
           ),
+
           const SizedBox(height: 16),
 
+          // 제출 버튼 (주요 감정 미선택 시 비활성화)
           FilledButton(
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
-              backgroundColor: const Color(0xFFFB6A3E),
+              backgroundColor: _canSubmit
+                  ? const Color(0xFFFB6A3E)
+                  : Colors.grey,
             ),
-            onPressed: () {
-              final updated = widget.initial.copyWith(
-                pad: Pad(pleasure: p, arousal: a, dominance: d),
-                energy: energy,
-                socialNeed: social,
-                notes: notesCtrl.text.trim().isEmpty
-                    ? null
-                    : notesCtrl.text.trim(),
-                purposeKeywords: purposeKeywords,
-                moodKey: moodKey,
-                moodEmoji: moodEmoji,
-              );
-              Navigator.pop(context, updated);
-            },
+            onPressed: _canSubmit
+                ? () {
+                    final updated = widget.initial.copyWith(
+                      pad: Pad(pleasure: p, arousal: a, dominance: d),
+                      energy: energy,
+                      socialNeed: social,
+                      notes: notesCtrl.text.trim().isEmpty
+                          ? null
+                          : notesCtrl.text.trim(),
+                      purposeKeywords: purposeKeywords,
+                      moodKey: moodKey, // ★ 서버에 필요
+                      moodEmoji: moodEmoji, // UI 표시용
+                    );
+                    Navigator.pop(context, updated);
+                  }
+                : null,
             child: const Text(
               '분석 시작하기',
               style: TextStyle(

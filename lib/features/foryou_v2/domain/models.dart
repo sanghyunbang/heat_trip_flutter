@@ -1,6 +1,5 @@
 import 'package:meta/meta.dart';
 
-/// -1..1에 맞춰 클램프
 double _clampUnit(double v) => v < -1 ? -1 : (v > 1 ? 1 : v);
 
 @immutable
@@ -33,18 +32,18 @@ class Pad {
   );
 }
 
-/// 프론트가 스프링에 넘기는 단일 요청 바디
+/// 서버 /api/curation/recommend 요청 바디(클라 측)
 @immutable
 class RankRequest {
   final Pad pad; // -1..1
   final double energy; // -1..1
   final double socialNeed; // -1..1
-  final List<String> goals; // 내부 분석용(유지)
-  final List<String> purposeKeywords; // LLM 목적 키워드(자연치유, 조용한산책 등)
-  final int topK;
-  final String? notes; // emotion-note
-  final String? moodKey; // 사용자 선택 감정 레이블(표시용)
-  final String? moodEmoji; // 사용자 선택 이모지(표시용)
+  final List<String> goals; // ex) ["nature_healing","quiet_reflection"]
+  final List<String> purposeKeywords;
+  final int topK; // UI에선 topK로 들고 다니되, 전송 시 topN으로 변환
+  final String? notes; // → emotionNote
+  final String? moodKey; // → primaryMood
+  final String? moodEmoji; // UI 표시에만 사용
 
   const RankRequest({
     required this.pad,
@@ -80,6 +79,8 @@ class RankRequest {
     moodEmoji: moodEmoji ?? this.moodEmoji,
   );
 
+  /// **주의**: 여기서는 서버가 원하는 키로 직렬화하지 않습니다.
+  /// (서버 키 변환/위치 평탄화는 repository에서 책임집니다)
   Map<String, dynamic> toJson() => {
     'pad': pad.toJson(),
     'energy': energy,
@@ -94,51 +95,7 @@ class RankRequest {
   };
 }
 
-/// LLM 분석 결과(서버에서 되돌려줌)
-@immutable
-class EmotionAnalysis {
-  final Pad pad;
-  final double energy; // -1..1
-  final double socialNeed; // -1..1
-  final String summary; // 요약 문장
-  final List<String> tags; // 키워드/태그
-
-  const EmotionAnalysis({
-    required this.pad,
-    required this.energy,
-    required this.socialNeed,
-    required this.summary,
-    required this.tags,
-  });
-
-  factory EmotionAnalysis.fromJson(Map<String, dynamic> j) => EmotionAnalysis(
-    pad: Pad.fromJson(j['pad'] as Map<String, dynamic>),
-    energy: _clampUnit((j['energy'] ?? 0).toDouble()),
-    socialNeed: _clampUnit((j['socialNeed'] ?? 0).toDouble()),
-    summary: j['summary'] ?? '',
-    tags: (j['tags'] as List? ?? const []).map((e) => '$e').toList(),
-  );
-}
-
-/// 추천 테마(화면 상단 카드)
-@immutable
-class TravelTheme {
-  final String key;
-  final String title;
-  final String description;
-  const TravelTheme({
-    required this.key,
-    required this.title,
-    required this.description,
-  });
-  factory TravelTheme.fromJson(Map<String, dynamic> j) => TravelTheme(
-    key: j['key'] ?? '',
-    title: j['title'] ?? '',
-    description: j['description'] ?? '',
-  );
-}
-
-/// 장소
+/// 서버 응답: 장소
 @immutable
 class Place {
   final int placeId;
@@ -147,8 +104,9 @@ class Place {
   final double traitMatch;
   final double popularity;
   final double finalScore;
-  final double? lat, lng; // 서버 좌표
-  final double? distanceKm; // 클라 계산 주입
+  final double? distanceKm; // 서버가 준다
+  final double? distanceScore; // 서버가 준다
+  final double? lat, lng; // (서버가 주지 않으면 null)
 
   const Place({
     required this.placeId,
@@ -157,9 +115,10 @@ class Place {
     required this.traitMatch,
     required this.popularity,
     required this.finalScore,
+    this.distanceKm,
+    this.distanceScore,
     this.lat,
     this.lng,
-    this.distanceKm,
   });
 
   Place withDistanceKm(double d) => Place(
@@ -169,9 +128,10 @@ class Place {
     traitMatch: traitMatch,
     popularity: popularity,
     finalScore: finalScore,
+    distanceKm: d,
+    distanceScore: distanceScore,
     lat: lat,
     lng: lng,
-    distanceKm: d,
   );
 
   factory Place.fromJson(Map<String, dynamic> j) => Place(
@@ -181,68 +141,97 @@ class Place {
     traitMatch: (j['traitMatch'] ?? 0).toDouble(),
     popularity: (j['popularity'] ?? 0).toDouble(),
     finalScore: (j['finalScore'] ?? 0).toDouble(),
+    distanceKm: (j['distanceKm'] as num?)?.toDouble(),
+    distanceScore: (j['distanceScore'] as num?)?.toDouble(),
     lat: (j['lat'] as num?)?.toDouble(),
     lng: (j['lng'] as num?)?.toDouble(),
   );
 }
 
-/// 카테고리 묶음(상위 6개 등)
+/// 서버 응답: LLM 메타 블록
 @immutable
-class TravelCategory {
-  final int categoryId;
-  final String categoryName;
-  final double score;
-  final List<Place> topPlaces;
+class LlmMeta {
+  final int schemaVersion;
+  final String emotionDiagnosis;
+  final String themeName;
+  final String themeDescription;
+  final List<Activity> activities;
+  final List<String> keywords;
+  final List<CategoryGroup> categoryGroups;
+  final String comfortLetter;
 
-  const TravelCategory({
-    required this.categoryId,
-    required this.categoryName,
-    required this.score,
-    required this.topPlaces,
+  const LlmMeta({
+    required this.schemaVersion,
+    required this.emotionDiagnosis,
+    required this.themeName,
+    required this.themeDescription,
+    required this.activities,
+    required this.keywords,
+    required this.categoryGroups,
+    required this.comfortLetter,
   });
 
-  factory TravelCategory.fromJson(Map<String, dynamic> j) => TravelCategory(
-    categoryId: j['categoryId'] is int
-        ? j['categoryId']
-        : int.parse('${j['categoryId']}'),
-    categoryName: j['categoryName'] ?? '',
-    score: (j['score'] ?? 0).toDouble(),
-    topPlaces: (j['topPlaces'] as List? ?? const [])
-        .map((e) => Place.fromJson(e))
+  factory LlmMeta.fromJson(Map<String, dynamic> j) => LlmMeta(
+    schemaVersion: (j['schema_version'] ?? 2) as int,
+    emotionDiagnosis: j['emotion_diagnosis'] ?? '',
+    themeName: j['theme_name'] ?? '',
+    themeDescription: j['theme_description'] ?? '',
+    activities: (j['activities'] as List? ?? const [])
+        .map((e) => Activity.fromJson(e))
+        .toList(),
+    keywords: (j['keywords'] as List? ?? const []).map((e) => '$e').toList(),
+    categoryGroups: (j['category_groups'] as List? ?? const [])
+        .map((e) => CategoryGroup.fromJson(e))
+        .toList(),
+    comfortLetter: j['comfort_letter'] ?? '',
+  );
+}
+
+@immutable
+class Activity {
+  final String title;
+  final String description;
+  const Activity({required this.title, required this.description});
+
+  factory Activity.fromJson(Map<String, dynamic> j) =>
+      Activity(title: j['title'] ?? '', description: j['description'] ?? '');
+}
+
+@immutable
+class CategoryGroup {
+  final String groupName;
+  final List<String> categories;
+  const CategoryGroup({required this.groupName, required this.categories});
+
+  factory CategoryGroup.fromJson(Map<String, dynamic> j) => CategoryGroup(
+    groupName: j['group_name'] ?? '',
+    categories: (j['categories'] as List? ?? const [])
+        .map((e) => '$e')
         .toList(),
   );
 }
 
-/// 최종 응답(LLM → 카테고리 → 스코어링 집계)
+/// 최종 응답(신규): places + llm + cat3FromLlm
 @immutable
 class ForYouRecommendationResponse {
-  final int schemaVersion;
-  final EmotionAnalysis analysis;
-  final TravelTheme theme;
-  final List<TravelCategory> categories;
   final List<Place> places;
-  final String comfortLetter;
+  final LlmMeta llm;
+  final List<String> cat3FromLlm;
 
   const ForYouRecommendationResponse({
-    required this.schemaVersion,
-    required this.analysis,
-    required this.theme,
-    required this.categories,
     required this.places,
-    required this.comfortLetter,
+    required this.llm,
+    required this.cat3FromLlm,
   });
 
   factory ForYouRecommendationResponse.fromJson(Map<String, dynamic> j) =>
       ForYouRecommendationResponse(
-        schemaVersion: j['schemaVersion'] ?? 2,
-        analysis: EmotionAnalysis.fromJson(j['analysis']),
-        theme: TravelTheme.fromJson(j['theme']),
-        categories: (j['categories'] as List? ?? const [])
-            .map((e) => TravelCategory.fromJson(e))
-            .toList(),
         places: (j['places'] as List? ?? const [])
             .map((e) => Place.fromJson(e))
             .toList(),
-        comfortLetter: j['comfortLetter'] ?? '',
+        llm: LlmMeta.fromJson(j['llm'] as Map<String, dynamic>),
+        cat3FromLlm: (j['cat3FromLlm'] as List? ?? const [])
+            .map((e) => '$e')
+            .toList(),
       );
 }

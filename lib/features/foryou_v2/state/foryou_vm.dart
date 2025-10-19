@@ -4,10 +4,8 @@ import '../domain/models.dart';
 import '../domain/repositories.dart';
 import 'location_service.dart';
 
-/// 페이즈: 수집 → 처리중 → 결과 → 오류
 enum ForYouPhase { collecting, processing, ready, error }
 
-/// 보기/정렬 UI 상태
 class ForYouUi {
   final String mode; // 'list' | 'map'
   final String sort; // 'match' | 'distance'
@@ -23,9 +21,7 @@ class ForYouVM extends ChangeNotifier {
   ForYouPhase phase = ForYouPhase.collecting;
   String? error;
 
-  EmotionAnalysis? analysis;
-  TravelTheme? theme;
-  List<TravelCategory> categories = const [];
+  LlmMeta? llm;
   List<Place> places = const [];
 
   double? userLat;
@@ -42,13 +38,11 @@ class ForYouVM extends ChangeNotifier {
   RankRequest get request => _request.value;
   ValueListenable<RankRequest> get requestListenable => _request;
 
-  /// 입력 저장 후 처리 시작
   Future<void> submit(RankRequest updated) async {
     _request.value = updated;
     await startProcessing(minSpinMs: 1200);
   }
 
-  /// 추천 요청(최소 로딩 표시 시간 포함)
   Future<void> startProcessing({int minSpinMs = 800}) async {
     phase = ForYouPhase.processing;
     error = null;
@@ -56,23 +50,19 @@ class ForYouVM extends ChangeNotifier {
 
     final t0 = DateTime.now();
     try {
-      // 현재 위치 시도(거부/실패시 null)
       final (lat, lng) = await loc.getCurrentLatLng();
       userLat = lat;
       userLng = lng;
 
-      // API 호출
       final resp = await repo.recommend(
         request,
         userLat: userLat,
         userLng: userLng,
       );
-      analysis = resp.analysis;
-      theme = resp.theme;
-      categories = resp.categories;
+
+      llm = resp.llm;
       places = _withDistance(resp.places);
 
-      // 로딩 최소시간 보장
       final elapsed = DateTime.now().difference(t0).inMilliseconds;
       if (elapsed < minSpinMs) {
         await Future.delayed(Duration(milliseconds: minSpinMs - elapsed));
@@ -116,7 +106,6 @@ class ForYouVM extends ChangeNotifier {
     }).toList();
   }
 
-  // Haversine: km
   static double _haversine(double lat1, double lon1, double lat2, double lon2) {
     const R = 6371.0;
     final dLat = _deg2rad(lat2 - lat1);
