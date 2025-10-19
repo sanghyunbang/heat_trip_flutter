@@ -52,7 +52,7 @@ class RankRequest {
     this.socialNeed = 0.0,
     this.goals = const [],
     this.purposeKeywords = const [],
-    this.topK = 10,
+    this.topK = 50,
     this.notes,
     this.moodKey,
     this.moodEmoji,

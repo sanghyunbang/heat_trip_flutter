@@ -92,7 +92,7 @@ class _Landing extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              '당신의 감정을 분석해 지금 딱 맞는 여행지를 추천해드려요',
+              '당신의 감정을 분석하고 여행 테마를 추천해드려요',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white70),
             ),

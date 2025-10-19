@@ -262,7 +262,7 @@ class _InputScreenState extends State<InputScreen> {
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       isDense: true,
-                      hintText: '현재 상황/원하는 것 자유롭게',
+                      hintText: '현재 상황/감정 등을 자유롭게 표현해주세요.',
                     ),
                   ),
                 ],
