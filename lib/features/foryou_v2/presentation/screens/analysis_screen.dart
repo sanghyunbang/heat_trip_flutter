@@ -5,28 +5,31 @@ import '../widgets/common.dart';
 import 'list_screen.dart';
 import 'map_screen.dart';
 
-/// 분석 결과/테마/카테고리 + 보기/정렬 전환
 class AnalysisScreen extends StatelessWidget {
   final ForYouVM vm;
   const AnalysisScreen({super.key, required this.vm});
 
   @override
   Widget build(BuildContext context) {
-    final EmotionAnalysis analysis = vm.analysis!;
-    final TravelTheme theme = vm.theme!;
-    final cats = vm.categories;
+    final LlmMeta llm = vm.llm!;
+
+    // LLM category_groups에서 카테고리 라벨만 모아서 칩으로 노출
+    final chips = <String>{
+      for (final g in llm.categoryGroups) ...g.categories,
+    }.toList();
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         EmotionInsightCard(
-          analysis: analysis,
+          summary: llm.emotionDiagnosis,
+          tags: llm.keywords,
           moodKey: vm.request.moodKey,
           moodEmoji: vm.request.moodEmoji,
           onEdit: () => Navigator.of(context).maybePop(),
         ),
         const SizedBox(height: 8),
-        // 추천 테마 카드
+
         Card(
           elevation: 0.6,
           shape: RoundedRectangleBorder(
@@ -35,14 +38,14 @@ class AnalysisScreen extends StatelessWidget {
           child: ListTile(
             leading: const Text('🌿', style: TextStyle(fontSize: 26)),
             title: Text(
-              theme.title,
+              llm.themeName,
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
-            subtitle: Text(theme.description),
+            subtitle: Text(llm.themeDescription),
           ),
         ),
         const SizedBox(height: 12),
-        // 보기/정렬
+
         Row(
           children: [
             SegmentedButton<String>(
@@ -68,15 +71,15 @@ class AnalysisScreen extends StatelessWidget {
 
         const SectionHeader(title: '추천 카테고리'),
         const SizedBox(height: 8),
-        cats.isEmpty
+        chips.isEmpty
             ? const EmptyBox(text: '카테고리 결과가 없습니다.')
             : Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: cats
+                children: chips
                     .map(
                       (c) => Chip(
-                        label: Text(c.categoryName),
+                        label: Text(c),
                         backgroundColor: const Color(0xFFFFF3EE),
                         shape: StadiumBorder(
                           side: BorderSide(color: Colors.orange.shade200),
@@ -87,12 +90,10 @@ class AnalysisScreen extends StatelessWidget {
               ),
         const SizedBox(height: 16),
 
-        // 리스트/지도 패널 스위치
-        if (vm.ui.mode == 'list') ...[
-          ListScreen(vm: vm),
-        ] else ...[
-          SizedBox(height: 420, child: MapScreen(vm: vm)), // 추후 SDK로 교체
-        ],
+        if (vm.ui.mode == 'list')
+          ListScreen(vm: vm)
+        else
+          SizedBox(height: 420, child: MapScreen(vm: vm)),
         const SizedBox(height: 72),
       ],
     );

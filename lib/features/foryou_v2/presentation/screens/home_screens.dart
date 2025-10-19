@@ -12,51 +12,57 @@ class ForYouHomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget body;
-    switch (vm.phase) {
-      case ForYouPhase.collecting:
-        body = _Landing(
-          onNext: () async {
-            final updated = await Navigator.of(context).push<RankRequest>(
-              MaterialPageRoute(
-                builder: (_) => InputScreen(initial: vm.request),
-              ),
+    // 👇 ChangeNotifier(vm)을 직접 구독해 상태 변경 시 자동 리빌드
+    return AnimatedBuilder(
+      animation: vm,
+      builder: (context, _) {
+        Widget body;
+        switch (vm.phase) {
+          case ForYouPhase.collecting:
+            body = _Landing(
+              onNext: () async {
+                final updated = await Navigator.of(context).push<RankRequest>(
+                  MaterialPageRoute(
+                    builder: (_) => InputScreen(initial: vm.request),
+                  ),
+                );
+                if (updated != null) await vm.submit(updated);
+              },
             );
-            if (updated != null) await vm.submit(updated);
-          },
-        );
-        break;
-      case ForYouPhase.processing:
-        body = const LoadingScreen(); // VM이 최소 로딩시간 보장
-        break;
-      case ForYouPhase.error:
-        body = Center(child: Text(vm.error ?? '문제가 발생했어요.'));
-        break;
-      case ForYouPhase.ready:
-        body = AnalysisScreen(vm: vm);
-        break;
-    }
+            break;
+          case ForYouPhase.processing:
+            body = const LoadingScreen(); // VM이 최소 로딩시간 보장
+            break;
+          case ForYouPhase.error:
+            body = Center(child: Text(vm.error ?? '문제가 발생했어요.'));
+            break;
+          case ForYouPhase.ready:
+            body = AnalysisScreen(vm: vm);
+            break;
+        }
 
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0.6,
-        title: const Text('For You'),
-        actions: [
-          IconButton(
-            tooltip: '입력 수정',
-            icon: const Icon(Icons.tune),
-            onPressed: () async {
-              final updated = await Navigator.of(context).push<RankRequest>(
-                MaterialPageRoute(
-                  builder: (_) => InputScreen(initial: vm.request),
-                ),
-              );
-              if (updated != null) await vm.submit(updated);
-            },
+        return Scaffold(
+          appBar: AppBar(
+            elevation: 0.6,
+            title: const Text('For You'),
+            actions: [
+              IconButton(
+                tooltip: '입력 수정',
+                icon: const Icon(Icons.tune),
+                onPressed: () async {
+                  final updated = await Navigator.of(context).push<RankRequest>(
+                    MaterialPageRoute(
+                      builder: (_) => InputScreen(initial: vm.request),
+                    ),
+                  );
+                  if (updated != null) await vm.submit(updated);
+                },
+              ),
+            ],
           ),
-        ],
-      ),
-      body: body,
+          body: body,
+        );
+      },
     );
   }
 }

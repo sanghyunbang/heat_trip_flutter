@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../domain/models.dart';
 
-/// 섹션 헤더 (우측에 작은 액션 넣을 때)
 class SectionHeader extends StatelessWidget {
   final String title;
   final Widget? trailing;
@@ -22,7 +20,6 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-/// 비어있을 때
 class EmptyBox extends StatelessWidget {
   final String text;
   const EmptyBox({super.key, required this.text});
@@ -40,7 +37,6 @@ class EmptyBox extends StatelessWidget {
   );
 }
 
-/// 에러 + 다시 시도
 class ErrorBox extends StatelessWidget {
   final String text;
   final VoidCallback onRetry;
@@ -55,15 +51,17 @@ class ErrorBox extends StatelessWidget {
   );
 }
 
-/// 분석 요약 칩 카드 (ShadCN 느낌)
+/// 변경: EmotionAnalysis 대신 summary/tags만 받도록 단순화
 class EmotionInsightCard extends StatelessWidget {
-  final EmotionAnalysis analysis;
+  final String summary;
+  final List<String> tags;
   final String? moodKey;
   final String? moodEmoji;
   final VoidCallback? onEdit;
   const EmotionInsightCard({
     super.key,
-    required this.analysis,
+    required this.summary,
+    required this.tags,
     this.moodKey,
     this.moodEmoji,
     this.onEdit,
@@ -105,15 +103,12 @@ class EmotionInsightCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            Text(
-              analysis.summary,
-              style: const TextStyle(color: Colors.black87),
-            ),
+            Text(summary, style: const TextStyle(color: Colors.black87)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
               runSpacing: 6,
-              children: analysis.tags
+              children: tags
                   .map(
                     (t) => Chip(
                       label: Text(t),
