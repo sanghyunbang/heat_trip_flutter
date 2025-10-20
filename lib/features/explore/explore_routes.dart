@@ -11,6 +11,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:heat_trip_flutter/core/net/logging_client.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -80,14 +81,14 @@ List<RouteBase> buildExploreRoutes() {
         final contentId = int.parse(state.pathParameters['contentId']!);
         final contentTypeId = int.parse(state.pathParameters['contentTypeId']!);
 
-        // ✅ 카드에서 extra로 보낸 seedImage(String?) 수신
+        // 카드에서 extra로 보낸 seedImage(String?) 수신
         final String? seedImage = state.extra is String
             ? state.extra as String
             : null;
 
         // DI: API/Repo/VM
         final api = PlaceDetailApi(
-          client: http.Client(),
+          client: LoggingClient(http.Client()),
           commonBaseUri: buildCommonUri(),
           introBaseUri: buildIntroUri(),
         );
@@ -104,7 +105,7 @@ List<RouteBase> buildExploreRoutes() {
             child: ExploreDetailScreen(
               contentId: contentId,
               contentTypeId: contentTypeId,
-              //seedImage: seedImage, // ✅ 상세에 전달
+              seedImage: seedImage, // ✅ 상세에 전달
             ),
           ),
         );

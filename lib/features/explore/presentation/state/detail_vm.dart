@@ -37,17 +37,21 @@ class DetailVM extends ChangeNotifier {
         contentId: contentId,
         contentTypeId: contentTypeId,
       );
+      debugPrint('[DetailVM] load() success: hasData=${data != null}');
     }
     // 우리가 변환한 예외 → 사용자 메시지
     on AppException catch (e) {
       error = e.message;
+      debugPrint('[DetailVM] AppException: ${e.message}');
     }
     // 혹시 누락된 비정형 오류
-    catch (_) {
+    catch (e, st) {
       error = '상세 정보를 불러오지 못했습니다.';
+      debugPrint('[DetailVM] Unknown error: $e\n$st');
     } finally {
       loading = false;
       notifyListeners();
+      debugPrint('[DetailVM] load() end: loading=$loading, error=$error');
     }
   }
 }

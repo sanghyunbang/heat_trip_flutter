@@ -2,6 +2,7 @@
 /// ─────────────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:heat_trip_flutter/core/net/logging_client.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 
@@ -55,8 +56,11 @@ class _ExploreDetailScreenState extends State<ExploreDetailScreen> {
   @override
   void initState() {
     super.initState();
-    // 상세 데이터 로드(기존 DetailVM)
-    Future.microtask(() async {
+    debugPrint(
+      '[ExploreDetail] initState: contentId=${widget.contentId}, typeId=${widget.contentTypeId}',
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      debugPrint('[ExploreDetail] calling DetailVM.load()');
       await context.read<DetailVM>().load(
         contentId: widget.contentId,
         contentTypeId: widget.contentTypeId,
@@ -77,6 +81,9 @@ class _ExploreDetailScreenState extends State<ExploreDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<DetailVM>();
+    debugPrint(
+      '[ExploreDetail] build: loading=${vm.loading}, error=${vm.error}, hasData=${vm.data != null}',
+    );
 
     // 공통 스타일
     final divider = const Divider(
@@ -218,7 +225,7 @@ class _ExploreDetailScreenState extends State<ExploreDetailScreen> {
                       final host = (Env.apiBase ?? 'http://localhost:8080')
                           .replaceFirst(RegExp(r'/*$'), ''); // 말단 슬래시 제거
                       final api = EmotionApi(
-                        http.Client(),
+                        LoggingClient(http.Client()),
                         apiBaseFromEnv: host,
                       );
                       final repo = EmotionRepository(api);

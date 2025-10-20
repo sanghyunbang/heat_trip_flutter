@@ -9,7 +9,7 @@
 /// ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:convert';
-import 'dart:async' as dart_async; // ✅ 내장 TimeoutException 별칭(우리 커스텀과 충돌 방지)
+import 'dart:async' as dart_async; // [①] TimeoutException 이름 충돌 방지 별칭
 import 'dart:io' show SocketException, HandshakeException;
 
 import 'package:http/http.dart' as http;
@@ -34,15 +34,35 @@ class PlaceDetailApi {
   });
 
   // ────────────────────────────────────────────────────────────────────────────
-  // 내부 유틸: KTO 응답 공통 형태(response.body.items.item[0])에서 '첫 번째 아이템'만 꺼냅니다.
-  // **예외 처리 포인트 A**
-  //  - 네트워크: SocketException / HandshakeException / Timeout → App*Exception으로 변환
-  //  - 포맷: dart:convert FormatException → AppFormatException
-  //  - HTTP 코드: 200이 아니면 HttpFailureException
-  //  - JSON 구조 이상: AppFormatException
+  // 공통 URI 빌더
+  // [②] baseParams(queryParameters) + extraParams를 머지하여 최종 Uri 생성.
+  //      _type=json은 baseUri 쪽에서 이미 넣는 걸 권장하므로 여기서 강제하지 않습니다.
   // ────────────────────────────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> _getFirstItem(Uri uri) async {
-    // 안전장치: HTTPS와 올바른 호스트만 허용(Hostname mismatch 방지)
+  Uri _buildUri({
+    required String epPath, // 예: "/B551011/KorService2/detailCommon2"
+    required Map<String, String> baseParams,
+    Map<String, String>? extraParams,
+  }) {
+    final merged = <String, String>{
+      ...baseParams,
+      if (extraParams != null) ...extraParams,
+    };
+    return Uri.https('apis.data.go.kr', epPath, merged);
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // KTO 응답에서 '첫 번째 아이템'을 꺼내는 공통 유틸
+  // [③] ep 라벨로 COMMON/INTRO 호출을 로그에서 명확히 구분.
+  // [④] 원문 본문(rawBody) 스니펫을 항상 출력(디버깅 가시성 확보).
+  // [⑤] 방어적 파싱 강화를 통해 예기치 않은 구조 → AppFormatException으로 통일.
+  // ────────────────────────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> _getFirstItem(
+    Uri uri, {
+    required String ep,
+  }) async {
+    print('[PlaceDetailApi][$ep] GET $uri');
+
+    // [⑥] 보안/호스트 가드
     if (uri.scheme != 'https') {
       throw const AppMessageException('보안 연결(HTTPS)만 허용됩니다.');
     }
@@ -54,102 +74,121 @@ class PlaceDetailApi {
     try {
       final res = await client.get(uri).timeout(const Duration(seconds: 12));
 
-      if (res.statusCode != 200) {
+      print(
+        '[PlaceDetailApi][$ep] status=${res.statusCode} len=${res.body.length}',
+      );
+      print(
+        '[PlaceDetailApi][$ep] content-type=${res.headers['content-type']}',
+      );
+
+      // [④] 원문 바디 스니펫
+      final rawBody = res.body;
+      final rawSnippet = rawBody.length > 800
+          ? '${rawBody.substring(0, 800)}…'
+          : rawBody;
+      print('[PlaceDetailApi][$ep] body: ${rawSnippet.replaceAll('\n', ' ')}');
+
+      // HTTP 코드 체크
+      if (res.statusCode < 200 || res.statusCode >= 300) {
         throw HttpFailureException(res.statusCode, '공공데이터 포털 응답 오류');
       }
 
-      final decoded = jsonDecode(res.body); // 포맷 오류는 아래 on FormatException
+      // [⑤] 방어적 파싱(노드별 타입 확인)
+      final decoded = jsonDecode(rawBody);
       if (decoded is! Map) throw const AppFormatException();
 
       final response = decoded['response'];
-      final header = (response is Map) ? response['header'] : null;
-      final resultCode = (header is Map) ? header['resultCode'] : null;
-      final resultMsg = (header is Map) ? header['resultMsg'] : null;
+      if (response is! Map) throw const AppFormatException();
 
-      // 공공데이터포털 특유의 오류코드 (필요 시 케이스 추가)
-      if (resultCode != null && resultCode != '0000') {
+      final header = response['header'];
+      if (header is! Map) throw const AppFormatException();
+
+      final resultCode = header['resultCode'];
+      final resultMsg = header['resultMsg'];
+      print(
+        '[PlaceDetailApi][$ep] resultCode=$resultCode resultMsg=$resultMsg',
+      );
+
+      // 공공데이터포털 에러코드(문자열/숫자 혼재 가능성 고려)
+      if (resultCode != null && resultCode.toString() != '0000') {
+        // [⑦] 서버 메시지를 그대로 사용자 친화 에러로 포장
         throw AppMessageException('API 응답 오류: $resultMsg($resultCode)');
       }
 
-      final body = (response is Map) ? response['body'] : null;
-      final items = (body is Map) ? body['items'] : null;
-      final item = (items is Map) ? items['item'] : null;
+      final bodyNode = response['body'];
+      if (bodyNode is! Map) throw const AppFormatException();
 
-      if (item is List && item.isNotEmpty) {
-        final first = item.first;
+      final itemsNode = bodyNode['items'];
+      if (itemsNode is! Map) throw const AppFormatException();
+
+      final itemNode = itemsNode['item'];
+
+      if (itemNode is List && itemNode.isNotEmpty) {
+        final first = itemNode.first;
         if (first is Map) return Map<String, dynamic>.from(first);
-        throw AppFormatException();
+        throw const AppFormatException();
       }
-      if (item is Map) return Map<String, dynamic>.from(item);
+      if (itemNode is Map) {
+        return Map<String, dynamic>.from(itemNode);
+      }
 
-      // 데이터 없음/형식 오류 → 상위에서 빈 DTO로 대체 가능
+      // [⑤] item이 없거나 타입이 다르면 포맷 에러
       throw const AppFormatException();
     }
-    // 네트워크 계층 → 사용자 친화 메시지 변환
+    // 네트워크 계층 → AppException 계열로 변환
     on SocketException {
       throw const NetworkException('네트워크 연결을 확인해 주세요.');
     } on HandshakeException {
       throw const ServerException('보안 연결에 실패했습니다(인증서/호스트 불일치).');
     } on dart_async.TimeoutException {
       throw const AppTimeoutException();
-    }
-    // 포맷/디코드 오류 → 일관 메시지
-    on FormatException {
+    } on FormatException {
       throw const AppFormatException();
-    }
-    // 이미 AppException 변환된 건 그대로 올림
-    on AppException {
+    } on AppException {
+      // [⑧] 이미 AppException이면 그대로 상위로
       rethrow;
-    }
-    // 그 외 알 수 없는 오류
-    catch (_) {
+    } catch (_) {
+      // [⑨] 알 수 없는 예외 → UnknownException 통일
       throw const UnknownException();
     }
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // 공통 상세 호출
-  //  - 주어진 contentId만 쿼리에 합쳐 Uri를 생성합니다.
-  //  - **예외 처리 포인트 A**에서 모든 예외 변환
+  // detailCommon2 호출
+  // [중요] 문서에 있는 파라미터만 사용:
+  //   필수: MobileOS, MobileApp, serviceKey, contentId
+  //   옵션: numOfRows, pageNo, _type
   // ────────────────────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> fetchDetailCommonItem({required int contentId}) {
-    // Host/Scheme 실수를 원천 차단하기 위해 Uri.https 사용
-    final uri = Uri.https(
-      'apis.data.go.kr',
-      '/B551011/KorService2/detailCommon2',
-      {
-        ...commonBaseUri.queryParameters, // serviceKey, MobileOS, MobileApp 등
-        'contentId': contentId.toString(),
-        // 권장 옵션
-        'defaultYN': 'Y',
-        'addrinfoYN': 'Y',
-        'mapinfoYN': 'Y',
-        'overviewYN': 'Y',
-        '_type': 'json',
+    final uri = _buildUri(
+      epPath: '/B551011/KorService2/detailCommon2',
+      baseParams: commonBaseUri
+          .queryParameters, // MobileOS, MobileApp, serviceKey, (_type)
+      extraParams: {
+        'contentId': contentId.toString(), // 문서상 이 엔드포인트에서 우리가 추가해야 할 유일한 값
+        // ⚠ 문서에 없는 파라미터는 절대 추가하지 않음(예: addrinfoYN, mapinfoYN, defaultYN, firstImageYN, overviewYN 등)
       },
     );
-    return _getFirstItem(uri);
+    return _getFirstItem(uri, ep: 'COMMON'); // [③] ep 라벨은 로그 구분 전용
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // 타입별 상세 호출(detailIntro)
-  //  - contentTypeId는 필수
-  //  - **예외 처리 포인트 A**에서 모든 예외 변환
+  // detailIntro2 호출
+  //   필수: MobileOS, MobileApp, serviceKey, contentId, contentTypeId
+  //   옵션: numOfRows, pageNo, _type
   // ────────────────────────────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> fetchDetailIntroItem({
+  Future<Map<String, dynamic>?> fetchDetailIntroItem({
     required int contentId,
     required int contentTypeId,
   }) {
-    final uri = Uri.https(
-      'apis.data.go.kr',
-      '/B551011/KorService2/detailIntro2',
-      {
-        ...introBaseUri.queryParameters, // serviceKey, MobileOS, MobileApp 등
+    final uri = _buildUri(
+      epPath: '/B551011/KorService2/detailIntro2',
+      baseParams: introBaseUri.queryParameters,
+      extraParams: {
         'contentId': contentId.toString(),
         'contentTypeId': contentTypeId.toString(),
-        '_type': 'json',
       },
     );
-    return _getFirstItem(uri);
+    return _getFirstItem(uri, ep: 'INTRO');
   }
 }
