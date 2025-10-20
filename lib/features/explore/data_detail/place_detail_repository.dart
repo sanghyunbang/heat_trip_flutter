@@ -5,6 +5,7 @@
 ///  - common/intro 중 하나 실패 → 실패한 쪽은 empty() DTO로 대체
 ///  - 둘 다 실패여도 throw 하지 않고 **둘 다 empty()** 로 대체하여 PlaceDetail 반환
 ///    => vm.error 가 세팅되지 않아서 화면(탭)이 항상 렌더링됨
+import 'package:flutter/material.dart';
 import 'package:heat_trip_flutter/features/explore/domain/entity_detail/place_detail.dart';
 
 import 'dto_detail_common.dart';
@@ -56,6 +57,16 @@ class PlaceDetailRepository {
     // 4) 도메인 병합 (항상 non-null 전달)
     //    contentTypeId는 라우팅에서 온 값을 그대로 전달
     final detail = mergeDetail(common, intro, contentTypeId: contentTypeId);
+    debugPrint(
+      '[Repo] merged detail: '
+      'title="${detail.title}", '
+      'overviewLen=${detail.overview?.length ?? 0}, '
+      'firstImage="${detail.firstImage}", '
+      'images=${detail.images.length}, '
+      'hasHours=${detail.hours.isNotEmpty}, '
+      'amenities=${detail.amenities.length}, '
+      'reviews=${detail.reviews.length}',
+    );
 
     // (선택) 여기서 firstErr 를 detail에 녹이고 싶다면
     // PlaceDetail에 warningMessage 같은 필드를 추가해 주입 가능.
