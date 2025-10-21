@@ -74,7 +74,8 @@ class _ExploreDetailScreenState extends State<ExploreDetailScreen> {
     if (nav.canPop()) {
       nav.pop();
     } else {
-      context.go('/explore');
+      // 라우트 스택을 갈아엎는 go 금지
+      context.pop();
     }
   }
 
