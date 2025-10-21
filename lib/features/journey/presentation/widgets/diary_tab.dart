@@ -1,108 +1,84 @@
-// lib/features/journey/presentation/widgets/diary_tab.dart
-//
-// 목적
-// - Diary Archive 탭 컨테이너(UI): 상단 버튼(opt) + 리스트
-// - ⛔ 부모가 넘겨준 리스트 스냅샷을 쓰지 않고, JourneyState를 직접 watch
-//   → 삭제/수정/추가가 즉시 반영(낙관적 갱신과 궁합)
-//
-// 핵심 포인트
-// [D1] entries 인자 제거 → 내부에서 context.watch<JourneyState>().diaries 읽기
-// [D2] onEdit/onDelete 콜백은 부모에서 주입(동일)
-// [D3] 라우팅 시 entryId 파라미터 버그 수정: pathParameters의 entryId는 "다이어리 ID"로 전달
-// [D4] showNewButton: Archive에선 숨기고, 필요 화면에서만 노출 가능
+// Diary Archive 탭
+// - 상태(JourneyState)에서 diaries를 watch
+// - 공용 카드 위젯 DiaryList 재사용(상태 기반 최신순)
+// - [★POINT] 보관함에서는 외곽선만 살짝 진하게, 그림자 제거
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:heat_trip_flutter/features/journey/state/journey_state.dart';
-import '../../domain/models.dart';
-
-// ⬇️ 핵심: DiaryList 위젯 임포트 (같은 widgets 폴더)
+import 'package:heat_trip_flutter/features/journey/domain/models.dart';
+import '../screens/diary_detail_screen.dart';
 import 'diary_list.dart';
 
-/// Diary 탭 컨테이너: 상단 버튼 + 리스트
 class DiaryTab extends StatelessWidget {
-  final void Function(DiaryEntry entry)? onEdit;
-  final void Function(DiaryEntry entry)? onDelete;
-
-  /// 상단 "New Diary Entry" 버튼 노출 여부 (Archive에서는 숨기기 위해)
-  final bool showNewButton;
-
   const DiaryTab({
     super.key,
-    this.onEdit,
-    this.onDelete,
-    this.showNewButton = false, // 기본은 숨김(Archive에서 AppBar 버튼 사용)
+    this.showNewButton = true,
+    required this.onEdit,
+    required this.onDelete,
   });
+
+  final bool showNewButton;
+  final ValueChanged<DiaryEntry> onEdit;
+  final ValueChanged<DiaryEntry> onDelete;
 
   @override
   Widget build(BuildContext context) {
-    // [D1] 단일 소스: 상태를 직접 구독 → 낙관적 갱신 즉시 반영
-    final entries = context.watch<JourneyState>().diaries;
+    final state = context.watch<JourneyState>();
+    final entries = state.diaries; // JourneyState가 최신순 사본으로 반환
 
-    return Column(
-      children: [
-        const SizedBox(height: 8),
-        if (showNewButton)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: _NewDiaryButton(),
-          ),
-        if (showNewButton) const SizedBox(height: 12),
+    if (state.loading && entries.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-        // ✅ DiaryList는 widgets/diary_list.dart의 위젯입니다.
-        Expanded(
-          child: entries.isEmpty
-              ? const Center(child: Text('No diaries yet'))
-              : DiaryList(
-                  entries: entries,
-                  onEdit: onEdit,
-                  onDelete: onDelete,
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                  onTap: (entry) {
-                    // [D3] 라우트 파라미터 정정:
-                    //  - id: scheduleId(없으면 0)
-                    //  - entryId: "다이어리 ID"
-                    final sid = entry.scheduleId ?? 0;
-                    final eid = entry.id ?? 0;
-                    context.pushNamed(
-                      'diaryDetail',
-                      pathParameters: {
-                        'id': '$sid',
-                        'entryId': '$eid',
-                      },
-                      extra: entry, // 초기 렌더 최적화
-                    );
-                  },
-                ),
-        ),
-      ],
+    if (entries.isEmpty) {
+      return _EmptyArchive(showNewButton: showNewButton);
+    }
+
+    // ✅ 핵심: DiaryList를 그대로 쓰되 카드 테두리/그림자만 보관함 룩으로 오버라이드
+    return DiaryList(
+      entries: entries,
+      embedded: false,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      // ───── 카드 스타일 오버라이드(보관함 전용) ─────
+      cardBorderColor: const Color(0xFFDADADA), // 기존 #E8E8E8 보다 약간 진하게
+      cardBorderWidth: 1.2,
+      cardShadow: const [],                      // 그림자 제거
+      // cardRadius: 16,                          // 라운드는 기본 유지
+
+      onTap: (entry) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => DiaryDetailScreen(entry: entry)),
+        );
+      },
+      onEdit: onEdit,
+      onDelete: onDelete,
     );
   }
 }
 
-/// "+ New Diary Entry" 버튼(검정색, 전체폭)
-class _NewDiaryButton extends StatelessWidget {
-  const _NewDiaryButton();
+class _EmptyArchive extends StatelessWidget {
+  const _EmptyArchive({required this.showNewButton});
+  final bool showNewButton;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 44,
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () => context.pushNamed('newDiary'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.black,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: 0,
+    final subtle = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.draw_outlined, size: 46, color: subtle),
+            const SizedBox(height: 12),
+            const Text('No diaries yet', style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            Text('Start documenting your journeys', style: TextStyle(color: subtle)),
+          ],
         ),
-        icon: const Icon(Icons.add),
-        label: const Text('New Diary Entry'),
       ),
     );
   }

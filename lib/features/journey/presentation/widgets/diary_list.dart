@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
 import '../../domain/models.dart';
+import 'image_placeholders.dart'; // ✅ 통일된 플레이스홀더 유틸
 
 /// 다이어리 리스트 전용 위젯
 /// - embedded=true : 부모 스크롤 안에 임베드(상세 화면 등)
 /// - embedded=false: 자체 스크롤 ListView(기본)
-/// - onEdit/onDelete: 상위에서 액션을 연결(확인 후 삭제 등)
+/// - onEdit/onDelete/onTap: 상위에서 액션 연결
+/// - cardBorderColor / cardBorderWidth / cardShadow / cardRadius: 카드 외곽 제어
 class DiaryList extends StatelessWidget {
   final List<DiaryEntry> entries;
   final bool embedded;
   final EdgeInsets? padding;
   final void Function(DiaryEntry entry)? onEdit;
   final void Function(DiaryEntry entry)? onDelete;
-
   final void Function(DiaryEntry entry)? onTap;
+
+  // 카드 스타일 커스터마이즈(옵션)
+  final Color? cardBorderColor;
+  final double? cardBorderWidth;
+  final double? cardRadius;
+  final List<BoxShadow>? cardShadow;
 
   const DiaryList({
     super.key,
@@ -22,6 +29,10 @@ class DiaryList extends StatelessWidget {
     this.onEdit,
     this.onDelete,
     this.onTap,
+    this.cardBorderColor,
+    this.cardBorderWidth,
+    this.cardRadius,
+    this.cardShadow,
   });
 
   @override
@@ -39,11 +50,15 @@ class DiaryList extends StatelessWidget {
       itemCount: entries.length,
       separatorBuilder: (_, __) => const SizedBox(height: 16),
       itemBuilder: (_, i) => GestureDetector(
-        onTap: () => onTap?.call(entries[i]), // ✅ 이제 정상 작동
+        onTap: () => onTap?.call(entries[i]),
         child: _DiaryCard(
           entry: entries[i],
           onEdit: onEdit,
           onDelete: onDelete,
+          borderColor: cardBorderColor,
+          borderWidth: cardBorderWidth,
+          radius: cardRadius,
+          shadow: cardShadow,
         ),
       ),
     );
@@ -56,7 +71,21 @@ class _DiaryCard extends StatelessWidget {
   final void Function(DiaryEntry entry)? onEdit;
   final void Function(DiaryEntry entry)? onDelete;
 
-  const _DiaryCard({required this.entry, this.onEdit, this.onDelete});
+  // 카드 스타일 커스터마이즈
+  final Color? borderColor;
+  final double? borderWidth;
+  final double? radius;
+  final List<BoxShadow>? shadow;
+
+  const _DiaryCard({
+    required this.entry,
+    this.onEdit,
+    this.onDelete,
+    this.borderColor,
+    this.borderWidth,
+    this.radius,
+    this.shadow,
+  });
 
   Future<void> _confirmDelete(BuildContext context) async {
     final confirmed = await showDialog<bool>(
@@ -80,43 +109,30 @@ class _DiaryCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2), // red-50
+                  color: const Color(0xFFFEF2F2),
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFFCA5A5)), // red-300
+                  border: Border.all(color: const Color(0xFFFCA5A5)),
                 ),
                 alignment: Alignment.center,
-                child: const Icon(
-                  Icons.delete_outline,
-                  color: Color(0xFFDC2626),
-                ), // red-600
+                child: const Icon(Icons.delete_outline, color: Color(0xFFDC2626)),
               ),
               const SizedBox(height: 12),
-              const Text(
-                '삭제하시겠어요?',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-              ),
+              const Text('삭제하시겠어요?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
               Text(
                 '"${entry.title}" 다이어리 항목을 삭제하면 되돌릴 수 없어요.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF6B7280),
-                  height: 1.3,
-                ),
+                style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280), height: 1.3),
               ),
               const SizedBox(height: 16),
               Row(
                 children: [
-                  // 취소 (Outlined)
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(ctx, false),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Color(0xFFE6E6E6)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         foregroundColor: const Color(0xFF111827),
                         textStyle: const TextStyle(fontWeight: FontWeight.w700),
@@ -125,25 +141,15 @@ class _DiaryCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  // 삭제 (Red Filled)
                   Expanded(
                     child: FilledButton.icon(
                       onPressed: () => Navigator.pop(ctx, true),
-                      icon: const Icon(
-                        Icons.delete_outline,
-                        size: 18,
-                        color: Colors.white,
-                      ),
-                      label: const Text(
-                        '삭제',
-                        style: TextStyle(color: Colors.white),
-                      ),
+                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.white),
+                      label: const Text('삭제', style: TextStyle(color: Colors.white)),
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFDC2626), // red-600
+                        backgroundColor: const Color(0xFFDC2626),
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         textStyle: const TextStyle(fontWeight: FontWeight.w700),
                         overlayColor: Colors.white.withOpacity(.06),
@@ -162,11 +168,9 @@ class _DiaryCard extends StatelessWidget {
       if (onDelete != null) {
         onDelete!(entry);
       } else {
-        // 콜백이 없으면 알림만
         if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Delete confirmed')));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('Delete confirmed')));
         }
       }
     }
@@ -175,11 +179,31 @@ class _DiaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final r = (radius ?? 16).toDouble();
 
-    return Card(
-      elevation: 0.6,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    // ✅ 스케줄 단위 seed를 항상 동일하게(Null-safe)
+    final seed = deriveImageSeed(
+      scheduleId: entry.scheduleId,
+      title: entry.title,
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(r),
+        border: Border.all(
+          color: borderColor ?? const Color(0xFFE8E8E8),
+          width: borderWidth ?? 1.0,
+        ),
+        boxShadow: shadow ??
+            [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
         child: Column(
@@ -190,23 +214,16 @@ class _DiaryCard extends StatelessWidget {
                 CircleAvatar(
                   radius: 18,
                   backgroundColor: cs.surfaceVariant,
-                  child: Text(
-                    entry.authorInitials,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
+                  child: Text(entry.authorInitials, style: const TextStyle(fontWeight: FontWeight.w700)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     entry.title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                // ⋯ 점메뉴 → Edit/Delete 리스트
                 PopupMenuButton<_DiaryMenu>(
                   tooltip: 'More',
                   offset: const Offset(0, 8),
@@ -220,21 +237,17 @@ class _DiaryCard extends StatelessWidget {
                   ),
                   constraints: const BoxConstraints(minWidth: 180),
                   icon: const Icon(Icons.more_horiz),
-                  itemBuilder: (context) => [
+                  itemBuilder: (context) => const [
                     PopupMenuItem<_DiaryMenu>(
                       value: _DiaryMenu.edit,
                       padding: EdgeInsets.zero,
-                      child: const _MenuTile(
-                        icon: Icons.edit_outlined,
-                        label: 'Edit',
-                        fg: Color(0xFF111827),
-                      ),
+                      child: _MenuTile(icon: Icons.edit_outlined, label: 'Edit', fg: Color(0xFF111827)),
                     ),
-                    const PopupMenuDivider(height: 6),
+                    PopupMenuDivider(height: 6),
                     PopupMenuItem<_DiaryMenu>(
                       value: _DiaryMenu.delete,
                       padding: EdgeInsets.zero,
-                      child: const _MenuTile(
+                      child: _MenuTile(
                         icon: Icons.delete_outline,
                         label: 'Delete',
                         fg: Color(0xFFDC2626),
@@ -245,13 +258,10 @@ class _DiaryCard extends StatelessWidget {
                   onSelected: (v) {
                     switch (v) {
                       case _DiaryMenu.edit:
-                        if (onEdit != null) {
-                          onEdit!(entry);
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Edit tapped')),
-                          );
-                        }
+                        onEdit != null
+                            ? onEdit!(entry)
+                            : ScaffoldMessenger.of(context)
+                                .showSnackBar(const SnackBar(content: Text('Edit tapped')));
                         break;
                       case _DiaryMenu.delete:
                         _confirmDelete(context);
@@ -296,7 +306,8 @@ class _DiaryCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            if (entry.photos.isNotEmpty) _DiaryPhotos(photos: entry.photos),
+            if (entry.photos.isNotEmpty)
+              _DiaryPhotos(photos: entry.photos, seed: seed, title: entry.title),
             if (entry.photos.isNotEmpty) const SizedBox(height: 16),
 
             Text(entry.body, style: const TextStyle(height: 1.5)),
@@ -309,13 +320,11 @@ class _DiaryCard extends StatelessWidget {
 
 enum _DiaryMenu { edit, delete }
 
-/// 팝업 메뉴 아이템 타일 (아이콘+텍스트)
 class _MenuTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color fg;
   final bool danger;
-
   const _MenuTile({
     required this.icon,
     required this.label,
@@ -336,9 +345,7 @@ class _MenuTile extends StatelessWidget {
               color: danger ? const Color(0xFFFEE2E2) : const Color(0xFFF3F4F6),
               shape: BoxShape.circle,
               border: Border.all(
-                color: danger
-                    ? const Color(0xFFFCA5A5)
-                    : const Color(0xFFE5E7EB),
+                color: danger ? const Color(0xFFFCA5A5) : const Color(0xFFE5E7EB),
               ),
             ),
             alignment: Alignment.center,
@@ -348,11 +355,7 @@ class _MenuTile extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: fg,
-              ),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: fg),
             ),
           ),
         ],
@@ -361,10 +364,17 @@ class _MenuTile extends StatelessWidget {
   }
 }
 
-/// 여러 장의 사진 레이아웃
+/// 여러 장의 사진 레이아웃 (seed 통일)
 class _DiaryPhotos extends StatelessWidget {
-  const _DiaryPhotos({required this.photos});
+  const _DiaryPhotos({
+    required this.photos,
+    required this.seed,
+    required this.title,
+  });
+
   final List<String> photos;
+  final Object seed;   // ✅ non-null seed
+  final String title;
 
   static const _gap = 12.0;
   static const _radius = 12.0;
@@ -376,17 +386,18 @@ class _DiaryPhotos extends StatelessWidget {
     if (count == 1) {
       return _RoundedImage(
         url: photos[0],
+        fallbackUrl: photoOrPlaceholder(photos[0], seed: seed, title: title, salt: 0),
         radius: _radius,
         aspectRatio: 16 / 9,
       );
     }
-
     if (count == 2) {
       return Row(
         children: [
           Expanded(
             child: _RoundedImage(
               url: photos[0],
+              fallbackUrl: photoOrPlaceholder(photos[0], seed: seed, title: title, salt: 0),
               radius: _radius,
               aspectRatio: 16 / 9,
             ),
@@ -395,6 +406,7 @@ class _DiaryPhotos extends StatelessWidget {
           Expanded(
             child: _RoundedImage(
               url: photos[1],
+              fallbackUrl: photoOrPlaceholder(photos[1], seed: seed, title: title, salt: 1),
               radius: _radius,
               aspectRatio: 16 / 9,
             ),
@@ -402,7 +414,6 @@ class _DiaryPhotos extends StatelessWidget {
         ],
       );
     }
-
     if (count == 3) {
       return SizedBox(
         height: 180,
@@ -410,7 +421,11 @@ class _DiaryPhotos extends StatelessWidget {
           children: [
             Expanded(
               flex: 2,
-              child: _RoundedImage.fill(url: photos[0], radius: _radius),
+              child: _RoundedImage.fill(
+                url: photos[0],
+                fallbackUrl: photoOrPlaceholder(photos[0], seed: seed, title: title, salt: 0),
+                radius: _radius,
+              ),
             ),
             const SizedBox(width: _gap),
             Expanded(
@@ -418,11 +433,19 @@ class _DiaryPhotos extends StatelessWidget {
               child: Column(
                 children: [
                   Expanded(
-                    child: _RoundedImage.fill(url: photos[1], radius: _radius),
+                    child: _RoundedImage.fill(
+                      url: photos[1],
+                      fallbackUrl: photoOrPlaceholder(photos[1], seed: seed, title: title, salt: 1),
+                      radius: _radius,
+                    ),
                   ),
                   const SizedBox(height: _gap),
                   Expanded(
-                    child: _RoundedImage.fill(url: photos[2], radius: _radius),
+                    child: _RoundedImage.fill(
+                      url: photos[2],
+                      fallbackUrl: photoOrPlaceholder(photos[2], seed: seed, title: title, salt: 2),
+                      radius: _radius,
+                    ),
                   ),
                 ],
               ),
@@ -446,8 +469,10 @@ class _DiaryPhotos extends StatelessWidget {
       ),
       itemBuilder: (_, i) {
         final isLast = i == 3 && remain > 0;
+        final fallback = photoOrPlaceholder(show[i], seed: seed, title: title, salt: i);
         return _PhotoTile(
           url: show[i],
+          fallbackUrl: fallback,
           radius: _radius,
           overlayText: isLast ? '+$remain' : null,
         );
@@ -458,30 +483,33 @@ class _DiaryPhotos extends StatelessWidget {
 
 /// 사진 타일(+N 오버레이)
 class _PhotoTile extends StatelessWidget {
-  const _PhotoTile({required this.url, required this.radius, this.overlayText});
+  const _PhotoTile({
+    required this.url,
+    required this.fallbackUrl,
+    required this.radius,
+    this.overlayText,
+  });
 
   final String url;
+  final String fallbackUrl;
   final double radius;
   final String? overlayText;
 
   @override
   Widget build(BuildContext context) {
+    final finalUrl = (url.trim().isEmpty) ? fallbackUrl : url;
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: Stack(
         fit: StackFit.expand,
         children: [
           Image.network(
-            url,
+            finalUrl,
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => Container(
               color: Colors.grey.shade200,
               alignment: Alignment.center,
-              child: const Icon(
-                Icons.broken_image_outlined,
-                size: 28,
-                color: Colors.black26,
-              ),
+              child: const Icon(Icons.broken_image_outlined, size: 28, color: Colors.black26),
             ),
           ),
           if (overlayText != null)
@@ -490,11 +518,7 @@ class _PhotoTile extends StatelessWidget {
               alignment: Alignment.center,
               child: Text(
                 overlayText!,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
               ),
             ),
         ],
@@ -507,48 +531,42 @@ class _PhotoTile extends StatelessWidget {
 class _RoundedImage extends StatelessWidget {
   const _RoundedImage({
     required this.url,
+    required this.fallbackUrl,
     required this.radius,
     required this.aspectRatio,
   }) : fill = false;
 
-  const _RoundedImage.fill({required this.url, required this.radius})
-    : aspectRatio = 1,
-      fill = true;
+  const _RoundedImage.fill({
+    required this.url,
+    required this.fallbackUrl,
+    required this.radius,
+  })  : aspectRatio = 1,
+        fill = true;
 
   final String? url;
+  final String fallbackUrl;
   final double radius;
   final double aspectRatio;
   final bool fill;
 
   @override
   Widget build(BuildContext context) {
+    final finalUrl = (url != null && url!.trim().isNotEmpty) ? url! : fallbackUrl;
+
     final img = Image.network(
-      url ?? _placeholder,
+      finalUrl,
       fit: BoxFit.cover,
       errorBuilder: (_, __, ___) => Container(
         color: Colors.grey.shade200,
         alignment: Alignment.center,
-        child: const Icon(
-          Icons.broken_image_outlined,
-          size: 28,
-          color: Colors.black26,
-        ),
+        child: const Icon(Icons.broken_image_outlined, size: 28, color: Colors.black26),
       ),
     );
 
-    final clipped = ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: img,
-    );
-
-    return fill
-        ? clipped
-        : AspectRatio(aspectRatio: aspectRatio, child: clipped);
+    final clipped = ClipRRect(borderRadius: BorderRadius.circular(radius), child: img);
+    return fill ? clipped : AspectRatio(aspectRatio: aspectRatio, child: clipped);
   }
 }
-
-const _placeholder =
-    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1200&auto=format&fit=crop';
 
 /// 감정/날씨 칩
 class _InfoPill extends StatelessWidget {
@@ -580,12 +598,7 @@ class _InfoPill extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             text,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF4B5563),
-              height: 1.2,
-            ),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF4B5563), height: 1.2),
           ),
         ],
       ),
