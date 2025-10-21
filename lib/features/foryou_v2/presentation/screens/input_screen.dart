@@ -42,17 +42,17 @@ class _InputScreenState extends State<InputScreen> {
 
   // 섹션 카드 공통 데코
   BoxDecoration get _sectionBox => BoxDecoration(
-    color: kCard,
-    borderRadius: BorderRadius.circular(16),
-    border: Border.all(color: kBorder),
-    boxShadow: [
-      BoxShadow(
-        color: Colors.black.withOpacity(0.03),
-        blurRadius: 8,
-        offset: const Offset(0, 2),
-      ),
-    ],
-  );
+        color: kCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: kBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      );
 
   @override
   void initState() {
@@ -77,7 +77,7 @@ class _InputScreenState extends State<InputScreen> {
 
   bool get _canSubmit => (moodKey != null && moodKey!.trim().isNotEmpty);
 
-  // 섹션 헤더 (폰트 소폭 축소)
+  // 섹션 헤더: 제목/부제 모두 폰트 축소 (요청 4개 타이틀 전부 여기를 통해 줄어듦)
   Widget _sectionHeader({
     required String title,
     String? subtitle,
@@ -105,8 +105,8 @@ class _InputScreenState extends State<InputScreen> {
               Text(
                 title,
                 style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 15.5,
+                  fontWeight: FontWeight.normal,
+                  fontSize: 13.0, // 15.5 → 13.0 (크게 축소)
                   color: kTextPrimary,
                 ),
               ),
@@ -115,7 +115,7 @@ class _InputScreenState extends State<InputScreen> {
                 Text(
                   subtitle,
                   style: const TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 11.0, // 12.5 → 11.0
                     color: kTextSecondary,
                     height: 1.3,
                   ),
@@ -128,7 +128,7 @@ class _InputScreenState extends State<InputScreen> {
     );
   }
 
-  // 따뜻한 그라데이션 헤더(스크린 최상단)
+  // 따뜻한 그라데이션 헤더(스크린 최상단) — 제목 폰트는 _sectionHeader로 축소됨
   Widget _introBanner() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
@@ -192,7 +192,7 @@ class _InputScreenState extends State<InputScreen> {
                 selectedColor: kAccentSoft,
                 backgroundColor: Colors.white,
                 labelStyle: TextStyle(
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  fontWeight: FontWeight.normal,
                   color: selected ? kAccent : kTextPrimary,
                 ),
                 shape: StadiumBorder(
@@ -248,8 +248,8 @@ class _InputScreenState extends State<InputScreen> {
               Text(
                 title,
                 style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14.5,
+                  fontWeight: FontWeight.normal,
+                  fontSize: 13.0, // 14.5 → 13.0 (슬라이더 제목도 살짝 축소)
                   color: kTextPrimary,
                 ),
               ),
@@ -264,8 +264,8 @@ class _InputScreenState extends State<InputScreen> {
                 child: Text(
                   value.toStringAsFixed(1),
                   style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12.5,
+                    fontWeight: FontWeight.normal,
+                    fontSize: 12.0, // 12.5 → 12.0
                   ),
                 ),
               ),
@@ -295,11 +295,11 @@ class _InputScreenState extends State<InputScreen> {
             children: [
               Text(
                 left,
-                style: const TextStyle(color: kTextSecondary, fontSize: 12),
+                style: const TextStyle(color: kTextSecondary, fontSize: 11.5),
               ),
               Text(
                 right,
-                style: const TextStyle(color: kTextSecondary, fontSize: 12),
+                style: const TextStyle(color: kTextSecondary, fontSize: 11.5),
               ),
             ],
           ),
@@ -312,10 +312,10 @@ class _InputScreenState extends State<InputScreen> {
   Widget _padSection() {
     return Container(
       decoration: _sectionBox.copyWith(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [const Color(0xFFFFF1EA), Colors.white],
+          colors: [Color(0xFFFFF1EA), Colors.white],
         ),
       ),
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
@@ -385,13 +385,12 @@ class _InputScreenState extends State<InputScreen> {
             icon: Icons.edit_note_outlined,
           ),
           const SizedBox(height: 12),
-          // 키워드
           const Text(
             '목적 키워드',
             style: TextStyle(
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.normal,
               color: kTextPrimary,
-              fontSize: 14,
+              fontSize: 12.0, // 13 → 12.0 (추가 축소)
             ),
           ),
           const SizedBox(height: 8),
@@ -404,6 +403,10 @@ class _InputScreenState extends State<InputScreen> {
                     hintText: '예) 자연치유, 조용한산책',
                     border: OutlineInputBorder(),
                     isDense: true,
+                    hintStyle: TextStyle(
+                      fontSize: 10.5, // 예시 힌트 텍스트 크게 축소
+                      color: kTextSecondary,
+                    ),
                   ),
                   onSubmitted: (_) {
                     final t = keywordCtrl.text.trim();
@@ -435,7 +438,7 @@ class _InputScreenState extends State<InputScreen> {
                     });
                   }
                 },
-                child: const Text('추가', style: TextStyle(fontSize: 13)),
+                child: const Text('추가', style: TextStyle(fontSize: 12.0)),
               ),
             ],
           ),
@@ -446,7 +449,7 @@ class _InputScreenState extends State<InputScreen> {
             children: purposeKeywords
                 .map(
                   (k) => Chip(
-                    label: Text(k, style: const TextStyle(fontSize: 12.5)),
+                    label: Text(k, style: const TextStyle(fontSize: 12.0)),
                     onDeleted: () => setState(() => purposeKeywords.remove(k)),
                     backgroundColor: kAccentSoft,
                     shape: StadiumBorder(
@@ -458,13 +461,12 @@ class _InputScreenState extends State<InputScreen> {
                 .toList(),
           ),
           const SizedBox(height: 12),
-          // 메모
           const Text(
             '추가 메모 (선택사항)',
             style: TextStyle(
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.normal,
               color: kTextPrimary,
-              fontSize: 14,
+              fontSize: 12.0, // 13 → 12.0
             ),
           ),
           const SizedBox(height: 6),
@@ -476,6 +478,10 @@ class _InputScreenState extends State<InputScreen> {
               border: OutlineInputBorder(),
               isDense: true,
               hintText: '현재 상황이나 특별히 원하는 것이 있다면 자유롭게 작성해주세요.',
+              hintStyle: TextStyle(
+                fontSize: 10.5, // 메모 힌트도 크게 축소
+                color: kTextSecondary,
+              ),
             ),
           ),
         ],
@@ -494,7 +500,10 @@ class _InputScreenState extends State<InputScreen> {
         backgroundColor: Colors.white,
         title: const Text(
           '감정 입력',
-          style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800),
+          style: TextStyle(
+            fontSize: 14.0, // 15.5 → 14.0 (상단 타이틀도 살짝 축소)
+            fontWeight: FontWeight.normal,
+          ),
         ),
       ),
       body: SafeArea(
@@ -538,7 +547,10 @@ class _InputScreenState extends State<InputScreen> {
                   : null,
               child: const Text(
                 '분석 시작하기',
-                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14.5),
+                style: TextStyle(
+                  fontWeight: FontWeight.normal,
+                  fontSize: 13.5, // 14.5 → 13.5
+                ),
               ),
             ),
           ],
@@ -626,9 +638,9 @@ class _CardHeader extends StatelessWidget {
               Text(
                 title,
                 style: const TextStyle(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.normal,
                   color: _InputScreenState.kTextPrimary,
-                  fontSize: 14.5,
+                  fontSize: 13.0, // 14.5 → 13.0
                 ),
               ),
               if (subtitle != null)
@@ -636,7 +648,7 @@ class _CardHeader extends StatelessWidget {
                   subtitle!,
                   style: const TextStyle(
                     color: _InputScreenState.kTextSecondary,
-                    fontSize: 12.5,
+                    fontSize: 11.0, // 12.5 → 11.0
                   ),
                 ),
             ],
@@ -676,9 +688,9 @@ class _LabeledSlider extends StatelessWidget {
             Text(
               title,
               style: const TextStyle(
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.normal,
                 color: _InputScreenState.kTextPrimary,
-                fontSize: 14,
+                fontSize: 13.0, // 14 → 13.0
               ),
             ),
             const Spacer(),
@@ -691,8 +703,8 @@ class _LabeledSlider extends StatelessWidget {
               child: Text(
                 '${((value + 1) * 50).round()}%',
                 style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12.5,
+                  fontWeight: FontWeight.normal,
+                  fontSize: 12.0, // 12.5 → 12.0
                 ),
               ),
             ),
@@ -723,14 +735,14 @@ class _LabeledSlider extends StatelessWidget {
               leftLabel,
               style: const TextStyle(
                 color: _InputScreenState.kTextSecondary,
-                fontSize: 12,
+                fontSize: 11.5,
               ),
             ),
             Text(
               rightLabel,
               style: const TextStyle(
                 color: _InputScreenState.kTextSecondary,
-                fontSize: 12,
+                fontSize: 11.5,
               ),
             ),
           ],

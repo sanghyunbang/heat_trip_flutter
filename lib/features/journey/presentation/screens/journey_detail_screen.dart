@@ -7,9 +7,9 @@
 // 핵심 변경점
 // [J1] 상태에서 스케줄/다이어리를 읽고 구독(watch) → 실시간 반영
 // [J2] Photos 카운트 = 상태 기반 합계(context.watch 후 fold)로 계산
-//      (schedule.memoriesCount 대신 → 작성 직후에도 정확)
 // [J3] 편집/삭제는 JourneyState 메서드로 일원화
 // [J4] initial 스케줄이 없을 경우 1회 보충 fetch
+// [FIX] DiaryEditScreen 제거 → NewDiaryScreen(initial: entry)로 수정
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -18,7 +18,8 @@ import 'package:provider/provider.dart';
 import '../../domain/models.dart';
 import '../../state/journey_state.dart';
 import 'diary_detail_screen.dart';
-import 'diary_edit_screen.dart';
+// import 'diary_edit_screen.dart'; // ❌ 제거
+import '../screens/new_diary_screen.dart'; // ✅ 수정: 공용 신규/수정 화면 사용
 import '../widgets/diary_list.dart';
 
 class JourneyDetailScreen extends StatefulWidget {
@@ -32,7 +33,7 @@ class JourneyDetailScreen extends StatefulWidget {
 }
 
 class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
-  Schedule? _schedule;         // 상세 헤더용
+  Schedule? _schedule; // 상세 헤더용
   bool _fetchingSchedule = false;
 
   @override
@@ -46,10 +47,17 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
   Future<void> _ensureScheduleLoaded() async {
     final state = context.read<JourneyState>();
 
-    // 1) 상태에서 먼저 찾기 (없으면 null)
-    _schedule ??= state.schedules.where((s) => s.id == widget.id).cast<Schedule?>().firstOrNull ?? _schedule;
+    // [SAFE] 상태에서 먼저 찾아보기 (firstOrNull 사용하지 않음)
+    if (_schedule == null) {
+      for (final s in state.schedules) {
+        if (s.id == widget.id) {
+          _schedule = s;
+          break;
+        }
+      }
+    }
 
-    // 2) 그래도 없으면 API 조회
+    // 그래도 없으면 API 조회
     if (_schedule == null) {
       setState(() => _fetchingSchedule = true);
       try {
@@ -61,19 +69,20 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
     }
   }
 
+  // ✅ 수정은 NewDiaryScreen을 '수정 모드'로 사용
   Future<void> _handleEdit(DiaryEntry entry) async {
-    final updatedEntry = await Navigator.push<DiaryEntry>(
+    final updated = await Navigator.push<DiaryEntry?>(
       context,
-      MaterialPageRoute(builder: (_) => DiaryEditScreen(entry: entry)),
+      MaterialPageRoute(builder: (_) => NewDiaryScreen(initial: entry)),
     );
-    if (updatedEntry != null) {
-      await context.read<JourneyState>().updateDiary(updatedEntry); // [J3]
+    if (updated != null) {
+      await context.read<JourneyState>().updateDiary(updated); // [J3]
     }
   }
 
   Future<void> _handleDelete(DiaryEntry entry) async {
     try {
-      await context.read<JourneyState>().deleteDiary(entry.id!);    // [J3]
+      await context.read<JourneyState>().deleteDiary(entry.id!); // [J3]
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('다이어리를 삭제했어요.')),
@@ -354,7 +363,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                           ),
                         );
                       },
-                      onEdit: _handleEdit,
+                      onEdit: _handleEdit,   // ✅ 수정 경로 고정
                       onDelete: _handleDelete,
                     ),
                 ],
@@ -480,6 +489,8 @@ class _EmptyDiaryCard extends StatelessWidget {
 }
 
 /* ───────────── 각주 ─────────────
+[FIX] DiaryEditScreen → NewDiaryScreen(initial: entry)로 교체하여
+     undefined_method 에러 및 편집 경로 불일치 문제 해결.
 [J1] 화면은 JourneyState만 의존: API/Repo new 제거 → 테스트/DI 단순화.
 [J2] Photos 카운트는 entries.photos 합계 산출로 변경 → 작성/삭제 즉시 반영.
 [J3] 편집/삭제는 JourneyState 메서드로 일원화(낙관적/롤백 전략과 일관성 유지).
