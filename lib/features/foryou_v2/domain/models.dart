@@ -79,8 +79,6 @@ class RankRequest {
     moodEmoji: moodEmoji ?? this.moodEmoji,
   );
 
-  /// **주의**: 여기서는 서버가 원하는 키로 직렬화하지 않습니다.
-  /// (서버 키 변환/위치 평탄화는 repository에서 책임집니다)
   Map<String, dynamic> toJson() => {
     'pad': pad.toJson(),
     'energy': energy,
@@ -106,7 +104,16 @@ class Place {
   final double finalScore;
   final double? distanceKm; // 서버가 준다
   final double? distanceScore; // 서버가 준다
-  final double? lat, lng; // (서버가 주지 않으면 null)
+
+  // 서버가 내려주는 표시용 필드
+  final String? firstImageUrl; // ✅ 추가
+  final String? cat3Name; // ✅ 추가
+
+  // (선택) 상세 라우팅용 — 서버에서 내려주면 받기 (없으면 null → 디폴트 12 사용)
+  final int? contentTypeId; // ✅ 옵션
+
+  // (선택) 클라 측 거리 재계산용
+  final double? lat, lng;
 
   const Place({
     required this.placeId,
@@ -117,6 +124,9 @@ class Place {
     required this.finalScore,
     this.distanceKm,
     this.distanceScore,
+    this.firstImageUrl,
+    this.cat3Name,
+    this.contentTypeId,
     this.lat,
     this.lng,
   });
@@ -130,6 +140,9 @@ class Place {
     finalScore: finalScore,
     distanceKm: d,
     distanceScore: distanceScore,
+    firstImageUrl: firstImageUrl,
+    cat3Name: cat3Name,
+    contentTypeId: contentTypeId,
     lat: lat,
     lng: lng,
   );
@@ -143,6 +156,11 @@ class Place {
     finalScore: (j['finalScore'] ?? 0).toDouble(),
     distanceKm: (j['distanceKm'] as num?)?.toDouble(),
     distanceScore: (j['distanceScore'] as num?)?.toDouble(),
+    firstImageUrl: j['firstImageUrl'] as String?, // ✅
+    cat3Name: j['cat3Name'] as String?, // ✅
+    contentTypeId: (j['contentTypeId'] is int)
+        ? j['contentTypeId'] as int
+        : null,
     lat: (j['lat'] as num?)?.toDouble(),
     lng: (j['lng'] as num?)?.toDouble(),
   );
