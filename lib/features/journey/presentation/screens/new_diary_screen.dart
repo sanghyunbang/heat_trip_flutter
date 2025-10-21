@@ -1,17 +1,20 @@
 // lib/features/journey/presentation/screens/new_diary_screen.dart
 //
 // 변경 핵심
-// [A] JourneyRepositoryImpl 은 이제 ApiClient를 "위치 인자"로 받는다 → Provider에서 ApiClient 읽어 주입.
-// [B] import: provider / ApiClient 추가.
-// [C] _submit()에서 repo 생성 시 JourneyRepositoryImpl(context.read<ApiClient>()) 로 수정.
-// [D] 나머지 UI/검증 로직은 유지.
+// [A] JourneyState.createDiary 사용(낙관적 갱신) 그대로 유지
+// [B] 사진 업로드는 shared/media 모듈(MediaGridField) 재사용  [★]
+// [C] 업로드 결과(UploadedMedia.url) → DiaryEntry.photos 에 주입       [★]
+// [D] UI/검증 로직은 동일
+
+import '../../state/journey_state.dart';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';                   // [B] Provider에서 ApiClient 읽기
-import 'package:heat_trip_flutter/shared/network/api_client.dart'; // [B] 주입 대상 타입
+import 'package:provider/provider.dart';
 
-import 'package:heat_trip_flutter/features/journey/data/journey_repository_impl.dart';
+// [★ P1] 미디어 모듈(배럴) import
+import 'package:heat_trip_flutter/shared/media/media.dart';
+
 import '../../domain/models.dart';
 
 class NewDiaryScreen extends StatefulWidget {
@@ -41,7 +44,9 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
     ('😡', 'Angry'),
   ];
   int _moodIndex = 0;
-  final List<String> _photos = [];
+
+  // [★ P2] 업로드된 CDN URL들을 여기에 누적 → 서버 저장 시 photos로 사용
+  List<String> _photos = [];
 
   @override
   void dispose() {
@@ -52,7 +57,6 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
     super.dispose();
   }
 
-  /// 단일 날짜 선택 유지 + 다이얼로그 내부에서만 M3 스타일 오버라이드
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -64,107 +68,9 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
       confirmText: 'Save',
       cancelText: 'Cancel',
       initialEntryMode: DatePickerEntryMode.calendar,
-      builder: (context, child) {
-        final base = Theme.of(context);
-        const seed = Color(0xFF0B0B14);
-
-        return Theme(
-          data: base.copyWith(
-            useMaterial3: true,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: seed,
-              brightness: base.brightness,
-            ),
-            datePickerTheme: base.datePickerTheme.copyWith(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28),
-              ),
-              backgroundColor: Colors.white,
-              surfaceTintColor: Colors.transparent,
-              elevation: 0,
-              headerBackgroundColor: Colors.white,
-              headerForegroundColor: Colors.black87,
-              headerHeadlineStyle: const TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 20,
-              ),
-              headerHelpStyle: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Colors.black54,
-              ),
-              // Flutter 3.22+ WidgetState 계열 API 사용
-              dayShape: const WidgetStatePropertyAll<OutlinedBorder>(
-                CircleBorder(),
-              ),
-              dayForegroundColor: WidgetStateProperty.resolveWith<Color?>(
-                (states) => states.contains(WidgetState.selected) ? Colors.white : null,
-              ),
-              dayBackgroundColor: WidgetStateProperty.resolveWith<Color?>(
-                (states) => states.contains(WidgetState.selected) ? seed : null,
-              ),
-              dayOverlayColor: const WidgetStatePropertyAll<Color>(Colors.black12),
-              todayForegroundColor: const WidgetStatePropertyAll<Color>(Colors.black87),
-              todayBackgroundColor: const WidgetStatePropertyAll<Color>(Colors.transparent),
-              yearForegroundColor: WidgetStateProperty.resolveWith<Color?>(
-                (states) => states.contains(WidgetState.selected) ? Colors.white : null,
-              ),
-              yearBackgroundColor: WidgetStateProperty.resolveWith<Color?>(
-                (states) => states.contains(WidgetState.selected) ? seed : null,
-              ),
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: seed,
-                textStyle: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-            dialogTheme: base.dialogTheme.copyWith(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28),
-              ),
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
-
     if (picked != null) setState(() => _date = picked);
   }
-
-  void _addPhotoUrlDialog() async {
-    final ctrl = TextEditingController();
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add photo by URL'),
-        content: TextField(
-          controller: ctrl,
-          decoration: const InputDecoration(
-            hintText: 'https://example.com/image.jpg',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final url = ctrl.text.trim();
-              if (url.isNotEmpty) setState(() => _photos.add(url));
-              Navigator.pop(ctx);
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _removePhoto(int idx) => setState(() => _photos.removeAt(idx));
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -179,15 +85,12 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
       location: _location.text.trim().isEmpty ? '—' : _location.text.trim(),
       moodLabel: moodLabel,
       weatherLabel: _weather.text.trim().isEmpty ? '—' : _weather.text.trim(),
-      photos: List<String>.from(_photos),
+      photos: List<String>.from(_photos), // ★ 업로드 결과 반영
       body: _body.text.trim(),
     );
 
-    // [A][C] ApiClient를 Provider에서 읽어와 JourneyRepositoryImpl 에 "위치 인자"로 전달
-    final apiClient = context.read<ApiClient>();                 // <-- Provider 필요
-    final repo = JourneyRepositoryImpl(apiClient);               // <-- 위치 인자!
-
-    final error = await repo.postDiary(entry);                   // 서버 전송
+    final journey = context.read<JourneyState>();
+    final error = await journey.createDiary(entry); // 낙관적 갱신 + 서버저장
     if (error != null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -197,9 +100,8 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
     }
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Diary saved')),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Diary saved')));
     Navigator.pop(context, entry);
   }
 
@@ -236,6 +138,7 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                 ),
               if (widget.scheduleId != null) const SizedBox(height: 12),
 
+              // ───────────────── Basic ─────────────────
               _Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -285,7 +188,10 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                   ],
                 ),
               ),
+
               const SizedBox(height: 12),
+
+              // ─────────────── Mood & Weather ───────────────
               _Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,8 +201,7 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                     Text('Mood', style: TextStyle(fontSize: 12, color: subtle)),
                     const SizedBox(height: 6),
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                      spacing: 8, runSpacing: 8,
                       children: [
                         for (int i = 0; i < _moods.length; i++)
                           ChoiceChip(
@@ -334,30 +239,46 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                   ],
                 ),
               ),
+
               const SizedBox(height: 12),
+
+              // ───────────────── Photos (S3/CDN 업로드) ────────────────
               _Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const _SectionTitle('Photos'),
                     const SizedBox(height: 8),
-                    if (_photos.isEmpty)
-                      Text('No photos yet. Add by URL.', style: TextStyle(color: subtle)),
-                    if (_photos.isNotEmpty)
-                      _PhotoGrid(urls: _photos, onRemove: _removePhoto),
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: OutlinedButton.icon(
-                        onPressed: _addPhotoUrlDialog,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add URL'),
-                      ),
+
+                    // [★] 촬영/갤러리 + 업로드 UI (shared/media)
+                    MediaGridField(
+                      category: UploadCategory.JOURNEY_IMAGE, // 서버 enum과 동일 문자열
+                      // refType/refId 필요 시 지정 가능 (예: refType: 'DIARY', refId: 'TEMP')
+                      onUploaded: (items) {
+                        // 업로드된 공개 URL들을 현재 폼 상태에 반영
+                        setState(() {
+                          _photos
+                            ..clear()
+                            ..addAll(items.map((e) => e.url));
+                        });
+                      },
                     ),
+
+                    if (_photos.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'No photos yet. Tap + to take or pick photos.',
+                          style: TextStyle(color: subtle),
+                        ),
+                      ),
                   ],
                 ),
               ),
+
               const SizedBox(height: 12),
+
+              // ───────────────── Story ─────────────────
               _Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -378,6 +299,7 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                   ],
                 ),
               ),
+
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
@@ -388,9 +310,7 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                   label: const Text('Save Diary', style: TextStyle(color: Colors.white)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0B0B14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
                 ),
@@ -403,7 +323,6 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
   }
 }
 
-/// 라벨 + 위젯 묶음
 class _Labeled extends StatelessWidget {
   const _Labeled({required this.label, required this.child});
   final String label;
@@ -423,7 +342,6 @@ class _Labeled extends StatelessWidget {
   }
 }
 
-/// 섹션 타이틀
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.text);
   final String text;
@@ -434,7 +352,6 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-/// 흰색 카드 컨테이너
 class _Card extends StatelessWidget {
   const _Card({required this.child});
   final Widget child;
@@ -454,65 +371,6 @@ class _Card extends StatelessWidget {
   }
 }
 
-/// URL 썸네일 그리드
-class _PhotoGrid extends StatelessWidget {
-  const _PhotoGrid({required this.urls, required this.onRemove});
-  final List<String> urls;
-  final void Function(int index) onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      itemCount: urls.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-      ),
-      itemBuilder: (_, i) {
-        return Stack(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: Image.network(
-                  urls[i],
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: Colors.grey.shade200,
-                    alignment: Alignment.center,
-                    child: const Icon(Icons.broken_image_outlined, color: Colors.black26),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              right: 4,
-              top: 4,
-              child: InkWell(
-                onTap: () => onRemove(i),
-                borderRadius: BorderRadius.circular(999),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(.5),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  padding: const EdgeInsets.all(4),
-                  child: const Icon(Icons.close, size: 14, color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-/// 라우트 편의용: pathParameters에서 id 읽어와 NewDiaryScreen 생성
 class NewDiaryForScheduleRoute extends StatelessWidget {
   const NewDiaryForScheduleRoute({super.key, required this.state});
   final GoRouterState state;
