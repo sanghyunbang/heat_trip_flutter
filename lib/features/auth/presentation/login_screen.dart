@@ -255,7 +255,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   foregroundColor: Colors.black87,
                                   textStyle: const TextStyle(fontWeight: FontWeight.w800),
                                 ),
-                                child: const Text('로그인 없이 둘러보기'),
+                                child: const Text('둘러보기'),
                               ),
                             ),
                           ],
