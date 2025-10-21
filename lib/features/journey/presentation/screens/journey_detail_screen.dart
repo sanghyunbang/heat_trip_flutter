@@ -2,6 +2,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:heat_trip_flutter/shared/network/api_client.dart';
+
 import 'package:heat_trip_flutter/features/journey/presentation/screens/diary_detail_screen.dart';
 import 'package:heat_trip_flutter/features/journey/presentation/screens/diary_edit_screen.dart';
 import 'package:heat_trip_flutter/features/journey/presentation/widgets/diary_list.dart';
@@ -20,7 +23,7 @@ class JourneyDetailScreen extends StatefulWidget {
 }
 
 class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
-  final JourneyApi _api = RealJourneyApi();
+  late JourneyApi _api;
   List<DiaryEntry>? _entries;
   Schedule? _data;
   bool _loading = false;
@@ -28,6 +31,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _api = RealJourneyApi(context.read<ApiClient>()); // ✅ 주입
     _data = widget.initial;
     _fetch();
   }
@@ -62,15 +66,13 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
       await _api.deleteDiary(entry.id!);
       await _fetch();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('다이어리를 삭제했어요.')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('다이어리를 삭제했어요.')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('삭제 실패: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('삭제 실패: $e')));
       }
     }
   }
@@ -168,9 +170,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                           Text(
                             schedule.location ?? '—',
                             style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
