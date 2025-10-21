@@ -1,169 +1,85 @@
-import 'dart:convert';
+// lib/features/auth/data/auth_repository_impl.dart
+//
+// 목적:
+// - 인증/프로필 관련 API 호출을 담당하는 Repository 구현체
+// - 공용 ApiClient(헤더/토큰 자동화)를 주입받아 사용 (화면에서 new 금지)
 
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:convert';
 import 'package:heat_trip_flutter/features/auth/data/dto/login_request.dart';
 import 'package:heat_trip_flutter/features/auth/data/dto/register_request.dart';
 import 'package:heat_trip_flutter/features/profile/data/dto/update_profile_request.dart';
+import 'package:heat_trip_flutter/shared/network/api_client.dart';
 import 'package:http/http.dart' as http;
-import 'package:heat_trip_flutter/core/config/env.dart';
-
-/// 실제 HTTP 요청을 통해 백엔드와 통신하는 클래스
-/// 회원가입 및 로그인 요청을 처리
 
 class AuthRepositoryImpl {
-  // .env 파일에 저장된 API_BASE_URL을 불러옴
-  final String baseUrl = Env.apiBase ?? '';
+  /// 공용 HTTP 클라이언트 (토큰 자동 첨부, JSON 편의 메서드 등)
+  final ApiClient api;
 
-  /// 로그인 요청
-  /// 서버에 이메일/비밀번호를 전달하고, 성공하면 서버가 JWT 발급
-  /// 이 토큰은 클라이언트에서 저장하고 이후 인증에 사용
+  /// 생성자 주입: 상위(DI)에서 ApiClient를 전달
+  AuthRepositoryImpl(this.api);
 
+  // ───────────────── 로그인 ─────────────────
+
+  /// 로그인: 성공 시 토큰 문자열 반환(계약상 200 + plain text)
   Future<String?> login(LoginRequest request) async {
-    // 로그인  API URL 설정
-    final url = Uri.parse('$baseUrl/auth/login');
+    final res = await api.postJson('/auth/login', request.toJson());
 
-    // HTTP POST 요청 전송
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json', // JSON 형식 명시
-      },
-      body: jsonEncode(request.toJson()),
-    );
-
-    // 응답코드가 200이면 성공
-    if (response.statusCode == 200) {
-      // 백엔드가 발급한 JWT 토큰을 반환
-      final token = response.body;
-      return token;
-    } else {
-      // 실패한 경우 콘솔에 상태 코드 및 응답을 출력
-      print('[X] 로그인 실패 : ${response.statusCode} / ${response.body}');
-      return null;
+    if (res.statusCode == 200) {
+      // (가정) 본문에 토큰 문자열만 내려옴
+      return res.body;
     }
+
+    // (대안) JSON { "token": "..." } 라면:
+    // final data = jsonDecode(res.body) as Map<String, dynamic>;
+    // return data['token'] as String?;
+
+    print('[X] 로그인 실패: ${res.statusCode} / ${res.body}');
+    return null;
   }
 
-  /// 회원 가입 요청
-  /// - 서버에 회원 정보를 전송
-  /// - 성공하면 true, 실패하면 false 반환
+  // ───────────────── 회원가입 ─────────────────
+
+  /// 회원가입: 200 OK 또는 201 Created → true
   Future<bool> register(RegisterRequest request) async {
-    // 회원가입 API URL 설정
-    final url = Uri.parse('$baseUrl/auth/signup');
-
-    // HTTP POST 요청 전송
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(request.toJson()), //요청 바디를 JSON 문자열로
-    );
-    // 응답코드가 201(Created)이면 회원 가입 성공
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      return true;
-    } else {
-      // 실패한 경우에 콘솔에 사태 코드 및 응답 출력
-      print('[X] 회원가입 실패 : ${response.statusCode} / ${response.body}');
-      return false;
-    }
+    final res = await api.postJson('/auth/signup', request.toJson());
+    return res.statusCode == 200 || res.statusCode == 201;
   }
 
-  // Future<Map<String, dynamic>?> getMyProfile(String token) async {
-  //   // 불필요한 Content-Type은 제거 (GET에는 보통 필요 없음)
-  //   final headers = {'Authorization': 'Bearer $token'};
-  //
-  //   // 1순위: 안전한 표준 엔드포인트 (DTO 반환)
-  //   final primary = Uri.parse('$baseUrl/users/me');
-  //
-  //   // 2순위(폴백): 기존 호환용 엔드포인트 (엔티티 반환 가능성 → 민감키 제거)
-  //   final fallback = Uri.parse('$baseUrl/public/getuser');
-  //
-  //   // 순차 시도
-  //   for (final url in [primary, fallback]) {
-  //     try {
-  //       final res = await http.get(url, headers: headers);
-  //       if (res.statusCode == 200) {
-  //         final data = jsonDecode(res.body) as Map<String, dynamic>;
-  //
-  //         // 혹시라도 엔티티가 내려와 민감정보 포함 시 제거
-  //         data.remove('password');
-  //         data.remove('roles');
-  //         data.remove('authorities');
-  //
-  //         return data;
-  //       } else {
-  //         print('[X] getMyProfile ${url.path} 실패: ${res.statusCode} / ${res.body}');
-  //       }
-  //     } catch (e) {
-  //       print('[X] getMyProfile ${url.path} 에러: $e');
-  //     }
-  //   }
-  //
-  //   return null;
-  // }
-  // 사용자 정보 조회
-  Future<Map<String, dynamic>?> getMyProfile(String token) async {
-    // final url = Uri.parse('$baseUrl/public/getuser');
-    final url = Uri.parse('$baseUrl/auth/me'); // GET
+  // ───────────────── 내 프로필 조회 ─────────────────
 
-    try {
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        print('[X] 유저 정보 불러오기 실패: ${response.statusCode} / ${response.body}');
-        return null;
-      }
-    } catch (e) {
-      print('[X] 유저 정보 요청 중 에러: $e');
-      return null;
+  /// 내 프로필 조회: 성공 시 Map 반환 (Authorization 자동 첨부)
+  Future<Map<String, dynamic>?> getMyProfile() async {
+    final res = await api.get('/auth/me');
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body) as Map<String, dynamic>;
     }
+    print('[X] getMyProfile 실패: ${res.statusCode} / ${res.body}');
+    return null;
   }
 
-  // 사용자 정보 수정
-  Future<bool> updateMyProfile(String token, UpdateProfileRequest req) async {
-    final url = Uri.parse('$baseUrl/auth/me'); // PUT
-    try {
-      final response = await http.put(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(req.toJson()),
-      );
-      if (response.statusCode == 200) {
-        return true;
-      } else {
-        print('[X] 프로필 업데이트 실패: ${response.statusCode} / ${response.body}');
-        return false;
-      }
-    } catch (e) {
-      print('[X] 프로필 업데이트 오류: $e');
-      return false;
-    }
+  // ───────────────── 내 프로필 수정 ─────────────────
+
+  /// 내 프로필 수정: 200 OK → true
+  Future<bool> updateMyProfile(UpdateProfileRequest req) async {
+    final res = await api.put('/auth/me', body: jsonEncode(req.toJson()));
+    return res.statusCode == 200;
   }
 
-  // 계정 삭제
-  Future<bool> deleteMyAccount(String token) async {
-    final url = Uri.parse('$baseUrl/auth/me'); // DELETE
-    try {
-      final res = await http.delete(
-        url,
-        headers: {'Authorization': 'Bearer $token'},
-      );
-      if (res.statusCode == 200 || res.statusCode == 204) {
-        return true;
-      }
-      print('[X] deleteMyAccount 실패: ${res.statusCode} / ${res.body}');
-      return false;
-    } catch (e) {
-      print('[X] deleteMyAccount 에러: $e');
-      return false;
-    }
+  // ───────────────── 회원 탈퇴 ─────────────────
+
+  /// 회원 탈퇴: 200 OK 또는 204 No Content → true
+  Future<bool> deleteMyAccount() async {
+    final res = await api.delete('/auth/me');
+    return res.statusCode == 200 || res.statusCode == 204;
   }
 }
+
+/* ───────────── 각주 ─────────────
+[에러 처리 확장]
+  - 단순 bool/null 대신 커스텀 예외를 던지거나 Either<Failure, T>를 사용하면
+    ViewModel에서 메시지/상태를 일관되게 관리하기 좋습니다.
+
+[401 처리]
+  - ApiClient 차원에서 401 감지 → (한 번만) 리프레시 → 재시도
+  - 실패 시 AuthState.logout() 호출로 전역 로그아웃 처리 등을 공통화 권장
+──────────────────────── */

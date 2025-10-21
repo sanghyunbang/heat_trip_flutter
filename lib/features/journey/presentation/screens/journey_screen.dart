@@ -1,4 +1,14 @@
+// lib/features/journey/presentation/screens/journey_screen.dart
+//
+// 변경 요약
+// - ScheduleRepositoryImpl 이 ApiClient 의존성 주입을 요구 → 화면에서 Provider로 받아 생성 [A][B]
+// - JourneyApi(RealJourneyApi)도 ApiClient 주입으로 변경
+// - context를 쓰는 의존성 초기화는 initState에서 수행, 그 후 Future 필드 초기화 [C]
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';                                   // [A] Provider로 ApiClient 읽기
+import 'package:heat_trip_flutter/shared/network/api_client.dart';          // [A] 주입 대상
+
 import 'package:heat_trip_flutter/features/journey/presentation/screens/diary_edit_screen.dart';
 import 'package:heat_trip_flutter/features/record/data/model/schedule_response.dart';
 import 'package:heat_trip_flutter/features/record/data/schedule_repository_impl.dart';
@@ -19,23 +29,14 @@ class JourneyScreen extends StatefulWidget {
 
 class _JourneyScreenState extends State<JourneyScreen>
     with SingleTickerProviderStateMixin {
-  // 간단 주입: 데모에서는 더미 API. (TODO: 실서버 시 교체)
-  final JourneyApi _api = RealJourneyApi();
+  // ── 주입 의존성 ──
+  late final JourneyApi _api;                                             // [B] initState에서 생성
+  late final ScheduleRepositoryImpl _scheduleRepo;                        // [B] initState에서 생성
 
-  late final Future<JourneyStats> _statsF = _api.fetchStats();
-  late final Future<List<Schedule>> _schedulesF = _fetchSchedulesFromApi();
-  late Future<List<DiaryEntry>> _diariesF = _api.fetchDiaries();
-  final ScheduleRepositoryImpl _scheduleRepo = ScheduleRepositoryImpl();
-
-  Future<List<Schedule>> _fetchSchedulesFromApi() async {
-    try {
-      final responses = await _scheduleRepo.fetchSchedules();
-      return responses.map(mapToSchedule).toList();
-    } catch (e) {
-      print('[JourneyScreen] 스케줄 불러오기 실패: $e');
-      return [];
-    }
-  }
+  // ── 데이터 Future ──
+  late final Future<JourneyStats> _statsF;                                // [C] initState에서 초기화
+  late final Future<List<Schedule>> _schedulesF;                          // [C] initState에서 초기화
+  late Future<List<DiaryEntry>> _diariesF;                                // [C] initState에서 초기화
 
   // TabController를 State에 보관해서 리빌드/색상 변경에도 선택 상태 유지
   late final TabController _tab;
@@ -43,6 +44,17 @@ class _JourneyScreenState extends State<JourneyScreen>
   @override
   void initState() {
     super.initState();
+
+    // [B] Provider에서 ApiClient 읽어 주입형 생성
+    final apiClient = context.read<ApiClient>();
+    _api = RealJourneyApi(apiClient);
+    _scheduleRepo = ScheduleRepositoryImpl(apiClient);
+
+    // [C] 의존성 준비 이후 Future들 초기화
+    _statsF = _api.fetchStats();
+    _schedulesF = _fetchSchedulesFromApi();
+    _diariesF = _api.fetchDiaries();
+
     _tab = TabController(length: 4, vsync: this);
   }
 
@@ -52,11 +64,22 @@ class _JourneyScreenState extends State<JourneyScreen>
     super.dispose();
   }
 
+  Future<List<Schedule>> _fetchSchedulesFromApi() async {
+    try {
+      final responses = await _scheduleRepo.fetchSchedules();
+      return responses.map(mapToSchedule).toList();
+    } catch (e) {
+      // ignore: avoid_print
+      print('[JourneyScreen] 스케줄 불러오기 실패: $e');
+      return [];
+    }
+  }
+
   Future<void> _handleEdit(DiaryEntry entry) async {
     final updatedEntry = await Navigator.push<DiaryEntry>(
       context,
       MaterialPageRoute(
-        builder: (_) => DiaryEditScreen(entry: entry), // <-- 수정 화면 구현 필요
+        builder: (_) => DiaryEditScreen(entry: entry),
       ),
     );
 
@@ -74,15 +97,13 @@ class _JourneyScreenState extends State<JourneyScreen>
         _diariesF = _api.fetchDiaries(); // 목록 새로고침
       });
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('다이어리를 삭제했어요.')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('다이어리를 삭제했어요.')));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('삭제 실패: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('삭제 실패: $e')));
       }
     }
   }
@@ -110,7 +131,7 @@ class _JourneyScreenState extends State<JourneyScreen>
                     padding: EdgeInsets.only(
                       bottom: MediaQuery.of(context).viewInsets.bottom,
                     ),
-                    child: NewDiaryScreen(), // scheduleId 넘기고 싶으면 여기에 전달
+                    child: const NewDiaryScreen(), // scheduleId 넘기고 싶으면 여기에 전달
                   ),
                 );
 
@@ -120,28 +141,21 @@ class _JourneyScreenState extends State<JourneyScreen>
                   });
                 }
               },
-
               icon: const Icon(Icons.add, size: 18),
               label: const Text('Add Diary'),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color.fromARGB(
-                  255,
-                  25,
-                  28,
-                  33,
-                ), // ↓ 블랙보다 부드러운 다크그레이
+                backgroundColor: const Color.fromARGB(255, 25, 28, 33),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
                 textStyle: const TextStyle(fontWeight: FontWeight.w600),
-                overlayColor: Colors.white.withOpacity(.06), // 눌림 효과도 은은하게
+                overlayColor: Colors.white.withOpacity(.06),
               ),
             ),
           ),
         ],
-
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(8),
           child: SizedBox(height: 8),
@@ -273,8 +287,6 @@ class _JourneyTabs extends StatelessWidget {
         }
         return Colors.transparent;
       }),
-      // (선택) 리플 없애고 싶다면 주석 해제
-      // splashFactory: NoSplash.splashFactory,
 
       // 선택된 탭 배경/글자
       indicator: BoxDecoration(
@@ -310,3 +322,18 @@ Schedule mapToSchedule(ScheduleResponse res) {
     heroImageUrl: null, // null 처리
   );
 }
+
+/* ─────────────────────────── 각주 ───────────────────────────
+[A] 에러 원인:
+    ScheduleRepositoryImpl 생성자가 ApiClient 1개(위치 인자)를 요구하게 바뀌었는데
+    화면에서 ScheduleRepositoryImpl()로 호출 → “1 positional argument expected …” 발생.
+
+[B] 해결:
+    Provider로 올려둔 ApiClient를 context.read<ApiClient>()로 읽어
+    _scheduleRepo = ScheduleRepositoryImpl(context.read<ApiClient>()) 형태로 주입.
+
+[C] 주의:
+    context를 사용하는 의존성 초기화는 필드 초기화 구역에서 하면 안 됨.
+    initState에서 의존성 주입을 마치고, 그 다음에 Future 필드(_statsF, _schedulesF, _diariesF)를 초기화해야
+    _fetchSchedulesFromApi()에서 _scheduleRepo를 안전하게 사용할 수 있음.
+────────────────────────────────────────────────────────── */

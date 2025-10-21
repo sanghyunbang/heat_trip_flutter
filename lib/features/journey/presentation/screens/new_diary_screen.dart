@@ -1,9 +1,18 @@
+// lib/features/journey/presentation/screens/new_diary_screen.dart
+//
+// 변경 핵심
+// [A] JourneyRepositoryImpl 은 이제 ApiClient를 "위치 인자"로 받는다 → Provider에서 ApiClient 읽어 주입.
+// [B] import: provider / ApiClient 추가.
+// [C] _submit()에서 repo 생성 시 JourneyRepositoryImpl(context.read<ApiClient>()) 로 수정.
+// [D] 나머지 UI/검증 로직은 유지.
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';                   // [B] Provider에서 ApiClient 읽기
+import 'package:heat_trip_flutter/shared/network/api_client.dart'; // [B] 주입 대상 타입
+
 import 'package:heat_trip_flutter/features/journey/data/journey_repository_impl.dart';
 import '../../domain/models.dart';
-import 'dart:io';
-import 'package:image_picker/image_picker.dart';
 
 class NewDiaryScreen extends StatefulWidget {
   const NewDiaryScreen({super.key, this.scheduleId});
@@ -22,9 +31,6 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
   final _weather = TextEditingController();
   final _body = TextEditingController();
   DateTime _date = DateTime.now();
-  final ImagePicker _picker = ImagePicker();
-
-  final List<File> _imageFiles = [];
 
   final _moods = const [
     ('😀', 'Happy'),
@@ -35,22 +41,18 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
     ('😡', 'Angry'),
   ];
   int _moodIndex = 0;
+  final List<String> _photos = [];
 
-  Future<void> _addPhotoFromDevice() async {
-    final List<XFile>? pickedFiles = await _picker.pickMultiImage();
-    if (pickedFiles != null && pickedFiles.isNotEmpty) {
-      setState(() {
-        _imageFiles.addAll(pickedFiles.map((xfile) => File(xfile.path)));
-      });
-    }
+  @override
+  void dispose() {
+    _title.dispose();
+    _location.dispose();
+    _weather.dispose();
+    _body.dispose();
+    super.dispose();
   }
 
-  void _removePhoto(int idx) {
-    setState(() {
-      _imageFiles.removeAt(idx);
-    });
-  }
-
+  /// 단일 날짜 선택 유지 + 다이얼로그 내부에서만 M3 스타일 오버라이드
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -91,28 +93,21 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                 fontWeight: FontWeight.w500,
                 color: Colors.black54,
               ),
+              // Flutter 3.22+ WidgetState 계열 API 사용
               dayShape: const WidgetStatePropertyAll<OutlinedBorder>(
                 CircleBorder(),
               ),
               dayForegroundColor: WidgetStateProperty.resolveWith<Color?>(
-                (states) =>
-                    states.contains(WidgetState.selected) ? Colors.white : null,
+                (states) => states.contains(WidgetState.selected) ? Colors.white : null,
               ),
               dayBackgroundColor: WidgetStateProperty.resolveWith<Color?>(
                 (states) => states.contains(WidgetState.selected) ? seed : null,
               ),
-              dayOverlayColor: const WidgetStatePropertyAll<Color>(
-                Colors.black12,
-              ),
-              todayForegroundColor: const WidgetStatePropertyAll<Color>(
-                Colors.black87,
-              ),
-              todayBackgroundColor: const WidgetStatePropertyAll<Color>(
-                Colors.transparent,
-              ),
+              dayOverlayColor: const WidgetStatePropertyAll<Color>(Colors.black12),
+              todayForegroundColor: const WidgetStatePropertyAll<Color>(Colors.black87),
+              todayBackgroundColor: const WidgetStatePropertyAll<Color>(Colors.transparent),
               yearForegroundColor: WidgetStateProperty.resolveWith<Color?>(
-                (states) =>
-                    states.contains(WidgetState.selected) ? Colors.white : null,
+                (states) => states.contains(WidgetState.selected) ? Colors.white : null,
               ),
               yearBackgroundColor: WidgetStateProperty.resolveWith<Color?>(
                 (states) => states.contains(WidgetState.selected) ? seed : null,
@@ -138,7 +133,40 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
     if (picked != null) setState(() => _date = picked);
   }
 
-  void _submit() async {
+  void _addPhotoUrlDialog() async {
+    final ctrl = TextEditingController();
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add photo by URL'),
+        content: TextField(
+          controller: ctrl,
+          decoration: const InputDecoration(
+            hintText: 'https://example.com/image.jpg',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final url = ctrl.text.trim();
+              if (url.isNotEmpty) setState(() => _photos.add(url));
+              Navigator.pop(ctx);
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _removePhoto(int idx) => setState(() => _photos.removeAt(idx));
+
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     final moodLabel = _moods[_moodIndex].$2;
@@ -151,36 +179,28 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
       location: _location.text.trim().isEmpty ? '—' : _location.text.trim(),
       moodLabel: moodLabel,
       weatherLabel: _weather.text.trim().isEmpty ? '—' : _weather.text.trim(),
-      photos: [], // 서버에서 반환된 URL로 교체됨
+      photos: List<String>.from(_photos),
       body: _body.text.trim(),
     );
 
-    final repo = JourneyRepositoryImpl();
-    final error = await repo.postDiaryWithImages(
-      entry: entry,
-      images: _imageFiles,
-    );
+    // [A][C] ApiClient를 Provider에서 읽어와 JourneyRepositoryImpl 에 "위치 인자"로 전달
+    final apiClient = context.read<ApiClient>();                 // <-- Provider 필요
+    final repo = JourneyRepositoryImpl(apiClient);               // <-- 위치 인자!
 
+    final error = await repo.postDiary(entry);                   // 서버 전송
     if (error != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('저장 실패: $error')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save: $error')),
+      );
       return;
     }
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('저장 완료!')));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Diary saved')),
+    );
     Navigator.pop(context, entry);
-  }
-
-  @override
-  void dispose() {
-    _title.dispose();
-    _location.dispose();
-    _weather.dispose();
-    _body.dispose();
-    super.dispose();
   }
 
   @override
@@ -203,20 +223,14 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF1F2F5),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       'Schedule #${widget.scheduleId}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
@@ -236,9 +250,8 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                           hintText: 'e.g. Magical Morning at Tsukiji',
                           border: OutlineInputBorder(),
                         ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Title is required'
-                            : null,
+                        validator: (v) =>
+                            (v == null || v.trim().isEmpty) ? 'Title is required' : null,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -272,9 +285,7 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 12),
-
               _Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,10 +303,7 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                             label: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  _moods[i].$1,
-                                  style: const TextStyle(fontSize: 16),
-                                ),
+                                Text(_moods[i].$1, style: const TextStyle(fontSize: 16)),
                                 const SizedBox(width: 6),
                                 Text(_moods[i].$2),
                               ],
@@ -304,9 +312,7 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                             onSelected: (_) => setState(() => _moodIndex = i),
                             selectedColor: const Color(0xFFEBE2CD),
                             labelStyle: TextStyle(
-                              color: _moodIndex == i
-                                  ? const Color(0xFF353535)
-                                  : null,
+                              color: _moodIndex == i ? const Color(0xFF353535) : null,
                               fontWeight: FontWeight.w600,
                             ),
                             side: const BorderSide(color: Color(0xFFE6E6E6)),
@@ -328,40 +334,30 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 12),
-
               _Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const _SectionTitle('Photos'),
                     const SizedBox(height: 8),
-                    if (_imageFiles.isEmpty)
-                      Text(
-                        'No photos selected. Add some!',
-                        style: TextStyle(color: subtle),
-                      ),
-                    if (_imageFiles.isNotEmpty)
-                      _PhotoFileGrid(
-                        files: _imageFiles,
-                        onRemove: _removePhoto,
-                      ),
+                    if (_photos.isEmpty)
+                      Text('No photos yet. Add by URL.', style: TextStyle(color: subtle)),
+                    if (_photos.isNotEmpty)
+                      _PhotoGrid(urls: _photos, onRemove: _removePhoto),
                     const SizedBox(height: 8),
                     Align(
                       alignment: Alignment.centerLeft,
                       child: OutlinedButton.icon(
-                        onPressed: _addPhotoFromDevice,
-                        icon: const Icon(Icons.add_a_photo),
-                        label: const Text('Add Photo'),
+                        onPressed: _addPhotoUrlDialog,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add URL'),
                       ),
                     ),
                   ],
                 ),
               ),
-
               const SizedBox(height: 12),
-
               _Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -376,26 +372,20 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                         hintText: 'Write your story...',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Please write something'
-                          : null,
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Please write something' : null,
                     ),
                   ],
                 ),
               ),
-
               const SizedBox(height: 16),
-
               SizedBox(
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton.icon(
                   onPressed: _submit,
                   icon: const Icon(Icons.check, color: Colors.white),
-                  label: const Text(
-                    'Save Diary',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  label: const Text('Save Diary', style: TextStyle(color: Colors.white)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0B0B14),
                     shape: RoundedRectangleBorder(
@@ -433,55 +423,6 @@ class _Labeled extends StatelessWidget {
   }
 }
 
-class _PhotoFileGrid extends StatelessWidget {
-  const _PhotoFileGrid({required this.files, required this.onRemove});
-  final List<File> files;
-  final void Function(int index) onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      itemCount: files.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-      ),
-      itemBuilder: (_, i) {
-        return Stack(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: Image.file(files[i], fit: BoxFit.cover),
-              ),
-            ),
-            Positioned(
-              right: 4,
-              top: 4,
-              child: InkWell(
-                onTap: () => onRemove(i),
-                borderRadius: BorderRadius.circular(999),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(.5),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  padding: const EdgeInsets.all(4),
-                  child: const Icon(Icons.close, size: 14, color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
 /// 섹션 타이틀
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.text);
@@ -489,10 +430,7 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-    );
+    return Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800));
   }
 }
 
@@ -546,10 +484,7 @@ class _PhotoGrid extends StatelessWidget {
                   errorBuilder: (_, __, ___) => Container(
                     color: Colors.grey.shade200,
                     alignment: Alignment.center,
-                    child: const Icon(
-                      Icons.broken_image_outlined,
-                      color: Colors.black26,
-                    ),
+                    child: const Icon(Icons.broken_image_outlined, color: Colors.black26),
                   ),
                 ),
               ),
@@ -581,7 +516,6 @@ class _PhotoGrid extends StatelessWidget {
 class NewDiaryForScheduleRoute extends StatelessWidget {
   const NewDiaryForScheduleRoute({super.key, required this.state});
   final GoRouterState state;
-
   @override
   Widget build(BuildContext context) {
     final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;

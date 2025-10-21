@@ -1,13 +1,27 @@
+// lib/features/record/presentation/screens/schedule_edit_screen.dart
+//
+// [목표]
+//  - TokenStorage 직접 접근/수동 헤더 제거 → ApiClient가 Authorization 자동 첨부
+//  - AuthRepositoryImpl은 주입형 생성자(AuthRepositoryImpl(ApiClient)) 사용
+//  - 저장/수정 요청은 ApiClient(or Repo) 경유로 단순화
+//  - 불필요 import(Env, http, TokenStorage) 제거
+//
+// [핵심 변경]
+//  ① Provider에서 ApiClient 읽어와 레포를 주입.
+//  ② _fetchUser()는 token 매개 없이 authRepo.getMyProfile() 사용.
+//  ③ _submit()은 ApiClient를 통해 POST/PUT (Authorization 자동).
+
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';                       // ★ 추가: DI
+
 import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
 import 'package:heat_trip_flutter/features/record/data/schedule_repository_impl.dart';
-import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
-import 'package:http/http.dart' as http;
 import 'package:heat_trip_flutter/features/record/data/model/schedule_response.dart';
 import 'package:heat_trip_flutter/features/record/presentation/widgets/record_ui.dart';
-import 'package:heat_trip_flutter/core/config/env.dart';
+import 'package:heat_trip_flutter/shared/network/api_client.dart'; // ★ 추가
 
 class ScheduleEditScreen extends StatefulWidget {
   final ScheduleResponse? schedule;
@@ -18,10 +32,12 @@ class ScheduleEditScreen extends StatefulWidget {
 }
 
 class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
-  final authRepository = AuthRepositoryImpl();
-  final scheduleRepository = ScheduleRepositoryImpl();
-  final _formKey = GlobalKey<FormState>();
+  // ★ 주입형 레포/클라
+  late final ApiClient _api;
+  late final AuthRepositoryImpl _authRepository;
+  late final ScheduleRepositoryImpl _scheduleRepository;
 
+  final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
 
@@ -32,7 +48,12 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchUser();
+    // Provider에서 ApiClient 읽고 레포 주입
+    _api = context.read<ApiClient>();
+    _authRepository = AuthRepositoryImpl(_api);
+    _scheduleRepository = ScheduleRepositoryImpl(_api);
+
+    // 편집 모드 초기 채우기
     if (widget.schedule != null) {
       _titleController.text = widget.schedule!.title;
       _descriptionController.text = widget.schedule!.content ?? '';
@@ -41,15 +62,17 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
         end: widget.schedule!.dateTo,
       );
     }
+    _fetchUser();
   }
 
   Future<void> _fetchUser() async {
+    // ★ 토큰을 직접 꺼낼 필요 없이 AuthRepo가 ApiClient로 Authorization 헤더를 붙입니다.
     try {
-      final token = await TokenStorage.getToken();
-      if (token == null) return setState(() => _authorName = '알 수 없음');
-      final user = await authRepository.getMyProfile(token);
+      final user = await _authRepository.getMyProfile();
+      if (!mounted) return;
       setState(() => _authorName = (user?['name'] ?? '알 수 없음'));
     } catch (_) {
+      if (!mounted) return;
       setState(() => _authorName = '알 수 없음');
     }
   }
@@ -89,7 +112,7 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
   }
 
   Future<void> _submit() async {
-    final token = await TokenStorage.getToken();
+    // 유효성 검사
     if (!(_formKey.currentState!.validate()) || _range == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -100,55 +123,42 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
       return;
     }
 
-    final baseUrl = Env.apiBase;
     final isEditing = widget.schedule != null;
 
-    final url = isEditing
-        ? Uri.parse('$baseUrl/public/schedules/${widget.schedule!.scheduleId}')
-        : Uri.parse('$baseUrl/public/schedules');
-
-    final body = jsonEncode({
+    // 서버로 보낼 JSON
+    final body = {
       "title": _titleController.text,
       "dateFrom": _fm.format(_range!.start),
       "dateTo": _fm.format(_range!.end),
       "content": _descriptionController.text,
-    });
+    };
 
     try {
-      final res = await (isEditing
-          ? http.put(
-              url,
-              headers: {
-                'Authorization': 'Bearer $token',
-                'Content-Type': 'application/json',
-              },
-              body: body,
-            )
-          : http.post(
-              url,
-              headers: {
-                'Authorization': 'Bearer $token',
-                'Content-Type': 'application/json',
-              },
-              body: body,
-            ));
+      // 방법 A) 스케줄 레포 사용 (POST만 있는 경우엔 POST만 위임하고, 수정은 ApiClient 직호출)
+      final res = isEditing
+          ? await _api.put('/public/schedules/${widget.schedule!.scheduleId}',
+              body: jsonEncode(body))
+          : await _api.postJson('/public/schedules', body);
 
       if (res.statusCode == 200 || res.statusCode == 201) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(isEditing ? '스케줄이 수정되었습니다.' : '스케줄이 저장되었습니다.'),
           ),
         );
-        if (mounted) Navigator.pop(context);
+        Navigator.pop(context);
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('저장 실패')));
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('저장 실패 (${res.statusCode})')),
+        );
       }
-    } catch (_) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('서버 오류')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('서버 오류: $e')),
+      );
     }
   }
 

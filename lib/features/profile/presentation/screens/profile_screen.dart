@@ -1,19 +1,16 @@
 // lib/features/profile/presentation/screens/profile_screen.dart
 //
-// 목적
-// - 프로필 헤더(아바타 포함)를 표시하고, 편집 화면에서 돌아오면 재로딩.
-// - (선택) SharedPreferences의 avatarUrl 캐시를 먼저 보여 UX 개선.
-// - Statics 탭은 "사실상 삭제" 상태로 남기되, 나중을 위해 전부 // 주석 처리.
-//
-// 핵심 변경
-// - onEdit: await context.pushNamed('profileEdit')로 결과 대기 후, true면 _loadUserProfile() 재호출.
-// - TabBarView는 이제 Bookmark 탭만 표시. TabController.length = 1 로 맞춤.
-// - Statics 관련 import/코드 라인은 모두 주석 처리(흔적 유지).
+// 변경 요약
+// - authRepository를 late final로 두고, initState에서 주입 초기화
+// - getMyProfile() 호출 시 토큰 인자 제거
+// - 나머지 UI/로직은 기존 유지
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:heat_trip_flutter/shared/network/api_client.dart';
 import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
 import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
 import 'package:heat_trip_flutter/features/profile/presentation/widgets/tabs/bookmark_tab.dart';
@@ -36,7 +33,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   // === 의존성 ===
-  final authRepository = AuthRepositoryImpl();
+  late final AuthRepositoryImpl authRepository; // ★ initState에서 주입
 
   // === 상태 ===
   bool isLoading = true; // 프로필 전체 로딩 스피너 표시 여부
@@ -50,9 +47,13 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
+
+    // [P] ApiClient 주입
+    authRepository = AuthRepositoryImpl(context.read<ApiClient>());
+
     // 탭은 현재 북마크 1개만 활성화
     _tabController = TabController(
-      length: 1, // ← (원래 2) Statics는 아래처럼 전부 주석 처리
+      length: 1, // (원래 2) Statics는 주석 처리
       vsync: this,
     );
     _loadUserProfile(); // 토큰 확인 → 프로필 로드
@@ -88,7 +89,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         return;
       }
 
-      final userInfo = await authRepository.getMyProfile(token);
+      // [Q] 토큰 인자 제거
+      final userInfo = await authRepository.getMyProfile();
       if (!mounted) return;
 
       if (userInfo != null) {
@@ -276,13 +278,9 @@ class _ProfileScreenState extends State<ProfileScreen>
 }
 
 /* ─────────────────────────── 각주 ───────────────────────────
-- 편집 화면에서 Navigator.pop(true)로 결과를 돌려주고,
-  ProfileScreen에서는 await pushNamed(...)로 결과를 대기한 뒤
-  true면 _loadUserProfile()을 재호출해야 헤더/아바타가 즉시 갱신됩니다.
+[P] 화면에서 context를 써야 하므로 authRepository는 late final로 선언 후
+    initState에서 context.read<ApiClient>()로 주입 초기화.
 
-- SharedPreferences에 avatarUrl을 캐시해두면, 앱 재진입 시
-  서버 응답 전에도 이전 이미지를 곧바로 보여줘 UX가 개선됩니다.
-
-- Statics 관련 코드는 실제 동작에서 제외했지만,
-  import/TabBarView 라인에 주석으로 흔적을 남겨 복구 가능하게 했습니다.
+[Q] getMyProfile()은 토큰 인자 제거. ApiClient가 내부에서 Authorization 헤더를 자동 적용.
+    화면에서는 UX를 위해 토큰 존재만 체크(비로그인은 안내/리다이렉트).
 ────────────────────────────────────────────────────────── */

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:heat_trip_flutter/shared/network/api_client.dart';
+
 import 'package:heat_trip_flutter/features/journey/data/journey_api.dart';
 import '../../domain/models.dart';
 
@@ -29,12 +32,16 @@ class _DiaryEditScreenState extends State<DiaryEditScreen> {
 
   late DateTime _selectedDate;
 
-  // ✅ 실제 API 인스턴스
-  final JourneyApi _journeyApi = RealJourneyApi();
+  // ✅ 실제 API 인스턴스 (주입으로 초기화)
+  late JourneyApi _journeyApi;
 
   @override
   void initState() {
     super.initState();
+
+    // ApiClient 주입
+    _journeyApi = RealJourneyApi(context.read<ApiClient>());
+
     _titleController = TextEditingController(text: widget.entry.title);
     _bodyController = TextEditingController(text: widget.entry.body);
     _locationController = TextEditingController(text: widget.entry.location);
@@ -70,11 +77,11 @@ class _DiaryEditScreenState extends State<DiaryEditScreen> {
       if (!mounted) return;
       Navigator.pop(context, result); // 수정된 객체 반환
     } catch (e) {
+      // ignore: avoid_print
       print('❌ Failed to update diary: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to update diary')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Failed to update diary')));
     }
   }
 
