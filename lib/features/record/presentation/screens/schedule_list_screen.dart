@@ -5,6 +5,7 @@
 // - context를 쓰는 의존성 초기화는 initState에서 수행
 // - setState 호출 전 mounted 체크 추가
 // - 로그인 버튼: go_router 사용(중복 네비 제거)
+// - ✅ 스케줄이 0개여도 Calendar 탭은 항상 표시 (기존: 비어있으면 달력 자체가 사라짐)
 
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -350,15 +351,6 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
       );
     }
 
-    // ✅ 전체가 비어있으면 바로 Empty UI
-    if (_all.isEmpty) {
-      return Scaffold(
-        appBar: _buildAppBar(context),
-        backgroundColor: Colors.white,
-        body: _emptyState(),
-      );
-    }
-
     final fm = DateFormat('yyyy-MM-dd');
     final listFiltered = _filteredForList;
 
@@ -389,10 +381,8 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                   ? _emptyState()
                   : _listContent(fm, listFiltered))
             else
-              // ✅ 달력 탭: 필터 결과가 0개면 Empty, 아니면 기존 달력
-              (_filteredForCalendar.isEmpty
-                  ? _emptyState()
-                  : _calendarContent(fm)),
+              // ✅ 달력 탭: 스케줄이 없어도 달력은 항상 표시
+              _calendarContent(fm),
           ],
         ),
       ),
@@ -400,7 +390,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }
 
   // ─────────────────────────────────────
-  // Empty UI
+  // Empty UI (리스트 탭 전용 안내)
   // ─────────────────────────────────────
   Widget _emptyState() {
     return const Center(
@@ -472,7 +462,6 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   /// 상단 요약: 진행 중이면 라벨=Now & 제목만, 없으면 라벨=Next & 제목(D-n)
   Widget _summaryRow() {
     final items = _filteredForList; // 🔁 검색/필터 반영된 목록
-    if (items.isEmpty) return const SizedBox();
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -644,6 +633,8 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
           ...completed.map((s) => _cardFor(s, fm)).toList(),
           const SizedBox(height: 16),
         ],
+        if (inProgress.isEmpty && planned.isEmpty && completed.isEmpty)
+          _emptyState(), // 리스트 탭에서만 안내
       ],
     );
   }
@@ -765,29 +756,29 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }
 
   // ─────────────────────────────────────
-  // 달력 탭
+  // 달력 탭 (스케줄이 없어도 항상 달력 표시)
   // ─────────────────────────────────────
   Widget _calendarContent(DateFormat fm) {
-    final selectedItems = _selectedDay == null
-        ? <ScheduleResponse>[]
-        : _schedulesOn(_selectedDay!);
+    final selectedItems =
+        _selectedDay == null ? <ScheduleResponse>[] : _schedulesOn(_selectedDay!);
 
     final today = DateTime(
       DateTime.now().year,
       DateTime.now().month,
       DateTime.now().day,
     );
-    final upcomingSchedules =
-        _filteredForCalendar
-            .where(
-              (s) => !DateTime(
-                s.dateTo.year,
-                s.dateTo.month,
-                s.dateTo.day,
-              ).isBefore(today),
-            )
-            .toList()
-          ..sort((a, b) => a.dateFrom.compareTo(b.dateFrom));
+    final upcomingSchedules = _filteredForCalendar
+        .where(
+          (s) => !DateTime(
+            s.dateTo.year,
+            s.dateTo.month,
+            s.dateTo.day,
+          ).isBefore(today),
+        )
+        .toList()
+      ..sort((a, b) => a.dateFrom.compareTo(b.dateFrom));
+
+    final hasAny = _filteredForCalendar.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -855,6 +846,18 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
             ),
           ),
         ),
+        const SizedBox(height: 12),
+
+        // 🔹 스케줄이 하나도 없을 때 안내 헤더(달력은 그대로 유지)
+        if (!hasAny)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              '캘린더에는 일정이 없습니다.',
+              style: TextStyle(fontSize: 12, color: kTextMuted),
+            ),
+          ),
+
         const SizedBox(height: 16),
 
         // 선택한 날짜

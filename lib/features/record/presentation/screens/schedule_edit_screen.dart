@@ -10,18 +10,22 @@
 //  ① Provider에서 ApiClient 읽어와 레포를 주입.
 //  ② _fetchUser()는 token 매개 없이 authRepo.getMyProfile() 사용.
 //  ③ _submit()은 ApiClient를 통해 POST/PUT (Authorization 자동).
+//  ④ ★ 저장 성공 시 JourneyState.refreshSchedules() 호출 → Diary 탭 실시간 반영
 
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';                       // ★ 추가: DI
+import 'package:provider/provider.dart';                       // ★ DI
 
 import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
 import 'package:heat_trip_flutter/features/record/data/schedule_repository_impl.dart';
 import 'package:heat_trip_flutter/features/record/data/model/schedule_response.dart';
 import 'package:heat_trip_flutter/features/record/presentation/widgets/record_ui.dart';
-import 'package:heat_trip_flutter/shared/network/api_client.dart'; // ★ 추가
+import 'package:heat_trip_flutter/shared/network/api_client.dart';
+
+// ★ 추가: Journey 탭에 실시간 반영
+import 'package:heat_trip_flutter/features/journey/state/journey_state.dart';
 
 class ScheduleEditScreen extends StatefulWidget {
   final ScheduleResponse? schedule;
@@ -134,20 +138,26 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
     };
 
     try {
-      // 방법 A) 스케줄 레포 사용 (POST만 있는 경우엔 POST만 위임하고, 수정은 ApiClient 직호출)
       final res = isEditing
-          ? await _api.put('/public/schedules/${widget.schedule!.scheduleId}',
-              body: jsonEncode(body))
+          ? await _api.put(
+              '/public/schedules/${widget.schedule!.scheduleId}',
+              body: jsonEncode(body),
+            )
           : await _api.postJson('/public/schedules', body);
 
       if (res.statusCode == 200 || res.statusCode == 201) {
+        // ★★★ 여기! 저장 성공 → Journey 탭 데이터 즉시 갱신
+        final journey = context.read<JourneyState>();
+        await journey.refreshSchedules();   // Trips 목록 즉시 반영
+        // await journey.refreshDiaries();  // (선택) 스케줄 변경이 다이어리 계산에 영향 있으면 켜기
+
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(isEditing ? '스케줄이 수정되었습니다.' : '스케줄이 저장되었습니다.'),
           ),
         );
-        Navigator.pop(context);
+        Navigator.pop(context, true); // (선택) 부모가 pop result로도 감지 가능
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(

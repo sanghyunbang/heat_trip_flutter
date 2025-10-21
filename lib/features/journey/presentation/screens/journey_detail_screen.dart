@@ -1,16 +1,25 @@
-// 📁 journey_detail_screen.dart
+// lib/features/journey/presentation/screens/journey_detail_screen.dart
+//
+// 목적
+// - 스케줄 상세 + 해당 스케줄의 다이어리 리스트 화면
+// - 화면에서 API/Repo 직접 생성 제거 → JourneyState만 의존
+//
+// 핵심 변경점
+// [J1] 상태에서 스케줄/다이어리를 읽고 구독(watch) → 실시간 반영
+// [J2] Photos 카운트 = 상태 기반 합계(context.watch 후 fold)로 계산
+//      (schedule.memoriesCount 대신 → 작성 직후에도 정확)
+// [J3] 편집/삭제는 JourneyState 메서드로 일원화
+// [J4] initial 스케줄이 없을 경우 1회 보충 fetch
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:heat_trip_flutter/shared/network/api_client.dart';
-
-import 'package:heat_trip_flutter/features/journey/presentation/screens/diary_detail_screen.dart';
-import 'package:heat_trip_flutter/features/journey/presentation/screens/diary_edit_screen.dart';
-import 'package:heat_trip_flutter/features/journey/presentation/widgets/diary_list.dart';
 
 import '../../domain/models.dart';
-import '../../data/journey_api.dart';
+import '../../state/journey_state.dart';
+import 'diary_detail_screen.dart';
+import 'diary_edit_screen.dart';
+import '../widgets/diary_list.dart';
 
 class JourneyDetailScreen extends StatefulWidget {
   const JourneyDetailScreen({super.key, required this.id, this.initial});
@@ -23,31 +32,32 @@ class JourneyDetailScreen extends StatefulWidget {
 }
 
 class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
-  late JourneyApi _api;
-  List<DiaryEntry>? _entries;
-  Schedule? _data;
-  bool _loading = false;
+  Schedule? _schedule;         // 상세 헤더용
+  bool _fetchingSchedule = false;
 
   @override
   void initState() {
     super.initState();
-    _api = RealJourneyApi(context.read<ApiClient>()); // ✅ 주입
-    _data = widget.initial;
-    _fetch();
+    _schedule = widget.initial;
+    _ensureScheduleLoaded();
   }
 
-  Future<void> _fetch() async {
-    setState(() => _loading = _data == null);
-    try {
-      final fresh = await _api.fetchScheduleById(widget.id);
-      final diaries = await _api.fetchDiariesBySchedule(widget.id);
-      if (!mounted) return;
-      setState(() {
-        _data = fresh ?? _data;
-        _entries = diaries;
-      });
-    } finally {
-      if (mounted) setState(() => _loading = false);
+  /// 상태에 없으면 1회만 API로 스케줄 보충 로드
+  Future<void> _ensureScheduleLoaded() async {
+    final state = context.read<JourneyState>();
+
+    // 1) 상태에서 먼저 찾기 (없으면 null)
+    _schedule ??= state.schedules.where((s) => s.id == widget.id).cast<Schedule?>().firstOrNull ?? _schedule;
+
+    // 2) 그래도 없으면 API 조회
+    if (_schedule == null) {
+      setState(() => _fetchingSchedule = true);
+      try {
+        final fresh = await state.api.fetchScheduleById(widget.id);
+        if (mounted) setState(() => _schedule = fresh);
+      } finally {
+        if (mounted) setState(() => _fetchingSchedule = false);
+      }
     }
   }
 
@@ -57,42 +67,60 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
       MaterialPageRoute(builder: (_) => DiaryEditScreen(entry: entry)),
     );
     if (updatedEntry != null) {
-      await _fetch();
+      await context.read<JourneyState>().updateDiary(updatedEntry); // [J3]
     }
   }
 
   Future<void> _handleDelete(DiaryEntry entry) async {
     try {
-      await _api.deleteDiary(entry.id!);
-      await _fetch();
+      await context.read<JourneyState>().deleteDiary(entry.id!);    // [J3]
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('다이어리를 삭제했어요.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('다이어리를 삭제했어요.')),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('삭제 실패: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('삭제 실패: $e')),
+        );
       }
     }
   }
 
+  Future<void> _refresh() async {
+    await context.read<JourneyState>().refreshDiaries();
+    await context.read<JourneyState>().refreshSchedules();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final schedule = _data;
+    final schedule = _schedule;
     if (schedule == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      // 아직 로딩 중이거나 찾지 못한 경우
+      return Scaffold(
+        appBar: AppBar(leading: const BackButton(), title: const Text('Journey')),
+        body: Center(
+          child: _fetchingSchedule
+              ? const CircularProgressIndicator()
+              : const Text('Schedule not found.'),
+        ),
+      );
     }
 
-    final hero =
-        schedule.heroImageUrl ??
-        'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop';
+    // 이 스케줄에 귀속된 다이어리 목록 (상태 구독)
+    final entries = context.watch<JourneyState>().diariesBySchedule(widget.id);
 
-    final photosCount = schedule.memoriesCount;
-    final journeyCount = _entries?.length ?? 0;
+    // [J2] Photos 카운트: 현재 상태의 다이어리들에서 사진 합계 계산
+    final photosCount = entries.fold<int>(0, (sum, e) => sum + e.photos.length);
+
+    final journeyCount = entries.length;
     final int? tripDays = (schedule.dateFrom != null && schedule.dateTo != null)
         ? schedule.dateTo!.difference(schedule.dateFrom!).inDays + 1
         : null;
+
+    final hero = schedule.heroImageUrl ??
+        'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop';
 
     return Scaffold(
       appBar: AppBar(
@@ -117,13 +145,14 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
         ),
       ),
       body: RefreshIndicator(
-        onRefresh: _fetch,
+        onRefresh: _refresh,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ───────── Hero ─────────
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: AspectRatio(
@@ -144,6 +173,8 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                 ),
               ),
               const SizedBox(height: 8),
+
+              // ───────── Info Card ─────────
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -170,7 +201,9 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                           Text(
                             schedule.location ?? '—',
                             style: TextStyle(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -199,8 +232,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                         spacing: 4,
                         runSpacing: 8,
                         children: [
-                          for (final t in schedule.tags.take(3))
-                            _TagPill(text: t),
+                          for (final t in schedule.tags.take(3)) _TagPill(text: t),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -212,7 +244,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                             child: _StatMini(
                               icon: Icons.photo_camera_outlined,
                               iconColor: const Color(0xFF4E7CFF),
-                              value: '$photosCount',
+                              value: '$photosCount',      // [J2]
                               label: 'Photos',
                             ),
                           ),
@@ -238,16 +270,22 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                   ),
                 ),
               ),
+
               const SizedBox(height: 12),
+
+              // ───────── New Diary Button ─────────
               SizedBox(
                 height: 48,
                 width: double.infinity,
                 child: FilledButton.icon(
-                  onPressed: () {
+                  onPressed: () async {
                     context.pushNamed(
                       'newDiaryForSchedule',
                       pathParameters: {'id': widget.id.toString()},
-                    );
+                    ).then((_) {
+                      // 돌아오면 새로고침 (서버/상태 재동기화 보장)
+                      context.read<JourneyState>().refreshDiaries();
+                    });
                   },
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('New Diary Entry'),
@@ -259,73 +297,68 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     textStyle: const TextStyle(fontWeight: FontWeight.w600),
-                    overlayColor: Colors.white.withOpacity(.06),
+                    overlayColor: Colors.white24,
                   ),
                 ),
               ),
+
               const SizedBox(height: 22),
-              if (_entries == null)
-                const Center(child: CircularProgressIndicator())
-              else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Diary Entries',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                            ),
+
+              // ───────── Diary Entries ─────────
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Diary Entries',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F2F5),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            '$journeyCount entries',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    if (_entries!.isEmpty)
-                      _EmptyDiaryCard(title: schedule.title)
-                    else
-                      DiaryList(
-                        entries: _entries!,
-                        embedded: true,
-                        padding: EdgeInsets.zero,
-                        onTap: (entry) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => DiaryDetailScreen(entry: entry),
-                            ),
-                          );
-                        },
-                        onEdit: _handleEdit,
-                        onDelete: _handleDelete,
                       ),
-                  ],
-                ),
-              if (_loading)
-                const Padding(
-                  padding: EdgeInsets.only(top: 12),
-                  child: LinearProgressIndicator(minHeight: 3),
-                ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F2F5),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '${entries.length} entries',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (entries.isEmpty)
+                    _EmptyDiaryCard(title: schedule.title)
+                  else
+                    DiaryList(
+                      entries: entries,
+                      embedded: true,
+                      padding: EdgeInsets.zero,
+                      onTap: (entry) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => DiaryDetailScreen(entry: entry),
+                          ),
+                        );
+                      },
+                      onEdit: _handleEdit,
+                      onDelete: _handleDelete,
+                    ),
+                ],
+              ),
             ],
           ),
         ),
@@ -343,6 +376,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
   }
 }
 
+// ───────── 작은 위젯들 ─────────
 class _TagPill extends StatelessWidget {
   const _TagPill({required this.text});
   final String text;
@@ -444,3 +478,10 @@ class _EmptyDiaryCard extends StatelessWidget {
     );
   }
 }
+
+/* ───────────── 각주 ─────────────
+[J1] 화면은 JourneyState만 의존: API/Repo new 제거 → 테스트/DI 단순화.
+[J2] Photos 카운트는 entries.photos 합계 산출로 변경 → 작성/삭제 즉시 반영.
+[J3] 편집/삭제는 JourneyState 메서드로 일원화(낙관적/롤백 전략과 일관성 유지).
+[J4] initial이 없을 때 1회 fetch 보충. 라우팅 시 extra 미전달 케이스 커버.
+──────────────────────── */
