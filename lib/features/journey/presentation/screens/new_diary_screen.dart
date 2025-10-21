@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:heat_trip_flutter/features/journey/data/journey_repository_impl.dart';
 import '../../domain/models.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class NewDiaryScreen extends StatefulWidget {
   const NewDiaryScreen({super.key, this.scheduleId});
@@ -20,6 +22,9 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
   final _weather = TextEditingController();
   final _body = TextEditingController();
   DateTime _date = DateTime.now();
+  final ImagePicker _picker = ImagePicker();
+
+  final List<File> _imageFiles = [];
 
   final _moods = const [
     ('😀', 'Happy'),
@@ -30,18 +35,22 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
     ('😡', 'Angry'),
   ];
   int _moodIndex = 0;
-  final List<String> _photos = [];
 
-  @override
-  void dispose() {
-    _title.dispose();
-    _location.dispose();
-    _weather.dispose();
-    _body.dispose();
-    super.dispose();
+  Future<void> _addPhotoFromDevice() async {
+    final List<XFile>? pickedFiles = await _picker.pickMultiImage();
+    if (pickedFiles != null && pickedFiles.isNotEmpty) {
+      setState(() {
+        _imageFiles.addAll(pickedFiles.map((xfile) => File(xfile.path)));
+      });
+    }
   }
 
-  /// 단일 날짜 선택 유지 + 다이얼로그 내부에서만 M3 스타일 오버라이드
+  void _removePhoto(int idx) {
+    setState(() {
+      _imageFiles.removeAt(idx);
+    });
+  }
+
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -65,14 +74,12 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
               brightness: base.brightness,
             ),
             datePickerTheme: base.datePickerTheme.copyWith(
-              // 다이얼로그 외곽
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(28),
               ),
-              backgroundColor: Colors.white, // 달력 본문 배경 흰색
-              surfaceTintColor: Colors.transparent, // M3 보랏빛 틴트 제거
-              elevation: 0, // 틴트 생기는 표면 고도 0
-              // 헤더 톤
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
               headerBackgroundColor: Colors.white,
               headerForegroundColor: Colors.black87,
               headerHeadlineStyle: const TextStyle(
@@ -84,8 +91,6 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                 fontWeight: FontWeight.w500,
                 color: Colors.black54,
               ),
-
-              // ✅ 여기들이 핵심: WidgetStateProperty로 래핑
               dayShape: const WidgetStatePropertyAll<OutlinedBorder>(
                 CircleBorder(),
               ),
@@ -99,14 +104,12 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
               dayOverlayColor: const WidgetStatePropertyAll<Color>(
                 Colors.black12,
               ),
-
               todayForegroundColor: const WidgetStatePropertyAll<Color>(
                 Colors.black87,
               ),
               todayBackgroundColor: const WidgetStatePropertyAll<Color>(
                 Colors.transparent,
               ),
-
               yearForegroundColor: WidgetStateProperty.resolveWith<Color?>(
                 (states) =>
                     states.contains(WidgetState.selected) ? Colors.white : null,
@@ -132,41 +135,8 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
       },
     );
 
-    if (picked != null) setState(() => _date = picked); // 단일 날짜 선택 유지
+    if (picked != null) setState(() => _date = picked);
   }
-
-  void _addPhotoUrlDialog() async {
-    final ctrl = TextEditingController();
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add photo by URL'),
-        content: TextField(
-          controller: ctrl,
-          decoration: const InputDecoration(
-            hintText: 'https://example.com/image.jpg',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final url = ctrl.text.trim();
-              if (url.isNotEmpty) setState(() => _photos.add(url));
-              Navigator.pop(ctx);
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _removePhoto(int idx) => setState(() => _photos.removeAt(idx));
 
   void _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -181,17 +151,14 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
       location: _location.text.trim().isEmpty ? '—' : _location.text.trim(),
       moodLabel: moodLabel,
       weatherLabel: _weather.text.trim().isEmpty ? '—' : _weather.text.trim(),
-      photos: [], // ⛔ 서버 업로드 후 URL 받으면 여기에 연결할 수도 있음
+      photos: [], // 서버에서 반환된 URL로 교체됨
       body: _body.text.trim(),
     );
-
-    // 🔁 이미지 업로드할 파일 리스트 준비
-    final selectedImageFiles = <File>[]; // 📌 여기에 File 객체들 넣어줘야 함
 
     final repo = JourneyRepositoryImpl();
     final error = await repo.postDiaryWithImages(
       entry: entry,
-      images: selectedImageFiles,
+      images: _imageFiles,
     );
 
     if (error != null) {
@@ -205,6 +172,15 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
       context,
     ).showSnackBar(const SnackBar(content: Text('저장 완료!')));
     Navigator.pop(context, entry);
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _location.dispose();
+    _weather.dispose();
+    _body.dispose();
+    super.dispose();
   }
 
   @override
@@ -223,7 +199,6 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
           key: _formKey,
           child: Column(
             children: [
-              // ✅ 스케줄 연동 배지는 scheduleId 있을 때만 노출
               if (widget.scheduleId != null)
                 Align(
                   alignment: Alignment.centerLeft,
@@ -297,7 +272,9 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                   ],
                 ),
               ),
+
               const SizedBox(height: 12),
+
               _Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -351,33 +328,40 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                   ],
                 ),
               ),
+
               const SizedBox(height: 12),
+
               _Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const _SectionTitle('Photos'),
                     const SizedBox(height: 8),
-                    if (_photos.isEmpty)
+                    if (_imageFiles.isEmpty)
                       Text(
-                        'No photos yet. Add by URL.',
+                        'No photos selected. Add some!',
                         style: TextStyle(color: subtle),
                       ),
-                    if (_photos.isNotEmpty)
-                      _PhotoGrid(urls: _photos, onRemove: _removePhoto),
+                    if (_imageFiles.isNotEmpty)
+                      _PhotoFileGrid(
+                        files: _imageFiles,
+                        onRemove: _removePhoto,
+                      ),
                     const SizedBox(height: 8),
                     Align(
                       alignment: Alignment.centerLeft,
                       child: OutlinedButton.icon(
-                        onPressed: _addPhotoUrlDialog,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add URL'),
+                        onPressed: _addPhotoFromDevice,
+                        icon: const Icon(Icons.add_a_photo),
+                        label: const Text('Add Photo'),
                       ),
                     ),
                   ],
                 ),
               ),
+
               const SizedBox(height: 12),
+
               _Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -399,7 +383,9 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                   ],
                 ),
               ),
+
               const SizedBox(height: 16),
+
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -443,6 +429,55 @@ class _Labeled extends StatelessWidget {
         const SizedBox(height: 6),
         child,
       ],
+    );
+  }
+}
+
+class _PhotoFileGrid extends StatelessWidget {
+  const _PhotoFileGrid({required this.files, required this.onRemove});
+  final List<File> files;
+  final void Function(int index) onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      itemCount: files.length,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+      ),
+      itemBuilder: (_, i) {
+        return Stack(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: Image.file(files[i], fit: BoxFit.cover),
+              ),
+            ),
+            Positioned(
+              right: 4,
+              top: 4,
+              child: InkWell(
+                onTap: () => onRemove(i),
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(.5),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  padding: const EdgeInsets.all(4),
+                  child: const Icon(Icons.close, size: 14, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -546,6 +581,7 @@ class _PhotoGrid extends StatelessWidget {
 class NewDiaryForScheduleRoute extends StatelessWidget {
   const NewDiaryForScheduleRoute({super.key, required this.state});
   final GoRouterState state;
+
   @override
   Widget build(BuildContext context) {
     final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
