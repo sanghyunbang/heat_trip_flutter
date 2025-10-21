@@ -69,10 +69,9 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(28),
               ),
-              backgroundColor: Colors.white,                 // 달력 본문 배경 흰색
-              surfaceTintColor: Colors.transparent,          // M3 보랏빛 틴트 제거
-              elevation: 0,                                  // 틴트 생기는 표면 고도 0
-
+              backgroundColor: Colors.white, // 달력 본문 배경 흰색
+              surfaceTintColor: Colors.transparent, // M3 보랏빛 틴트 제거
+              elevation: 0, // 틴트 생기는 표면 고도 0
               // 헤더 톤
               headerBackgroundColor: Colors.white,
               headerForegroundColor: Colors.black87,
@@ -91,28 +90,29 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                 CircleBorder(),
               ),
               dayForegroundColor: WidgetStateProperty.resolveWith<Color?>(
-                    (states) =>
-                states.contains(WidgetState.selected) ? Colors.white : null,
+                (states) =>
+                    states.contains(WidgetState.selected) ? Colors.white : null,
               ),
               dayBackgroundColor: WidgetStateProperty.resolveWith<Color?>(
-                    (states) =>
-                states.contains(WidgetState.selected) ? seed : null,
+                (states) => states.contains(WidgetState.selected) ? seed : null,
               ),
-              dayOverlayColor:
-              const WidgetStatePropertyAll<Color>(Colors.black12),
+              dayOverlayColor: const WidgetStatePropertyAll<Color>(
+                Colors.black12,
+              ),
 
-              todayForegroundColor:
-              const WidgetStatePropertyAll<Color>(Colors.black87),
-              todayBackgroundColor:
-              const WidgetStatePropertyAll<Color>(Colors.transparent),
+              todayForegroundColor: const WidgetStatePropertyAll<Color>(
+                Colors.black87,
+              ),
+              todayBackgroundColor: const WidgetStatePropertyAll<Color>(
+                Colors.transparent,
+              ),
 
               yearForegroundColor: WidgetStateProperty.resolveWith<Color?>(
-                    (states) =>
-                states.contains(WidgetState.selected) ? Colors.white : null,
+                (states) =>
+                    states.contains(WidgetState.selected) ? Colors.white : null,
               ),
               yearBackgroundColor: WidgetStateProperty.resolveWith<Color?>(
-                    (states) =>
-                states.contains(WidgetState.selected) ? seed : null,
+                (states) => states.contains(WidgetState.selected) ? seed : null,
               ),
             ),
             textButtonTheme: TextButtonThemeData(
@@ -181,23 +181,29 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
       location: _location.text.trim().isEmpty ? '—' : _location.text.trim(),
       moodLabel: moodLabel,
       weatherLabel: _weather.text.trim().isEmpty ? '—' : _weather.text.trim(),
-      photos: List<String>.from(_photos),
+      photos: [], // ⛔ 서버 업로드 후 URL 받으면 여기에 연결할 수도 있음
       body: _body.text.trim(),
     );
 
-    final repo = JourneyRepositoryImpl(); // ✨ Repository 인스턴스 생성
-    final error = await repo.postDiary(entry); // ✨ 서버 전송
+    // 🔁 이미지 업로드할 파일 리스트 준비
+    final selectedImageFiles = <File>[]; // 📌 여기에 File 객체들 넣어줘야 함
+
+    final repo = JourneyRepositoryImpl();
+    final error = await repo.postDiaryWithImages(
+      entry: entry,
+      images: selectedImageFiles,
+    );
 
     if (error != null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to save: $error')));
+      ).showSnackBar(SnackBar(content: Text('저장 실패: $error')));
       return;
     }
 
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Diary saved')));
+    ).showSnackBar(const SnackBar(content: Text('저장 완료!')));
     Navigator.pop(context, entry);
   }
 

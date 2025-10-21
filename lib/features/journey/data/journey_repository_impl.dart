@@ -156,16 +156,20 @@ class JourneyRepositoryImpl {
     final token = await TokenStorage.getToken();
     if (token == null) return null;
 
-    final url = Uri.parse('$baseUrl/journeys/entries/images');
+    final url = Uri.parse('$baseUrl/media');
     final request = http.MultipartRequest('POST', url);
     request.headers['Authorization'] = 'Bearer $token';
+
+    request.fields['category'] = 'journeys';
+    request.fields['refType'] = 'journey';
 
     for (final file in images) {
       final mimeType = lookupMimeType(file.path) ?? 'image/jpeg';
       final mediaType = MediaType.parse(mimeType);
+
       request.files.add(
         await http.MultipartFile.fromPath(
-          'images',
+          'files',
           file.path,
           contentType: mediaType,
         ),
@@ -176,10 +180,14 @@ class JourneyRepositoryImpl {
     final response = await http.Response.fromStream(streamedResponse);
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return List<String>.from(data);
+      final List<dynamic> data = jsonDecode(response.body);
+      return data
+          .map((item) => item['url'].toString())
+          .toList(); // 🔁 서버 응답 형식에 맞게
     } else {
-      print('Image upload failed: ${response.statusCode} ${response.body}');
+      print(
+        '[uploadImages] ❌ Upload failed: ${response.statusCode} / ${response.body}',
+      );
       return null;
     }
   }
