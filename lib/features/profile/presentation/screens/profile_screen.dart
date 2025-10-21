@@ -1,12 +1,14 @@
 // lib/features/profile/presentation/screens/profile_screen.dart
 //
 // 목적
-// - 프로필 헤더(아바타 포함)를 표시하고, 편집 화면에서 돌아오면 재로딩. [⑤]
-// - (선택) SharedPreferences의 avatarUrl 캐시를 먼저 보여 UX 개선. [⑥]
+// - 프로필 헤더(아바타 포함)를 표시하고, 편집 화면에서 돌아오면 재로딩.
+// - (선택) SharedPreferences의 avatarUrl 캐시를 먼저 보여 UX 개선.
+// - Statics 탭은 "사실상 삭제" 상태로 남기되, 나중을 위해 전부 // 주석 처리.
 //
 // 핵심 변경
 // - onEdit: await context.pushNamed('profileEdit')로 결과 대기 후, true면 _loadUserProfile() 재호출.
-// - TabBarView의 children 개수와 TabController.length(=2) 일치 유지(StaticsTab 복원 or Placeholder).
+// - TabBarView는 이제 Bookmark 탭만 표시. TabController.length = 1 로 맞춤.
+// - Statics 관련 import/코드 라인은 모두 주석 처리(흔적 유지).
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -15,10 +17,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
 import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
 import 'package:heat_trip_flutter/features/profile/presentation/widgets/tabs/bookmark_tab.dart';
-import 'package:heat_trip_flutter/features/profile/presentation/widgets/tabs/statics_tab.dart';
 
 // 공용 위젯들 (ProfileHeader, RightSideMenuPanel 등)
 import '../profile.dart';
+
+// ───────────────────────── Statics 흔적 (주석 처리) ─────────────────────────
+// import 'package:heat_trip_flutter/features/profile/presentation/widgets/tabs/statics_tab.dart';
+// ↑ 나중에 복구할 수 있도록 import만 주석으로 남겨둡니다.
+// ────────────────────────────────────────────────────────────────────────────
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -44,8 +50,11 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
-    // 탭 개수는 실제 children 수와 맞춰야 함(여기서는 2개 유지)
-    _tabController = TabController(length: 2, vsync: this);
+    // 탭은 현재 북마크 1개만 활성화
+    _tabController = TabController(
+      length: 1, // ← (원래 2) Statics는 아래처럼 전부 주석 처리
+      vsync: this,
+    );
     _loadUserProfile(); // 토큰 확인 → 프로필 로드
   }
 
@@ -58,7 +67,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   /// 토큰 존재 여부 확인 후, 로그인 시 서버에서 내 프로필 로드
   Future<void> _loadUserProfile() async {
     try {
-      // (선택) 캐시된 avatarUrl 먼저 보여주기: 서버 응답 전 초기 UX 개선. [⑥]
+      // (선택) 캐시된 avatarUrl 먼저 보여주기: 서버 응답 전 초기 UX 개선.
       try {
         final sp = await SharedPreferences.getInstance();
         final cached = sp.getString('avatarUrl');
@@ -80,7 +89,6 @@ class _ProfileScreenState extends State<ProfileScreen>
       }
 
       final userInfo = await authRepository.getMyProfile(token);
-
       if (!mounted) return;
 
       if (userInfo != null) {
@@ -182,11 +190,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                   // ===== 상단 헤더 =====
                   ProfileHeader(
                     backgroundColor: headerBg,
-                    tabController: _tabController,
+                    tabController: _tabController, // length = 1
                     avatarUrl: avatarUrl, // ← 서버의 imageUrl 또는 캐시
                     nickname: nickname,
                     isLoggedIn: isLoggedIn,
-                    // ★ 편집으로 이동 후 결과 대기 → true면 재조회. [⑤]
+                    // ★ 편집으로 이동 후 결과 대기 → true면 재조회.
                     onEdit: () async {
                       final changed = await context.pushNamed('profileEdit');
                       if (changed == true && mounted) {
@@ -205,10 +213,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                       child: TabBarView(
                         controller: _tabController,
                         children: const [
-                          // Tab 1
-                          StaticsTab(),
-                          // Tab 2
+                          // 활성 탭: Bookmark
                           BookmarkTab(),
+
+                          // ───────────── Statics 흔적 (주석 처리) ─────────────
+                          // StaticsTab(),
+                          // ↑ 북마크 외 탭을 다시 보이게 하려면
+                          // 1) 위 라인의 주석을 풀고,
+                          // 2) 상단 TabController.length 를 2 로 변경,
+                          // 3) ProfileHeader 내부 탭 라벨도 2개로 맞추세요.
+                          // ────────────────────────────────────────────────
                         ],
                       ),
                     )
@@ -262,10 +276,13 @@ class _ProfileScreenState extends State<ProfileScreen>
 }
 
 /* ─────────────────────────── 각주 ───────────────────────────
-[⑤] 편집 화면에서 Navigator.pop(true)로 결과를 돌려주고,
-     ProfileScreen에서는 await pushNamed(...)로 결과를 대기한 뒤
-     true면 _loadUserProfile()을 재호출해야 헤더/아바타가 즉시 갱신됩니다.
+- 편집 화면에서 Navigator.pop(true)로 결과를 돌려주고,
+  ProfileScreen에서는 await pushNamed(...)로 결과를 대기한 뒤
+  true면 _loadUserProfile()을 재호출해야 헤더/아바타가 즉시 갱신됩니다.
 
-[⑥] SharedPreferences에 avatarUrl을 캐시해두면, 앱 재진입 시
-     서버 응답 전에도 이전 이미지를 곧바로 보여줘 UX가 개선됩니다.
+- SharedPreferences에 avatarUrl을 캐시해두면, 앱 재진입 시
+  서버 응답 전에도 이전 이미지를 곧바로 보여줘 UX가 개선됩니다.
+
+- Statics 관련 코드는 실제 동작에서 제외했지만,
+  import/TabBarView 라인에 주석으로 흔적을 남겨 복구 가능하게 했습니다.
 ────────────────────────────────────────────────────────── */
