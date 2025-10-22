@@ -5,16 +5,9 @@
 // - 최초 부트스트랩 로드 + 필터링 + CRUD(다이어리) 낙관적 갱신
 // - 화면은 이 상태만 watch/read하여 렌더 (API/Repo 직접 new 금지)
 //
-// 핵심 포인트
-// [S1] Constructor에서 ApiClient를 받아 JourneyRepositoryImpl 주입 (postDiary용)
-// [S2] bootstrap(): 스케줄/다이어리 병렬 로드
-// [S3] createDiary(): 임시ID로 낙관적 추가 → 서버 실패 시 롤백 → 성공 시 재동기화
-// [S4] diariesBySchedule(): 스케줄별 정렬된 다이어리 리스트
-// [S5] photosCountForSchedule(): 특정 스케줄의 사진 총합(= entries.photos 총합)
-//     → 화면에서 schedule.memoriesCount 대신 이 합계를 쓰면 작성 직후에도 반영됨
-// [S6] deleteSchedule(): 스케줄 낙관적 삭제 + 해당 스케줄의 일기들도 즉시 제거 → 그 후 서버/재동기화
-
-// lib/features/journey/state/journey_state.dart
+// 변경 사항
+// - refreshAll(): 스케줄과 다이어리를 병렬로 재조회하여 즉시 정합성 확보.
+// - [변경] schedules getter: 필터 적용 후 dateFrom 오름차순(동률 시 dateTo, 그다음 id) 정렬 보장.
 
 import 'package:flutter/foundation.dart';
 import '../domain/models.dart';
@@ -39,26 +32,99 @@ class JourneyState extends ChangeNotifier {
 
   TripFilter filter = TripFilter.all;
 
-  // ───────────────── Schedules ─────────────────
-  List<Schedule> get schedules {
-    switch (filter) {
-      case TripFilter.active:
-        return _schedules
-            .where((s) => s.status == ScheduleStatus.inProgress)
-            .toList();
-      case TripFilter.planned:
-        return _schedules
-            .where((s) => s.status == ScheduleStatus.planned)
-            .toList();
-      case TripFilter.completed:
-        return _schedules
-            .where((s) => s.status == ScheduleStatus.completed)
-            .toList();
-      case TripFilter.all:
-      default:
-        return _schedules;
+  // [신규] null-safe DateTime 비교 유틸
+  int _cmpDate(DateTime? a, DateTime? b) {
+    if (a == null && b == null) return 0;
+    if (a == null) return 1;  // a가 null이면 뒤로
+    if (b == null) return -1; // b가 null이면 a가 먼저
+    return a.compareTo(b);    // 오름차순
+  }
+
+// ───────────────── Schedules ─────────────────
+// [변경] 미래/진행중 먼저(가까운 미래 우선) → 과거(가까운 과거 우선) 순으로 정렬
+List<Schedule> get schedules {
+  // 1) 필터링
+  List<Schedule> list;
+  switch (filter) {
+    case TripFilter.active:
+      list = _schedules
+          .where((s) => s.status == ScheduleStatus.inProgress)
+          .toList();
+      break;
+    case TripFilter.planned:
+      list = _schedules
+          .where((s) => s.status == ScheduleStatus.planned)
+          .toList();
+      break;
+    case TripFilter.completed:
+      list = _schedules
+          .where((s) => s.status == ScheduleStatus.completed)
+          .toList();
+      break;
+    case TripFilter.all:
+    default:
+      list = List<Schedule>.from(_schedules);
+      break;
+  }
+
+  // 2) 오늘 00:00 기준으로 과거/미래를 나눕니다.
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+
+  bool isPast(Schedule s) {
+    final end = s.dateTo ?? s.dateFrom;      // 종료일 없으면 시작일 사용
+    if (end == null) return false;           // 날짜 정보 없으면 과거로 보지 않음
+    return end.isBefore(today);              // 어제까지 끝난 건 과거
+  }
+
+  bool isFutureOrOngoing(Schedule s) {
+    final start = s.dateFrom;
+    final end = s.dateTo ?? s.dateFrom ?? today;
+    if (start == null) return false;
+    // 시작이 오늘 이후이거나, 오늘 기준 아직 종료 전이면 미래/진행중
+    return start.isAfter(today) || !end.isBefore(today);
+  }
+
+  // 3) 그룹 분리
+  final upcoming = <Schedule>[];
+  final past = <Schedule>[];
+
+  for (final s in list) {
+    if (isFutureOrOngoing(s)) {
+      upcoming.add(s);
+    } else if (isPast(s)) {
+      past.add(s);
+    } else {
+      // 애매한 경우(날짜 없음 등)는 일단 아래로 보냄
+      past.add(s);
     }
   }
+
+  // 4) 그룹 내 정렬
+  //    - 미래/진행중: dateFrom 오름차순(가까운 일정이 위)
+  //    - 과거: dateFrom 내림차순(가까운 과거가 위)
+  int cmpDateAsc(DateTime? a, DateTime? b) => _cmpDate(a, b);
+  int cmpDateDesc(DateTime? a, DateTime? b) => _cmpDate(b, a);
+
+  upcoming.sort((a, b) {
+    final c1 = cmpDateAsc(a.dateFrom, b.dateFrom);
+    if (c1 != 0) return c1;
+    final c2 = cmpDateAsc(a.dateTo, b.dateTo);
+    if (c2 != 0) return c2;
+    return (a.id ?? 0).compareTo(b.id ?? 0);
+  });
+
+  past.sort((a, b) {
+    final c1 = cmpDateDesc(a.dateFrom, b.dateFrom);
+    if (c1 != 0) return c1;
+    final c2 = cmpDateDesc(a.dateTo, b.dateTo);
+    if (c2 != 0) return c2;
+    return (a.id ?? 0).compareTo(b.id ?? 0);
+  });
+
+  // 5) 미래/진행중 → 과거 순으로 합치기
+  return [...upcoming, ...past];
+}
 
   // ───────────────── Diaries ─────────────────
   List<DiaryEntry> get diaries {
@@ -94,6 +160,17 @@ class JourneyState extends ChangeNotifier {
       loading = false;
       notifyListeners();
     }
+  }
+
+  /// ✅ 스케줄과 다이어리를 한 번에 재조회(정합성 즉시 맞춤)
+  Future<void> refreshAll() async {
+    final result = await Future.wait([
+      api.fetchSchedules(),
+      api.fetchDiaries(),
+    ]);
+    _schedules = result[0] as List<Schedule>;
+    _diaries = result[1] as List<DiaryEntry>;
+    notifyListeners();
   }
 
   Future<void> refreshSchedules() async {
@@ -183,12 +260,7 @@ class JourneyState extends ChangeNotifier {
   }
 }
 
-
 /* ───────────── 각주 ─────────────
-[S1] DI: 화면은 Api/Repo를 직접 new 하지 않고, 상위(main.dart)에서 ApiClient를 주입해 조립합니다.
-[S2] bootstrap(): 앱 시작 시 스케줄/다이어리 병렬 로드로 초기 렌더 빠르게.
-[S3] 낙관적 생성: temp ID로 즉시 리스트에 추가 → 실패 시 롤백 → 성공 시 재조회로 정합성 확보.
-[S4] diariesBySchedule(): 스케줄 상세/목록에서 공통 사용. 정렬도 여기서 책임.
-[S5] photosCountForSchedule(): 서버 필드(memoriesCount) 대신 현재 상태 기반 합계 산출.
-[S6] deleteSchedule(): 스케줄 삭제 시 Diary 탭에 남아있는 문제를 클라이언트에서 먼저 해결.
+- refreshAll(): 서버의 최종 상태로 즉시 동기화(스케줄·다이어리 동시 로드)
+- [변경] schedules getter에서 dateFrom 오름차순 정렬 보장(동률 시 dateTo, 그다음 id)
 ──────────────────────── */
