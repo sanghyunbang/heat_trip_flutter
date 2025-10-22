@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 const _placeholders = <String>[
   'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&auto=format&fit=crop&w=1600', // 바다
   'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&auto=format&fit=crop&w=1600', // 산
-  'https://images.unsplash.com/photo-1501785888041-67cf0d13b814?q=80&auto=format&fit=crop&w=1600', // 사막
   'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?q=80&auto=format&fit=crop&w=1600', // 도시
   'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&auto=format&fit=crop&w=1600', // 숲
 ];

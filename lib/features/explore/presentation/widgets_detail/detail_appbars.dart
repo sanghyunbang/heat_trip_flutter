@@ -63,18 +63,18 @@ class SliverDetailAppBar extends StatelessWidget {
         // - 토글/컬렉션 선택/전역 스토어 갱신/컬렉션 동기화까지 처리됨
         BookmarkHeart(
           contentId: contentId,
-          iconSize: 24,
+          iconSize: 30,
         ),
 
-        IconButton(
-          icon: const Icon(Icons.share_outlined),
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('공유 기능은 이후 연결하세요.')),
-            );
-          },
-          tooltip: '공유',
-        ),
+        // IconButton(
+        //   icon: const Icon(Icons.share_outlined),
+        //   onPressed: () {
+        //     ScaffoldMessenger.of(context).showSnackBar(
+        //       const SnackBar(content: Text('공유 기능은 이후 연결하세요.')),
+        //     );
+        //   },
+        //   tooltip: '공유',
+        // ),
       ],
       // 제목을 이미지 위에 표시하지 않도록 title 생략
       flexibleSpace: FlexibleSpaceBar(

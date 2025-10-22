@@ -31,7 +31,7 @@ class FeaturesTab extends StatelessWidget {
     if (f == null) {
       return Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('공간 특성을 불러오지 못했어요.'),
+          const Text('데이터가 아직 없는 장소입니다. 업데이트를 기다려주세요!'),
           const SizedBox(height: 8),
           OutlinedButton(onPressed: vm.loadFeatures, child: const Text('다시 시도')),
         ]),

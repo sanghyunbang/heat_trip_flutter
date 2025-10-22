@@ -22,6 +22,9 @@ import 'diary_detail_screen.dart';
 import '../screens/new_diary_screen.dart'; // ✅ 수정: 공용 신규/수정 화면 사용
 import '../widgets/diary_list.dart';
 
+import 'package:flutter/foundation.dart';
+import 'package:heat_trip_flutter/features/journey/presentation/widgets/image_placeholders.dart';
+
 class JourneyDetailScreen extends StatefulWidget {
   const JourneyDetailScreen({super.key, required this.id, this.initial});
 
@@ -128,8 +131,10 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
         ? schedule.dateTo!.difference(schedule.dateFrom!).inDays + 1
         : null;
 
-    final hero = schedule.heroImageUrl ??
-        'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop';
+    final hero = photoOrPlaceholder(
+      schedule.heroImageUrl,
+      seed: schedule.id ?? schedule.title,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -202,21 +207,21 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(Icons.place_outlined, size: 18),
-                          const SizedBox(width: 6),
-                          Text(
-                            schedule.location ?? '—',
-                            style: TextStyle(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
+                      // const SizedBox(height: 8),
+                      // Row(
+                      //   children: [
+                      //     const Icon(Icons.place_outlined, size: 18),
+                      //     const SizedBox(width: 6),
+                      //     Text(
+                      //       schedule.location ?? '—',
+                      //       style: TextStyle(
+                      //         color: Theme.of(context)
+                      //             .colorScheme
+                      //             .onSurfaceVariant,
+                      //       ),
+                      //     ),
+                      //   ],
+                      // ),
                       const SizedBox(height: 14),
                       Row(
                         children: [
@@ -228,14 +233,14 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Tags',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
-                        ),
-                      ),
+                      // const SizedBox(height: 16),
+                      // const Text(
+                      //   'Tags',
+                      //   style: TextStyle(
+                      //     fontWeight: FontWeight.w700,
+                      //     fontSize: 16,
+                      //   ),
+                      // ),
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 4,
