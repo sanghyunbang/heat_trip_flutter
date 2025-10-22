@@ -1,30 +1,26 @@
 // lib/features/record/presentation/screens/schedule_edit_screen.dart
 //
-// [목표]
-//  - TokenStorage 직접 접근/수동 헤더 제거 → ApiClient가 Authorization 자동 첨부
-//  - AuthRepositoryImpl은 주입형 생성자(AuthRepositoryImpl(ApiClient)) 사용
-//  - 저장/수정 요청은 ApiClient(or Repo) 경유로 단순화
-//  - 불필요 import(Env, http, TokenStorage) 제거
+// 목표
+// - ApiClient가 Authorization 자동 첨부
+// - 저장/수정 성공 시 JourneyState.refreshAll() 호출 → Diary 탭 즉시 반영
+// - 불필요 import 제거(Env, http, TokenStorage 등)
 //
-// [핵심 변경]
-//  ① Provider에서 ApiClient 읽어와 레포를 주입.
-//  ② _fetchUser()는 token 매개 없이 authRepo.getMyProfile() 사용.
-//  ③ _submit()은 ApiClient를 통해 POST/PUT (Authorization 자동).
-//  ④ ★ 저장 성공 시 JourneyState.refreshSchedules() 호출 → Diary 탭 실시간 반영
+// 적용 사항
+// - POST: _api.postJson()은 2xx 외에 예외 발생 → 성공 시 추가 체크 불필요
+// - PUT: _api.put(...)은 statusCode 확인 후 예외 처리 → 동일 흐름으로 맞춤
 
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';                       // ★ DI
+import 'package:provider/provider.dart';
 
 import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
-import 'package:heat_trip_flutter/features/record/data/schedule_repository_impl.dart';
+import 'package:heat_trip_flutter/features/record/data/schedule_repository_impl.dart'; // (미사용이어도 유지 가능)
 import 'package:heat_trip_flutter/features/record/data/model/schedule_response.dart';
 import 'package:heat_trip_flutter/features/record/presentation/widgets/record_ui.dart';
 import 'package:heat_trip_flutter/shared/network/api_client.dart';
 
-// ★ 추가: Journey 탭에 실시간 반영
+// ★ 저장 성공 후 Journey 탭에 실시간 반영
 import 'package:heat_trip_flutter/features/journey/state/journey_state.dart';
 
 class ScheduleEditScreen extends StatefulWidget {
@@ -36,7 +32,7 @@ class ScheduleEditScreen extends StatefulWidget {
 }
 
 class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
-  // ★ 주입형 레포/클라
+  // 주입형 레포/클라
   late final ApiClient _api;
   late final AuthRepositoryImpl _authRepository;
   late final ScheduleRepositoryImpl _scheduleRepository;
@@ -70,7 +66,6 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
   }
 
   Future<void> _fetchUser() async {
-    // ★ 토큰을 직접 꺼낼 필요 없이 AuthRepo가 ApiClient로 Authorization 헤더를 붙입니다.
     try {
       final user = await _authRepository.getMyProfile();
       if (!mounted) return;
@@ -116,7 +111,6 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
   }
 
   Future<void> _submit() async {
-    // 유효성 검사
     if (!(_formKey.currentState!.validate()) || _range == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -138,32 +132,29 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
     };
 
     try {
-      final res = isEditing
-          ? await _api.put(
-              '/public/schedules/${widget.schedule!.scheduleId}',
-              body: jsonEncode(body),
-            )
-          : await _api.postJson('/public/schedules', body);
-
-      if (res.statusCode == 200 || res.statusCode == 201) {
-        // ★★★ 여기! 저장 성공 → Journey 탭 데이터 즉시 갱신
-        final journey = context.read<JourneyState>();
-        await journey.refreshSchedules();   // Trips 목록 즉시 반영
-        // await journey.refreshDiaries();  // (선택) 스케줄 변경이 다이어리 계산에 영향 있으면 켜기
-
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isEditing ? '스케줄이 수정되었습니다.' : '스케줄이 저장되었습니다.'),
-          ),
+      if (isEditing) {
+        // PUT: status 코드 확인 후 예외 처리
+        final res = await _api.put(
+          '/public/schedules/${widget.schedule!.scheduleId}',
+          body: jsonEncode(body),
         );
-        Navigator.pop(context, true); // (선택) 부모가 pop result로도 감지 가능
+        if (res.statusCode ~/ 100 != 2) {
+          throw Exception('HTTP ${res.statusCode} ${res.body}');
+        }
       } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('저장 실패 (${res.statusCode})')),
-        );
+        // POST: 2xx가 아니면 예외를 던짐 → 성공 시 추가 체크 불필요
+        await _api.postJson('/public/schedules', body);
       }
+
+      // ★★★ 저장/수정 성공 → 스케줄 & 다이어리 동시 재조회 (즉시 반영)
+      final journey = context.read<JourneyState>();
+      await journey.refreshAll();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(isEditing ? '스케줄이 수정되었습니다.' : '스케줄이 저장되었습니다.')),
+      );
+      Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -207,7 +198,7 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                     initialValue: _authorName ?? '',
                     enabled: false,
                     decoration: InputDecoration(
-                      labelText: '스케쥴 메모',
+                      labelText: '작성자',
                       filled: true,
                       fillColor: const Color(0xFFF3F4F6),
                       border: OutlineInputBorder(
@@ -254,10 +245,7 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                         ),
                         decoration: InputDecoration(
                           labelText: '여행 기간',
-                          suffixIcon: const Icon(
-                            Icons.calendar_today,
-                            color: kTextMuted,
-                          ),
+                          suffixIcon: const Icon(Icons.calendar_today, color: kTextMuted),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
                             borderSide: const BorderSide(color: kBorder),
