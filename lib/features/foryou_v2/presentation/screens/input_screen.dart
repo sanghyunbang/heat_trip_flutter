@@ -1,6 +1,50 @@
 import 'package:flutter/material.dart';
 import '../../domain/models.dart';
 
+// ================================================================
+// InputScreen (리뉴얼 + 리팩토링)
+// - 문자열 Sanitizer 추가: Android JNI(Modified UTF-8) 안전 전송용
+// - 이모지(emoji)는 UI 전용으로만 사용하고, 전송 파라미터에서는 제외
+// - State 인스턴스 생성 안티패턴 제거(스타일 분리: InputStyles)
+// - 주석 꼼꼼히 추가
+// ================================================================
+
+// ⚙️ 문자열 Sanitizer: Android JNI가 거부하는 NUL(\u0000) 등 제어문자 방어
+String sanitizeForAndroid(String? s) {
+  if (s == null) return '';
+  final filtered = s.runes.map((cp) {
+    // NUL(0x0000) → replacement char
+    if (cp == 0x0000) return 0xFFFD;
+    // (필요시) 단독 서러게이트 방어 등 추가 룰을 여기서 확장 가능
+    return cp;
+  });
+  return String.fromCharCodes(filtered);
+}
+
+// 🎨 스타일: State와 분리하여 어디서든 안전하게 재사용
+class InputStyles {
+  static const Color kBgWarm = Color(0xFFFFFAF8);
+  static const Color kCard = Colors.white;
+  static const Color kTextPrimary = Color(0xFF342D2A);
+  static const Color kTextSecondary = Color(0xFF7B6E67);
+  static const Color kAccent = Color(0xFFFB6A3E);
+  static const Color kAccentSoft = Color(0xFFFFE7E0);
+  static const Color kBorder = Color(0xFFEBD9D2);
+
+  static BoxDecoration sectionBox() => BoxDecoration(
+        color: kCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: kBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      );
+}
+
 /// 입력 화면 (디자인 리뉴얼 + 레이아웃 리팩터링)
 class InputScreen extends StatefulWidget {
   final RankRequest initial;
@@ -13,8 +57,8 @@ class InputScreen extends StatefulWidget {
 class _InputScreenState extends State<InputScreen> {
   // 값 상태(기존 로직 유지)
   late double p, a, d, energy, social;
-  String? moodKey; // ★ 필수
-  String? moodEmoji; // 표시용
+  String? moodKey; // ★ 서버 전송용 텍스트(예: '기쁨', '슬픔')
+  String? moodEmoji; // ★ UI 전용 (전송 금지)
   late TextEditingController notesCtrl;
 
   // 목적 키워드(기존 로직 유지)
@@ -31,28 +75,8 @@ class _InputScreenState extends State<InputScreen> {
     ('설렘', '✨'),
   ];
 
-  // 디자인 팔레트(따뜻한 톤)
-  static const Color kBgWarm = Color(0xFFFFFAF8);
-  static const Color kCard = Colors.white;
-  static const Color kTextPrimary = Color(0xFF342D2A);
-  static const Color kTextSecondary = Color(0xFF7B6E67);
-  static const Color kAccent = Color(0xFFFB6A3E); // 버튼/포인트
-  static const Color kAccentSoft = Color(0xFFFFE7E0);
-  static const Color kBorder = Color(0xFFEBD9D2);
-
-  // 섹션 카드 공통 데코
-  BoxDecoration get _sectionBox => BoxDecoration(
-        color: kCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      );
+  // 섹션 카드 공통 데코 (스타일 재사용)
+  BoxDecoration get _sectionBox => InputStyles.sectionBox();
 
   @override
   void initState() {
@@ -63,7 +87,7 @@ class _InputScreenState extends State<InputScreen> {
     energy = widget.initial.energy;
     social = widget.initial.socialNeed;
     moodKey = widget.initial.moodKey;
-    moodEmoji = widget.initial.moodEmoji;
+    moodEmoji = widget.initial.moodEmoji; // UI에서만 사용
     notesCtrl = TextEditingController(text: widget.initial.notes ?? '');
     purposeKeywords.addAll(widget.initial.purposeKeywords);
   }
@@ -77,7 +101,7 @@ class _InputScreenState extends State<InputScreen> {
 
   bool get _canSubmit => (moodKey != null && moodKey!.trim().isNotEmpty);
 
-  // 섹션 헤더: 제목/부제 모두 폰트 축소 (요청 4개 타이틀 전부 여기를 통해 줄어듦)
+  // 섹션 헤더(타이틀 표준화)
   Widget _sectionHeader({
     required String title,
     String? subtitle,
@@ -106,8 +130,8 @@ class _InputScreenState extends State<InputScreen> {
                 title,
                 style: const TextStyle(
                   fontWeight: FontWeight.normal,
-                  fontSize: 13.0, // 15.5 → 13.0 (크게 축소)
-                  color: kTextPrimary,
+                  fontSize: 13.0,
+                  color: InputStyles.kTextPrimary,
                 ),
               ),
               if (subtitle != null) ...[
@@ -115,8 +139,8 @@ class _InputScreenState extends State<InputScreen> {
                 Text(
                   subtitle,
                   style: const TextStyle(
-                    fontSize: 11.0, // 12.5 → 11.0
-                    color: kTextSecondary,
+                    fontSize: 11.0,
+                    color: InputStyles.kTextSecondary,
                     height: 1.3,
                   ),
                 ),
@@ -128,7 +152,7 @@ class _InputScreenState extends State<InputScreen> {
     );
   }
 
-  // 따뜻한 그라데이션 헤더(스크린 최상단) — 제목 폰트는 _sectionHeader로 축소됨
+  // 따뜻한 그라데이션 헤더(스크린 최상단)
   Widget _introBanner() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
@@ -153,7 +177,6 @@ class _InputScreenState extends State<InputScreen> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
   // 주감정 선택(필수) — 3x2 그리드
   Widget _moodSection() {
     return Container(
@@ -179,25 +202,25 @@ class _InputScreenState extends State<InputScreen> {
               final selected = moodKey == m.$1;
               return ChoiceChip(
                 label: Text(
-                  '${m.$2} ${m.$1}',
+                  '${m.$2} ${m.$1}', // 이모지는 UI 레이블에만 사용
                   style: const TextStyle(fontSize: 12.5),
                 ),
                 selected: selected,
                 onSelected: (_) {
                   setState(() {
-                    moodKey = m.$1;
-                    moodEmoji = m.$2;
+                    moodKey = m.$1;   // 서버 전송용 텍스트
+                    moodEmoji = m.$2; // UI 표시용(전송 금지)
                   });
                 },
-                selectedColor: kAccentSoft,
+                selectedColor: InputStyles.kAccentSoft,
                 backgroundColor: Colors.white,
                 labelStyle: TextStyle(
                   fontWeight: FontWeight.normal,
-                  color: selected ? kAccent : kTextPrimary,
+                  color: selected ? InputStyles.kAccent : InputStyles.kTextPrimary,
                 ),
                 shape: StadiumBorder(
                   side: BorderSide(
-                    color: selected ? kAccent : kBorder,
+                    color: selected ? InputStyles.kAccent : InputStyles.kBorder,
                     width: selected ? 1.6 : 1.0,
                   ),
                 ),
@@ -242,22 +265,22 @@ class _InputScreenState extends State<InputScreen> {
           Row(
             children: [
               if (icon != null) ...[
-                Icon(icon, color: kAccent, size: 18),
+                Icon(icon, color: InputStyles.kAccent, size: 18),
                 const SizedBox(width: 8),
               ],
               Text(
                 title,
                 style: const TextStyle(
                   fontWeight: FontWeight.normal,
-                  fontSize: 13.0, // 14.5 → 13.0 (슬라이더 제목도 살짝 축소)
-                  color: kTextPrimary,
+                  fontSize: 13.0,
+                  color: InputStyles.kTextPrimary,
                 ),
               ),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                 decoration: BoxDecoration(
-                  color: kAccentSoft,
+                  color: InputStyles.kAccentSoft,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: const Color(0xFFFFD0C2)),
                 ),
@@ -265,7 +288,7 @@ class _InputScreenState extends State<InputScreen> {
                   value.toStringAsFixed(1),
                   style: const TextStyle(
                     fontWeight: FontWeight.normal,
-                    fontSize: 12.0, // 12.5 → 12.0
+                    fontSize: 12.0,
                   ),
                 ),
               ),
@@ -274,10 +297,10 @@ class _InputScreenState extends State<InputScreen> {
           const SizedBox(height: 8),
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              activeTrackColor: kAccent,
+              activeTrackColor: InputStyles.kAccent,
               inactiveTrackColor: Colors.black12,
-              thumbColor: kAccent,
-              overlayColor: kAccent.withOpacity(.12),
+              thumbColor: InputStyles.kAccent,
+              overlayColor: InputStyles.kAccent.withOpacity(.12),
               trackHeight: 6,
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
             ),
@@ -285,22 +308,15 @@ class _InputScreenState extends State<InputScreen> {
               value: value,
               min: -1,
               max: 1,
-              divisions: 20,
-              onChanged: (v) =>
-                  setState(() => onChanged(double.parse(v.toStringAsFixed(1)))),
+              divisions: 20, // -1..1 범위에서 0.1 step
+              onChanged: (v) => setState(() => onChanged(double.parse(v.toStringAsFixed(1)))),
             ),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                left,
-                style: const TextStyle(color: kTextSecondary, fontSize: 11.5),
-              ),
-              Text(
-                right,
-                style: const TextStyle(color: kTextSecondary, fontSize: 11.5),
-              ),
+              Text(left, style: const TextStyle(color: InputStyles.kTextSecondary, fontSize: 11.5)),
+              Text(right, style: const TextStyle(color: InputStyles.kTextSecondary, fontSize: 11.5)),
             ],
           ),
         ],
@@ -364,10 +380,8 @@ class _InputScreenState extends State<InputScreen> {
     return AdditionalInfoCard(
       energy: energy,
       social: social,
-      onEnergyChanged: (v) =>
-          setState(() => energy = double.parse(v.toStringAsFixed(1))),
-      onSocialChanged: (v) =>
-          setState(() => social = double.parse(v.toStringAsFixed(1))),
+      onEnergyChanged: (v) => setState(() => energy = double.parse(v.toStringAsFixed(1))),
+      onSocialChanged: (v) => setState(() => social = double.parse(v.toStringAsFixed(1))),
     );
   }
 
@@ -389,8 +403,8 @@ class _InputScreenState extends State<InputScreen> {
             '목적 키워드',
             style: TextStyle(
               fontWeight: FontWeight.normal,
-              color: kTextPrimary,
-              fontSize: 12.0, // 13 → 12.0 (추가 축소)
+              color: InputStyles.kTextPrimary,
+              fontSize: 12.0,
             ),
           ),
           const SizedBox(height: 8),
@@ -404,8 +418,8 @@ class _InputScreenState extends State<InputScreen> {
                     border: OutlineInputBorder(),
                     isDense: true,
                     hintStyle: TextStyle(
-                      fontSize: 10.5, // 예시 힌트 텍스트 크게 축소
-                      color: kTextSecondary,
+                      fontSize: 10.5,
+                      color: InputStyles.kTextSecondary,
                     ),
                   ),
                   onSubmitted: (_) {
@@ -422,12 +436,9 @@ class _InputScreenState extends State<InputScreen> {
               const SizedBox(width: 8),
               FilledButton(
                 style: FilledButton.styleFrom(
-                  backgroundColor: kAccent,
+                  backgroundColor: InputStyles.kAccent,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 ),
                 onPressed: () {
                   final t = keywordCtrl.text.trim();
@@ -451,7 +462,7 @@ class _InputScreenState extends State<InputScreen> {
                   (k) => Chip(
                     label: Text(k, style: const TextStyle(fontSize: 12.0)),
                     onDeleted: () => setState(() => purposeKeywords.remove(k)),
-                    backgroundColor: kAccentSoft,
+                    backgroundColor: InputStyles.kAccentSoft,
                     shape: StadiumBorder(
                       side: BorderSide(color: const Color(0xFFFFD0C2)),
                     ),
@@ -465,8 +476,8 @@ class _InputScreenState extends State<InputScreen> {
             '추가 메모 (선택사항)',
             style: TextStyle(
               fontWeight: FontWeight.normal,
-              color: kTextPrimary,
-              fontSize: 12.0, // 13 → 12.0
+              color: InputStyles.kTextPrimary,
+              fontSize: 12.0,
             ),
           ),
           const SizedBox(height: 6),
@@ -479,8 +490,8 @@ class _InputScreenState extends State<InputScreen> {
               isDense: true,
               hintText: '현재 상황이나 특별히 원하는 것이 있다면 자유롭게 작성해주세요.',
               hintStyle: TextStyle(
-                fontSize: 10.5, // 메모 힌트도 크게 축소
-                color: kTextSecondary,
+                fontSize: 10.5,
+                color: InputStyles.kTextSecondary,
               ),
             ),
           ),
@@ -494,14 +505,14 @@ class _InputScreenState extends State<InputScreen> {
     final pad = MediaQuery.of(context).viewPadding;
 
     return Scaffold(
-      backgroundColor: kBgWarm,
+      backgroundColor: InputStyles.kBgWarm,
       appBar: AppBar(
         elevation: 0.6,
         backgroundColor: Colors.white,
         title: const Text(
           '감정 입력',
           style: TextStyle(
-            fontSize: 14.0, // 15.5 → 14.0 (상단 타이틀도 살짝 축소)
+            fontSize: 14.0,
             fontWeight: FontWeight.normal,
           ),
         ),
@@ -523,7 +534,7 @@ class _InputScreenState extends State<InputScreen> {
             FilledButton(
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 13),
-                backgroundColor: _canSubmit ? kAccent : Colors.grey,
+                backgroundColor: _canSubmit ? InputStyles.kAccent : Colors.grey,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -531,17 +542,26 @@ class _InputScreenState extends State<InputScreen> {
               ),
               onPressed: _canSubmit
                   ? () {
+                      // ✅ 전송 직전: 모든 문자열 sanitize
+                      final cleanedNotes = sanitizeForAndroid(notesCtrl.text.trim());
+                      final cleanedKeywords = purposeKeywords
+                          .map((k) => sanitizeForAndroid(k.trim()))
+                          .where((k) => k.isNotEmpty)
+                          .toList();
+                      final cleanedMoodKey = sanitizeForAndroid(moodKey);
+
+                      // ✅ UI 전용 이모지는 전송 금지: moodEmoji를 명시적으로 null 처리
                       final updated = widget.initial.copyWith(
                         pad: Pad(pleasure: p, arousal: a, dominance: d),
                         energy: energy,
                         socialNeed: social,
-                        notes: notesCtrl.text.trim().isEmpty
-                            ? null
-                            : notesCtrl.text.trim(),
-                        purposeKeywords: purposeKeywords,
-                        moodKey: moodKey, // ★ 서버 필요 값
-                        moodEmoji: moodEmoji, // UI 표시용
+                        notes: cleanedNotes.isEmpty ? null : cleanedNotes,
+                        purposeKeywords: cleanedKeywords,
+                        moodKey: cleanedMoodKey, // 서버 필요 값(텍스트)
+                        moodEmoji: null,         // ⚠️ 전송 금지 (UI 전용)
                       );
+
+                      // 상위로 sanitized 데이터 전달
                       Navigator.pop(context, updated);
                     }
                   : null,
@@ -549,7 +569,7 @@ class _InputScreenState extends State<InputScreen> {
                 '분석 시작하기',
                 style: TextStyle(
                   fontWeight: FontWeight.normal,
-                  fontSize: 13.5, // 14.5 → 13.5
+                  fontSize: 13.5,
                 ),
               ),
             ),
@@ -560,18 +580,13 @@ class _InputScreenState extends State<InputScreen> {
   }
 }
 
-/// ─────────────────────────────────────────────────────────────
-/// 추가 정보 카드: 에너지/사교 묶음
+// ─────────────────────────────────────────────────────────────
+// 추가 정보 카드: 에너지/사교 묶음 (State 생성 안티패턴 제거)
 class AdditionalInfoCard extends StatelessWidget {
   final double energy; // -1 ~ 1
   final double social; // -1 ~ 1
   final ValueChanged<double> onEnergyChanged;
   final ValueChanged<double> onSocialChanged;
-
-  static const Color kTextPrimary = _InputScreenState.kTextPrimary;
-  static const Color kTextSecondary = _InputScreenState.kTextSecondary;
-  static const Color kAccent = _InputScreenState.kAccent;
-  static const Color kAccentSoft = _InputScreenState.kAccentSoft;
 
   const AdditionalInfoCard({
     super.key,
@@ -583,7 +598,7 @@ class AdditionalInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    BoxDecoration box = _InputScreenState()._sectionBox; // 스타일 재사용
+    final box = InputStyles.sectionBox();
     return Container(
       decoration: box,
       padding: const EdgeInsets.all(14),
@@ -629,7 +644,7 @@ class _CardHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, color: _InputScreenState.kAccent, size: 18),
+        Icon(icon, color: InputStyles.kAccent, size: 18),
         const SizedBox(width: 6),
         Expanded(
           child: Column(
@@ -639,16 +654,16 @@ class _CardHeader extends StatelessWidget {
                 title,
                 style: const TextStyle(
                   fontWeight: FontWeight.normal,
-                  color: _InputScreenState.kTextPrimary,
-                  fontSize: 13.0, // 14.5 → 13.0
+                  color: InputStyles.kTextPrimary,
+                  fontSize: 13.0,
                 ),
               ),
               if (subtitle != null)
                 Text(
                   subtitle!,
                   style: const TextStyle(
-                    color: _InputScreenState.kTextSecondary,
-                    fontSize: 11.0, // 12.5 → 11.0
+                    color: InputStyles.kTextSecondary,
+                    fontSize: 11.0,
                   ),
                 ),
             ],
@@ -683,28 +698,28 @@ class _LabeledSlider extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(icon, color: _InputScreenState.kAccent, size: 18),
+            Icon(icon, color: InputStyles.kAccent, size: 18),
             const SizedBox(width: 6),
             Text(
               title,
               style: const TextStyle(
                 fontWeight: FontWeight.normal,
-                color: _InputScreenState.kTextPrimary,
-                fontSize: 13.0, // 14 → 13.0
+                color: InputStyles.kTextPrimary,
+                fontSize: 13.0,
               ),
             ),
             const Spacer(),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
               decoration: BoxDecoration(
-                color: _InputScreenState.kAccentSoft,
+                color: InputStyles.kAccentSoft,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 '${((value + 1) * 50).round()}%',
                 style: const TextStyle(
                   fontWeight: FontWeight.normal,
-                  fontSize: 12.0, // 12.5 → 12.0
+                  fontSize: 12.0,
                 ),
               ),
             ),
@@ -713,10 +728,10 @@ class _LabeledSlider extends StatelessWidget {
         const SizedBox(height: 8),
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
-            activeTrackColor: _InputScreenState.kAccent,
+            activeTrackColor: InputStyles.kAccent,
             inactiveTrackColor: Colors.black12,
-            thumbColor: _InputScreenState.kAccent,
-            overlayColor: _InputScreenState.kAccent.withOpacity(.12),
+            thumbColor: InputStyles.kAccent,
+            overlayColor: InputStyles.kAccent.withOpacity(.12),
             trackHeight: 6,
             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
           ),
@@ -734,14 +749,14 @@ class _LabeledSlider extends StatelessWidget {
             Text(
               leftLabel,
               style: const TextStyle(
-                color: _InputScreenState.kTextSecondary,
+                color: InputStyles.kTextSecondary,
                 fontSize: 11.5,
               ),
             ),
             Text(
               rightLabel,
               style: const TextStyle(
-                color: _InputScreenState.kTextSecondary,
+                color: InputStyles.kTextSecondary,
                 fontSize: 11.5,
               ),
             ),
