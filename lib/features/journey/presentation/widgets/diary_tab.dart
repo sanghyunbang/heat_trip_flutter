@@ -74,9 +74,9 @@ class _EmptyArchive extends StatelessWidget {
           children: [
             Icon(Icons.draw_outlined, size: 46, color: subtle),
             const SizedBox(height: 12),
-            const Text('No diaries yet', style: TextStyle(fontWeight: FontWeight.w700)),
+            const Text('다이어리가 아직 없어요.', style: TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
-            Text('Start documenting your journeys', style: TextStyle(color: subtle)),
+            Text('첫 일기를 시작해보세요!', style: TextStyle(color: subtle)),
           ],
         ),
       ),

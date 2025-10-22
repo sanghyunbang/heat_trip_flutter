@@ -230,7 +230,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                 ).then((_) => _load());
               },
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add Item'),
+              label: const Text('일정 추가'),
               style: FilledButton.styleFrom(
                 backgroundColor: const Color.fromARGB(255, 26, 29, 33),
                 foregroundColor: Colors.white,
@@ -254,7 +254,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
             children: [
               const SizedBox(height: 2),
               const Text(
-                'Schedule & plan your trips',
+                '여행 일정을 추가하고 관리해보세요.',
                 style: TextStyle(color: kTextMuted),
               ),
               const SizedBox(height: 8),
@@ -263,7 +263,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                 child: TextField(
                   onChanged: (v) => setState(() => _searchTitle = v),
                   decoration: InputDecoration(
-                    hintText: 'Search schedule…',
+                    hintText: '일정 검색하기…',
                     prefixIcon: const Icon(Icons.search),
                     filled: true,
                     fillColor: const Color(0xFFF3F4F6),

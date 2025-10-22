@@ -30,12 +30,12 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
   late DateTime _date;
 
   final _moods = const [
-    ('😀', 'Happy'),
-    ('😊', 'Delighted'),
-    ('😌', 'Calm'),
-    ('😮', 'Amazed'),
-    ('😢', 'Sad'),
-    ('😡', 'Angry'),
+    ('😊','기쁨'),
+    ('😢','슬픔'),
+    ('😰','불안'),
+    ('😡','분노'),
+    ('😌','평온'),
+    ('✨','설렘'),
   ];
   int _moodIndex = 0;
 
@@ -134,7 +134,7 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: const BackButton(),
-        title: Text(_isEdit ? 'Edit Diary' : 'New Diary Entry'),
+        title: Text(_isEdit ? '다이어리 수정' : '다이어리 쓰기'),
         actions: [TextButton(onPressed: _submit, child: const Text('Save'))],
       ),
       body: SingleChildScrollView(
@@ -174,7 +174,7 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                       child: TextFormField(
                         controller: _title,
                         decoration: const InputDecoration(
-                          hintText: 'e.g. Magical Morning at Tsukiji',
+                          hintText: '예) 00여행기',
                           border: OutlineInputBorder(),
                         ),
                         validator: (v) =>
@@ -206,7 +206,7 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                       child: TextField(
                         controller: _location,
                         decoration: const InputDecoration(
-                          hintText: 'e.g. Tsukiji, Tokyo',
+                          hintText: '예) 00해변',
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -261,7 +261,7 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                       child: TextField(
                         controller: _weather,
                         decoration: const InputDecoration(
-                          hintText: 'e.g. Partly cloudy, 12°C',
+                          hintText: '예) 맑음, 22도',
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -358,7 +358,7 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                       minLines: 6,
                       maxLines: 12,
                       decoration: const InputDecoration(
-                        hintText: 'Write your story...',
+                        hintText: '일기를 작성해 보세요...',
                         border: OutlineInputBorder(),
                       ),
                       validator: (v) => (v == null || v.trim().isEmpty)

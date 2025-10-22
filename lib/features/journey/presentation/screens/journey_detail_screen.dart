@@ -302,7 +302,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                     });
                   },
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('New Diary Entry'),
+                  label: const Text('다이어리 쓰기'),
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF191C21),
                     foregroundColor: Colors.white,
@@ -472,18 +472,18 @@ class _EmptyDiaryCard extends StatelessWidget {
           Icon(Icons.draw_outlined, size: 46, color: subtle),
           const SizedBox(height: 14),
           const Text(
-            'No diary entries yet',
+            '아직 일기가 없어요',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           Text(
-            'Start documenting your $title memories!',
+            '당신의 $title 추억을 기록해 보세요!',
             style: TextStyle(fontSize: 13, color: subtle),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 14),
           Text(
-            'Tap the "New Diary Entry" button above to get started',
+            '"다이어리 쓰기" 버튼을 눌러 첫 번째 추억을 남겨보세요.',
             style: TextStyle(fontSize: 12, color: subtle),
             textAlign: TextAlign.center,
           ),
