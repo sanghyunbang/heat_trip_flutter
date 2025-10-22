@@ -207,7 +207,7 @@ class _ScheduleEditScreenState extends State<ScheduleEditScreen> {
                     initialValue: _authorName ?? '',
                     enabled: false,
                     decoration: InputDecoration(
-                      labelText: '작성자',
+                      labelText: '스케쥴 메모',
                       filled: true,
                       fillColor: const Color(0xFFF3F4F6),
                       border: OutlineInputBorder(

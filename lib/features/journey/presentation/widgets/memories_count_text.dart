@@ -13,7 +13,7 @@ class MemoriesCountText extends StatelessWidget {
     super.key,
     required this.scheduleId,
     this.style,
-    this.suffix = ' memories captured',
+    this.suffix = '개의 추억이 담겨있어요',
   });
 
   @override

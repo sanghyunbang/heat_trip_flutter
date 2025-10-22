@@ -66,7 +66,7 @@ class RecordHeader extends StatelessWidget {
       actionLabel: 'Add Item',
       actionIcon: Icons.add,
       onAction: onAdd,
-      searchHint: 'Search schedule…',
+      searchHint: '일정 검색하기…',
       onSearchChanged: onSearchChanged,
     );
   }

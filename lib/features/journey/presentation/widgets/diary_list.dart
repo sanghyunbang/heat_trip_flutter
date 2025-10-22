@@ -187,6 +187,28 @@ class _DiaryCard extends StatelessWidget {
       title: entry.title,
     );
 
+    final _moods = const [
+      ('😊', '기쁨'),
+      ('😢', '슬픔'),
+      ('😰', '불안'),
+      ('😡', '분노'),
+      ('😌', '평온'),
+      ('✨', '설렘'),
+    ];
+
+    // 이 함수는 위젯 클래스 내부 또는 별도의 유틸리티 파일에 작성할 수 있습니다.
+    String _getMoodEmoji(String moodLabel) {
+      // _moods 리스트에서 두 번째 요소(라벨)가 moodLabel과 일치하는 요소를 찾습니다.
+      final moodEntry = _moods.firstWhere(
+        (mood) => mood.$2 == moodLabel,
+        // 일치하는 항목을 찾지 못할 경우 대비 (선택적)
+        orElse: () => ('', ''), 
+      );
+      
+      // 찾은 튜플의 첫 번째 요소(이모지)를 반환합니다.
+      return moodEntry.$1;
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -294,12 +316,15 @@ class _DiaryCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                const _InfoPill(
-                  leading: Text('🥰', style: TextStyle(fontSize: 16)),
-                  text: 'Amazed',
+                _InfoPill(
+                  leading: Text(
+                          _getMoodEmoji(entry.moodLabel), // <--- 이모지 검색 함수 사용
+                          style: const TextStyle(fontSize: 16),
+                        ),                  
+                  text: entry.moodLabel,
                 ),
                 _InfoPill(
-                  leading: const Text('🌤️', style: TextStyle(fontSize: 16)),
+                  leading: const Text('', style: TextStyle(fontSize: 16)),
                   text: entry.weatherLabel,
                 ),
               ],
