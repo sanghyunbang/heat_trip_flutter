@@ -28,7 +28,9 @@ import 'presentation/state/detail_vm.dart';
 
 List<RouteBase> buildExploreRoutes() {
   // .env 로드 (상세 화면에서만 사용)
-  final serviceKey = dotenv.maybeGet('YOUR_DECODING_SERVICE_KEY') ?? '';
+  final serviceKey = _normalizeServiceKey(
+    dotenv.maybeGet('YOUR_DECODING_SERVICE_KEY') ?? '',
+  );
   final mobileOS = dotenv.maybeGet('MOBILE_OS') ?? 'ETC';
   final mobileApp = dotenv.maybeGet('MOBILE_APP') ?? 'HeatTrip';
 
@@ -112,4 +114,12 @@ List<RouteBase> buildExploreRoutes() {
       },
     ),
   ];
+}
+
+String _normalizeServiceKey(String value) {
+  try {
+    return Uri.decodeComponent(value.trim());
+  } on FormatException {
+    return value.trim();
+  }
 }
