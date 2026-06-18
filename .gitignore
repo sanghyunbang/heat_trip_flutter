@@ -49,6 +49,27 @@ app.*.map.json
 .env.*
 *.env
 
+# Secrets and local credentials
+local.properties
+**/local.properties
+key.properties
+**/key.properties
+*.keystore
+*.jks
+*.p12
+*.pem
+*.key
+*.mobileprovision
+*.provisionprofile
+*.cer
+*.certSigningRequest
+google-services.json
+GoogleService-Info.plist
+firebase_options.dart
+*service-account*.json
+*credentials*.json
+*secrets*.json
+
 
 ## 빌드 관련 부수적인것들 안보이게
 # Flutter/Dart
