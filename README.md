@@ -15,6 +15,15 @@
 | 백엔드 | Spring Boot API 서버 | [Heat Trip Backend](https://github.com/sanghyunbang/Heat_Trip_Spring_Boot_BE) |
 | 기술 Wiki | 구현 상세, 테스트 결과, 기술 의사결정 기록 | [Backend Wiki](https://github.com/sanghyunbang/Heat_Trip_Spring_Boot_BE/wiki) |
 
+## 관련 리포지토리
+
+| 리포지토리 | 역할 |
+| --- | --- |
+| [Heat_Trip_Spring_Boot_BE](https://github.com/sanghyunbang/Heat_Trip_Spring_Boot_BE) | Spring Boot 백엔드 API, 인증, 검색, 큐레이션, 일정, 미디어 관리 |
+| [heat_trip_flutter](https://github.com/sanghyunbang/heat_trip_flutter) | Flutter 클라이언트 애플리케이션 |
+| [heattrip_rec_py](https://github.com/sanghyunbang/heattrip_rec_py) | Python 기반 추천 서버, LLM 추천 엔진 |
+
+
 ## 프로젝트 소개
 
 Heat Trip Flutter는 사용자가 여행지를 탐색하고, 감정 기반 추천을 받고, 북마크와 일정, 여행 기록까지 관리할 수 있도록 설계된 모바일 앱입니다.
