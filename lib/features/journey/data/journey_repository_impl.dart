@@ -79,8 +79,52 @@ class JourneyRepositoryImpl {
     return '등록 실패 (${res.statusCode})';
   }
 
+  // ------------------- 다이어리 + 이미지 한 번에 등록(멀티파트)
+  // 백엔드 JourneyController_v2: POST /journeys/v2/entries/with-images
+  //   - part "dto"    : JourneyRequestDto (application/json)
+  //   - part "images" : 이미지 파일 0개 이상
+  // 96cb32f 새 다이어리 화면이 호출하던 메서드다. 지금 화면은 MediaGridField로
+  // 먼저 업로드한 뒤 postDiary(사진 URL 포함)로 저장하므로 호출부는 없다.
+  Future<String?> postDiaryWithImages({
+    required DiaryEntry entry,
+    List<File> images = const [],
+  }) async {
+    final token = await TokenStorage.getToken();
+    if (token == null) return '로그인이 필요합니다';
+
+    final url = Uri.parse('$_baseUrl/journeys/v2/entries/with-images');
+    final request = http.MultipartRequest('POST', url)
+      ..headers['Authorization'] = 'Bearer $token';
+
+    request.files.add(
+      http.MultipartFile.fromString(
+        'dto',
+        jsonEncode(entry.toJson(includeId: false)),
+        contentType: MediaType('application', 'json'),
+      ),
+    );
+
+    for (final file in images) {
+      final mimeType = lookupMimeType(file.path) ?? 'image/jpeg';
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'images',
+          file.path,
+          contentType: MediaType.parse(mimeType),
+        ),
+      );
+    }
+
+    final res = await http.Response.fromStream(await request.send());
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return null;
+    }
+    return '등록 실패 (${res.statusCode})';
+  }
+
   // ------------------- 이미지 업로드(멀티파트)
   // ApiClient에 멀티파트 헬퍼가 없다면 TokenStorage+http로 처리
+  // 백엔드 MediaController: POST /media (files, category=UploadCategory 이름, refType)
   Future<List<String>?> uploadImages(List<File> images) async {
     final token = await TokenStorage.getToken();
     if (token == null) return null;
@@ -89,8 +133,9 @@ class JourneyRepositoryImpl {
     final request = http.MultipartRequest('POST', url)
       ..headers['Authorization'] = 'Bearer $token';
 
-    request.fields['category'] = 'journeys';
-    request.fields['refType'] = 'journey';
+    // 서버 enum UploadCategory.JOURNEY_IMAGE, JourneyController_v2의 REF_TYPE과 맞춘다
+    request.fields['category'] = 'JOURNEY_IMAGE';
+    request.fields['refType'] = 'JOURNEY';
 
     for (final file in images) {
       final mimeType = lookupMimeType(file.path) ?? 'image/jpeg';
