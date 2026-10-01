@@ -1,19 +1,16 @@
 // lib/features/profile/presentation/screens/profile_edit_screen.dart
 //
-// 목적
-// - AvatarPicker(공유 위젯)를 사용하여 실제 업로드(S3/DB 메타 저장)를 수행하고,
-//   응답의 url을 화면 상태와 SP 캐시에 반영.
-// - 저장 버튼은 UpdateProfileRequest(imageUrl 포함)를 호출하고 성공 시 pop(true). [⑦]
-//
-// 전제
-// - DI에서 MediaRepository가 Provider로 주입되어 있어야 AvatarPicker가 정상 동작. [① 재확인]
-// - 백엔드 UpdateProfile이 imageUrl 필드를 저장 후 GET /auth/me에서 갱신된 값을 반환해야 함. [⑧]
+// 변경 요약
+// - AuthRepositoryImpl를 late final로 두고, initState에서 context.read<ApiClient>()로 주입 초기화
+// - getMyProfile(), updateMyProfile(req) 모두 토큰 인자를 제거 (ApiClient가 자동 처리)
+// - 나머지 UI/검증/캐시 로직은 기존 유지
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:heat_trip_flutter/shared/network/api_client.dart';
 import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
 import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
 import 'package:heat_trip_flutter/features/profile/data/dto/update_profile_request.dart';
@@ -44,7 +41,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   bool _saving = false;
 
   // ── 서버 연동(프로필 API) ──
-  final _authRepo = AuthRepositoryImpl();
+  late final AuthRepositoryImpl _authRepo; // ★ initState에서 주입 초기화
   bool _loadingProfile = true;
   String? _loadError;
 
@@ -68,6 +65,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   @override
   void initState() {
     super.initState();
+    // [A] 여기서 ApiClient 주입
+    _authRepo = AuthRepositoryImpl(context.read<ApiClient>());
     _loadFromServer();
   }
 
@@ -98,6 +97,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     } catch (_) {}
 
     try {
+      // UX: 토큰 유무로 로그인 상태만 판단
       final token = await TokenStorage.getToken();
       if (token == null) {
         setState(() {
@@ -107,7 +107,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         return;
       }
 
-      final data = await _authRepo.getMyProfile(token);
+      // [B] 토큰 인자 필요 없음
+      final data = await _authRepo.getMyProfile();
       // ignore: avoid_print
       print('[ProfileEdit] raw data: $data');
 
@@ -184,19 +185,20 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     return age.clamp(0, 150);
   }
 
-  /// 저장 버튼: 폼 검증 → 토큰 확인 → UpdateProfileRequest 생성 → API 호출 → 성공 시 pop(true). [⑦]
+  /// 저장 버튼: 폼 검증 → 로그인 확인 → UpdateProfileRequest → API → 성공 시 pop(true).
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _saving = true);
 
+    // UX: 로그인 여부만 확인
     final token = await TokenStorage.getToken();
     if (token == null) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인이 필요합니다.')),
+      );
       return;
     }
 
@@ -216,20 +218,21 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     // 디버그: 실제 전송 바디 확인
     debugPrint('[PUT /auth/me] body: ${jsonEncode(req.toJson())}');
 
-    final ok = await _authRepo.updateMyProfile(token, req);
+    // [C] 토큰 인자 제거된 API 호출
+    final ok = await _authRepo.updateMyProfile(req);
 
     if (!mounted) return;
     setState(() => _saving = false);
 
     if (ok) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('프로필이 저장되었습니다.')));
-      Navigator.of(context).pop(true); // ★ ProfileScreen에서 재로딩 트리거. [⑦]
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('프로필이 저장되었습니다.')),
+      );
+      Navigator.of(context).pop(true); // ★ ProfileScreen에서 재로딩 트리거
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('저장에 실패했습니다. 다시 시도해주세요.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('저장에 실패했습니다. 다시 시도해주세요.')),
+      );
     }
   }
 
@@ -257,22 +260,16 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     children: [
                       // ─────────────────────────────
                       // 아바타 (실제 업로드 위젯)
-                      // - AvatarPicker는 내부에서:
-                      //   * ImagePicker로 이미지 선택
-                      //   * MediaRepository.uploadImages(...) 호출
-                      //   * 서버 응답의 url을 즉시 onUploaded로 전달
-                      // - 여기서는 onUploaded에서 상태/SP 캐시 갱신만 하면 됨.
+                      // - AvatarPicker 내부에서 업로드 후 url을 onUploaded로 전달
                       // ─────────────────────────────
                       AvatarPicker(
                         initialUrl: _avatarUrl,
-                        existingMediaId:
-                            _avatarMediaId, // 있으면 PUT /media/{id} 교체 사용
+                        existingMediaId: _avatarMediaId,
                         onUploaded: (UploadedMedia m) async {
                           setState(() {
-                            _avatarUrl = m.url; // 즉시 프리뷰/저장값 반영
+                            _avatarUrl = m.url;
                             _avatarMediaId = m.id;
                           });
-                          // 캐시에 최신 URL 저장(선택)
                           final sp = await SharedPreferences.getInstance();
                           await sp.setString('avatarUrl', m.url);
                         },
@@ -374,9 +371,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 2),
                         child: Row(
                           children: [
-                            Expanded(
-                              child: Container(height: 1, color: kStroke),
-                            ),
+                            Expanded(child: Container(height: 1, color: kStroke)),
                             const SizedBox(width: 10),
                             const Text(
                               '선택사항',
@@ -386,9 +381,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                               ),
                             ),
                             const SizedBox(width: 10),
-                            Expanded(
-                              child: Container(height: 1, color: kStroke),
-                            ),
+                            Expanded(child: Container(height: 1, color: kStroke)),
                           ],
                         ),
                       ),
@@ -625,11 +618,11 @@ class _RoundChip extends StatelessWidget {
 }
 
 /* ─────────────────────────── 각주 ───────────────────────────
-[⑦] 저장 성공 시 Navigator.pop(true)를 호출하여, 이전 화면(ProfileScreen)이
-     await context.pushNamed('profileEdit')의 결과값을 true로 받고
-     _loadUserProfile()을 재호출하게 만듭니다.
+[A] Provider로 등록된 ApiClient를 읽어와 AuthRepositoryImpl에 주입.
+    화면 필드에서 context를 바로 쓰면 에러이므로, late final로 선언 후 initState에서 초기화함.
 
-[⑧] 백엔드는 UpdateProfile(imageUrl)을 반영해야 하며,
-     이후 GET /auth/me 응답에 업데이트된 imageUrl이 포함되어야 합니다.
-     (그렇지 않으면 프로필 화면 재조회 후에도 이전 값으로 보입니다.)
+[B] getMyProfile()은 이제 토큰을 인자로 받지 않음. ApiClient가 내부에서 헤더를 붙임.
+    다만 UX를 위해 로그인 여부(토큰 존재)는 화면에서 먼저 체크.
+
+[C] updateMyProfile(req) 또한 토큰 인자 제거. 이전 “String 인자를 넣었다” 에러 해결.
 ────────────────────────────────────────────────────────── */

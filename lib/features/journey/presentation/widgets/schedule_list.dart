@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../domain/models.dart';
+import '../widgets/memories_count_text.dart'; // 상태 기반 카운트
+import '../widgets/image_placeholders.dart'; // ✅ 통일된 플레이스홀더 유틸
 
 /// 스케줄 목록 + 카드
 class ScheduleList extends StatelessWidget {
@@ -9,7 +12,9 @@ class ScheduleList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return const Center(child: Text('No schedules to show.'));
+    if (items.isEmpty) {
+      return const Center(child: Text('No schedules to show.'));
+    }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       itemCount: items.length,
@@ -37,37 +42,48 @@ class ScheduleCard extends StatelessWidget {
       ScheduleStatus.completed => Colors.blueGrey,
     };
 
-    final hero = schedule.heroImageUrl ??
-        'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop';
+    // ✅ 통일: 히어로 이미지도 유틸 사용
+    final hero = photoOrPlaceholder(
+      schedule.heroImageUrl,
+      seed: schedule.id ?? schedule.title,
+    );
+
+    // ✅ 위치가 비어있으면 줄 자체를 숨김
+    final hasLocation =
+        (schedule.location != null && schedule.location!.trim().isNotEmpty);
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () {
-        // 상세화면 이동
         context.pushNamed(
           'journeyDetail',
-          pathParameters: {'id': schedule.id.toString()}, // ✅ int → String
-          extra: schedule,                                 // (선택) 초기 렌더용
+          pathParameters: {'id': schedule.id.toString()},
+          extra: schedule,
         );
       },
       child: Card(
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         elevation: 0.8,
-        color: Colors.white, // ✅ 카드 배경: 흰색
+        color: Colors.white,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 이미지 헤더
+            // ─── Hero (Image.network + errorBuilder/로딩 통일) ───
             SizedBox(
               height: 180,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Ink.image(
-                    image: NetworkImage(hero),
+                  Container(color: const Color(0xFFF3F3F3)),
+                  Image.network(
+                    hero,
                     fit: BoxFit.cover,
-                    child: const SizedBox.shrink(),
+                    loadingBuilder: (ctx, child, progress) {
+                      if (progress == null) return child;
+                      return const _HeroSkeleton();
+                    },
+                    errorBuilder: (_, __, ___) => const _HeroError(),
                   ),
                   Positioned(
                     left: 10,
@@ -109,31 +125,56 @@ class ScheduleCard extends StatelessWidget {
                 ],
               ),
             ),
-            // 본문
+
+            // ─── 본문 ───
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(schedule.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  Text(
+                    schedule.title,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 6),
-                  Row(children: [
-                    const Icon(Icons.place, size: 16),
-                    const SizedBox(width: 6),
-                    Text(schedule.location ?? '—'),
-                  ]),
+
+                  // 📍 위치 (조건부)
+                  if (hasLocation)
+                    Row(
+                      children: [
+                        const Icon(Icons.place, size: 16),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            schedule.location!,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                  if (hasLocation) const SizedBox(height: 8),
+
+                  // 📅 기간
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_month, size: 16),
+                      const SizedBox(width: 6),
+                      Text(schedule.dateLabel),
+                    ],
+                  ),
                   const SizedBox(height: 8),
-                  Row(children: [
-                    const Icon(Icons.calendar_month, size: 16),
-                    const SizedBox(width: 6),
-                    Text(schedule.dateLabel),
-                  ]),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    const Icon(Icons.photo_library_outlined, size: 16),
-                    const SizedBox(width: 6),
-                    Text('${schedule.memoriesCount} memories captured'),
-                  ]),
+
+                  // 🖼️ Memories: 상태 기반 카운트(즉시 반영)
+                  Row(
+                    children: [
+                      const Icon(Icons.photo_library_outlined, size: 16),
+                      const SizedBox(width: 6),
+                      MemoriesCountText(scheduleId: schedule.id!),
+                    ],
+                  ),
+
                   const SizedBox(height: 10),
                   _ScheduleTags(tags: schedule.tags),
                 ],
@@ -146,7 +187,6 @@ class ScheduleCard extends StatelessWidget {
   }
 }
 
-/// 태그 칩(2개만 노출, 나머지는 +N more)
 class _ScheduleTags extends StatelessWidget {
   final List<String> tags;
   const _ScheduleTags({required this.tags});
@@ -165,18 +205,54 @@ class _ScheduleTags extends StatelessWidget {
           Chip(
             label: Text(t),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            backgroundColor: const Color(0xFFF1F1F1), // ✅ 칩 배경: 연한 회색
+            backgroundColor: const Color(0xFFF1F1F1),
             side: BorderSide(color: outline),
           ),
         if (extra > 0)
           InputChip(
             label: Text('+$extra more'),
-            onPressed: () {}, // TODO: 바텀시트 등으로 전체 표시
+            onPressed: () {},
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            backgroundColor: const Color(0xFFF1F1F1), // ✅ 칩 배경: 연한 회색
+            backgroundColor: const Color(0xFFF1F1F1),
             side: BorderSide(color: outline),
           ),
       ],
+    );
+  }
+}
+
+/// 히어로 로딩 스켈레톤
+class _HeroSkeleton extends StatelessWidget {
+  const _HeroSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFF3F3F3),
+      alignment: Alignment.center,
+      child: const SizedBox(
+        width: 18,
+        height: 18,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+    );
+  }
+}
+
+/// 히어로 에러 시 대체
+class _HeroError extends StatelessWidget {
+  const _HeroError();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFF3F3F3),
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.broken_image_outlined,
+        size: 28,
+        color: Color(0xFF9E9E9E),
+      ),
     );
   }
 }

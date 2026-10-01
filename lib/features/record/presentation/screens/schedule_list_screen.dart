@@ -1,4 +1,11 @@
 // lib/features/record/presentation/screens/schedule_list_screen.dart
+//
+// 변경 요약
+// - ScheduleRepositoryImpl 이 ApiClient 의존성 주입을 요구 → Provider로 ApiClient를 읽어 주입
+// - context를 쓰는 의존성 초기화는 initState에서 수행
+// - setState 호출 전 mounted 체크 추가
+// - 로그인 버튼: go_router 사용(중복 네비 제거)
+// - ✅ 스케줄이 0개여도 Calendar 탭은 항상 표시 (기존: 비어있으면 달력 자체가 사라짐)
 
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -6,6 +13,8 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:provider/provider.dart'; // ★ 추가: DI
+import 'package:heat_trip_flutter/shared/network/api_client.dart'; // ★ 추가: ApiClient 주입 원천
 
 // 도메인/데이터/프레젠테이션 의존성
 import 'package:heat_trip_flutter/features/record/data/model/schedule_response.dart';
@@ -31,7 +40,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   // ─────────────────────────────────────
   // 상태 & 의존성
   // ─────────────────────────────────────
-  final ScheduleRepositoryImpl _repository = ScheduleRepositoryImpl();
+  late final ScheduleRepositoryImpl _repository; // ★ 변경: 나중 주입
   List<ScheduleResponse> _all = [];
   bool _loading = true;
   String? _error;
@@ -52,22 +61,31 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   @override
   void initState() {
     super.initState();
+    // ★ ApiClient를 Provider에서 받아 Repo 주입
+    final api = context.read<ApiClient>();
+    _repository = ScheduleRepositoryImpl(api);
     _load();
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final data = await _repository.fetchSchedules();
+      if (!mounted) return;
       setState(() => _all = data);
     } on AppException catch (e) {
+      if (!mounted) return;
       setState(() => _error = e.message);
-    } catch (e) {
+    } catch (_) {
+      if (!mounted) return;
       setState(() => _error = '일시적인 오류가 발생했어요. 잠시 후 다시 시도해 주세요.');
     } finally {
+      if (!mounted) return;
       setState(() => _loading = false);
     }
   }
@@ -212,7 +230,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                 ).then((_) => _load());
               },
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add Item'),
+              label: const Text('일정 추가'),
               style: FilledButton.styleFrom(
                 backgroundColor: const Color.fromARGB(255, 26, 29, 33),
                 foregroundColor: Colors.white,
@@ -236,7 +254,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
             children: [
               const SizedBox(height: 2),
               const Text(
-                'Schedule & plan your trips',
+                '여행 일정을 추가하고 관리해보세요.',
                 style: TextStyle(color: kTextMuted),
               ),
               const SizedBox(height: 8),
@@ -245,7 +263,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                 child: TextField(
                   onChanged: (v) => setState(() => _searchTitle = v),
                   decoration: InputDecoration(
-                    hintText: 'Search schedule…',
+                    hintText: '일정 검색하기…',
                     prefixIcon: const Icon(Icons.search),
                     filled: true,
                     fillColor: const Color(0xFFF3F4F6),
@@ -319,8 +337,8 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                 if (isAuth)
                   FilledButton(
                     onPressed: () {
+                      // go_router만 사용 (중복 네비 제거)
                       context.go('/auth/login');
-                      Navigator.pushNamed(context, '/auth/login');
                     },
                     child: const Text('로그인 하러 가기'),
                   )
@@ -330,15 +348,6 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
             ),
           ),
         ),
-      );
-    }
-
-    // ✅ 전체가 비어있으면 바로 Empty UI
-    if (_all.isEmpty) {
-      return Scaffold(
-        appBar: _buildAppBar(context),
-        backgroundColor: Colors.white,
-        body: _emptyState(),
       );
     }
 
@@ -372,10 +381,8 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
                   ? _emptyState()
                   : _listContent(fm, listFiltered))
             else
-              // ✅ 달력 탭: 필터 결과가 0개면 Empty, 아니면 기존 달력
-              (_filteredForCalendar.isEmpty
-                  ? _emptyState()
-                  : _calendarContent(fm)),
+              // ✅ 달력 탭: 스케줄이 없어도 달력은 항상 표시
+              _calendarContent(fm),
           ],
         ),
       ),
@@ -383,7 +390,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }
 
   // ─────────────────────────────────────
-  // Empty UI
+  // Empty UI (리스트 탭 전용 안내)
   // ─────────────────────────────────────
   Widget _emptyState() {
     return const Center(
@@ -455,7 +462,6 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   /// 상단 요약: 진행 중이면 라벨=Now & 제목만, 없으면 라벨=Next & 제목(D-n)
   Widget _summaryRow() {
     final items = _filteredForList; // 🔁 검색/필터 반영된 목록
-    if (items.isEmpty) return const SizedBox();
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -627,6 +633,8 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
           ...completed.map((s) => _cardFor(s, fm)).toList(),
           const SizedBox(height: 16),
         ],
+        if (inProgress.isEmpty && planned.isEmpty && completed.isEmpty)
+          _emptyState(), // 리스트 탭에서만 안내
       ],
     );
   }
@@ -748,29 +756,29 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
   }
 
   // ─────────────────────────────────────
-  // 달력 탭
+  // 달력 탭 (스케줄이 없어도 항상 달력 표시)
   // ─────────────────────────────────────
   Widget _calendarContent(DateFormat fm) {
-    final selectedItems = _selectedDay == null
-        ? <ScheduleResponse>[]
-        : _schedulesOn(_selectedDay!);
+    final selectedItems =
+        _selectedDay == null ? <ScheduleResponse>[] : _schedulesOn(_selectedDay!);
 
     final today = DateTime(
       DateTime.now().year,
       DateTime.now().month,
       DateTime.now().day,
     );
-    final upcomingSchedules =
-        _filteredForCalendar
-            .where(
-              (s) => !DateTime(
-                s.dateTo.year,
-                s.dateTo.month,
-                s.dateTo.day,
-              ).isBefore(today),
-            )
-            .toList()
-          ..sort((a, b) => a.dateFrom.compareTo(b.dateFrom));
+    final upcomingSchedules = _filteredForCalendar
+        .where(
+          (s) => !DateTime(
+            s.dateTo.year,
+            s.dateTo.month,
+            s.dateTo.day,
+          ).isBefore(today),
+        )
+        .toList()
+      ..sort((a, b) => a.dateFrom.compareTo(b.dateFrom));
+
+    final hasAny = _filteredForCalendar.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -838,6 +846,18 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
             ),
           ),
         ),
+        const SizedBox(height: 12),
+
+        // 🔹 스케줄이 하나도 없을 때 안내 헤더(달력은 그대로 유지)
+        if (!hasAny)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              '캘린더에는 일정이 없습니다.',
+              style: TextStyle(fontSize: 12, color: kTextMuted),
+            ),
+          ),
+
         const SizedBox(height: 16),
 
         // 선택한 날짜

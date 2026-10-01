@@ -1,49 +1,35 @@
+// lib/features/journey/presentation/screens/journey_screen.dart
+//
+// 변경점
+// - AppBar 제목: "Diary" (영문)
+// - 필터 바: 외곽 박스 제거, Wrap으로 자동 줄바꿈(가로 넘침 없음)
+// - 라벨: 전체 / 진행 중 / 예정 / 완료 (한국어)
+// - TabBar 라벨: 여정 / 다이어리 보관함
+
 import 'package:flutter/material.dart';
-import 'package:heat_trip_flutter/features/journey/presentation/screens/diary_edit_screen.dart';
-import 'package:heat_trip_flutter/features/record/data/model/schedule_response.dart';
-import 'package:heat_trip_flutter/features/record/data/schedule_repository_impl.dart';
-import '../../data/journey_api.dart';
-import '../../domain/models.dart';
-import '../widgets/stats_card.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+
+import 'package:heat_trip_flutter/features/journey/state/journey_state.dart';
+import 'package:heat_trip_flutter/features/journey/domain/models.dart';
 import '../widgets/schedule_list.dart';
 import '../widgets/diary_tab.dart';
 import '../screens/new_diary_screen.dart';
 
-/// Journey 메인 화면 (go_router용 const 생성자)
 class JourneyScreen extends StatefulWidget {
   const JourneyScreen({super.key});
-
   @override
   State<JourneyScreen> createState() => _JourneyScreenState();
 }
 
 class _JourneyScreenState extends State<JourneyScreen>
     with SingleTickerProviderStateMixin {
-  // 간단 주입: 데모에서는 더미 API. (TODO: 실서버 시 교체)
-  final JourneyApi _api = RealJourneyApi();
-
-  late final Future<JourneyStats> _statsF = _api.fetchStats();
-  late final Future<List<Schedule>> _schedulesF = _fetchSchedulesFromApi();
-  late Future<List<DiaryEntry>> _diariesF = _api.fetchDiaries();
-  final ScheduleRepositoryImpl _scheduleRepo = ScheduleRepositoryImpl();
-
-  Future<List<Schedule>> _fetchSchedulesFromApi() async {
-    try {
-      final responses = await _scheduleRepo.fetchSchedules();
-      return responses.map(mapToSchedule).toList();
-    } catch (e) {
-      print('[JourneyScreen] 스케줄 불러오기 실패: $e');
-      return [];
-    }
-  }
-
-  // TabController를 State에 보관해서 리빌드/색상 변경에도 선택 상태 유지
   late final TabController _tab;
 
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 4, vsync: this);
+    _tab = TabController(length: 2, vsync: this); // 여정 / 다이어리 보관함
   }
 
   @override
@@ -52,261 +38,191 @@ class _JourneyScreenState extends State<JourneyScreen>
     super.dispose();
   }
 
-  Future<void> _handleEdit(DiaryEntry entry) async {
-    final updatedEntry = await Navigator.push<DiaryEntry>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DiaryEditScreen(entry: entry), // <-- 수정 화면 구현 필요
-      ),
-    );
-
-    if (updatedEntry != null) {
-      setState(() {
-        _diariesF = _api.fetchDiaries(); // 리스트 다시 로딩
-      });
-    }
-  }
-
-  Future<void> _handleDelete(DiaryEntry entry) async {
-    try {
-      await _api.deleteDiary(entry.id!); // <- 실제 API 호출
-      setState(() {
-        _diariesF = _api.fetchDiaries(); // 목록 새로고침
-      });
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('다이어리를 삭제했어요.')));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('삭제 실패: $e')));
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final state = context.watch<JourneyState>();
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Diary'),
+        title: const Text('Diary'), // ← 영문 고정
+        bottom: TabBar(
+          controller: _tab,
+          tabs: const [
+            Tab(text: '여정'),
+            Tab(text: '다이어리 보관함'),
+          ],
+        ),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilledButton.icon(
-              onPressed: () async {
-                final entry = await showModalBottomSheet<DiaryEntry>(
-                  context: context,
-                  isScrollControlled: true, // <- 화면 대부분 차지하게
-                  useSafeArea: true,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(16),
-                    ),
-                  ),
-                  builder: (context) => Padding(
-                    padding: EdgeInsets.only(
-                      bottom: MediaQuery.of(context).viewInsets.bottom,
-                    ),
-                    child: NewDiaryScreen(), // scheduleId 넘기고 싶으면 여기에 전달
-                  ),
-                );
-
-                if (entry != null && context.mounted) {
-                  setState(() {
-                    _diariesF = _api.fetchDiaries(); // 작성 후 목록 새로고침
-                  });
-                }
-              },
-
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add Diary'),
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color.fromARGB(
-                  255,
-                  25,
-                  28,
-                  33,
-                ), // ↓ 블랙보다 부드러운 다크그레이
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            padding: const EdgeInsets.only(right: 12),
+            child: SizedBox(
+              height: 36,
+              child: FilledButton.icon(
+                onPressed: () async {
+                  await context.push('/journey/diary/new');
+                  if (!mounted) return;
+                  await context.read<JourneyState>().refreshDiaries();
+                },
+                icon: const Icon(Icons.edit_note, size: 18, color: Colors.white),
+                label: const Text(
+                  '다이어리 쓰기',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                 ),
-                textStyle: const TextStyle(fontWeight: FontWeight.w600),
-                overlayColor: Colors.white.withOpacity(.06), // 눌림 효과도 은은하게
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF0B0B14),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
               ),
             ),
           ),
         ],
-
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(8),
-          child: SizedBox(height: 8),
-        ),
       ),
-      body: Column(
+      body: TabBarView(
+        controller: _tab,
         children: [
-          const SizedBox(height: 8),
-          // 상단 통계
-          FutureBuilder<JourneyStats>(
-            future: _statsF,
-            builder: (context, snap) {
-              if (snap.connectionState != ConnectionState.done) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: LinearProgressIndicator(minHeight: 4),
+          // ───────────── 여정(Trips) 탭 ─────────────
+          Column(
+            children: [
+              const SizedBox(height: 10), // TabBar와 필터 사이 간격
+              _TripFilterBar(
+                current: state.filter,
+                onChanged: (f) => context.read<JourneyState>().setFilter(f),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: state.loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : ScheduleList(items: state.schedules),
+              ),
+            ],
+          ),
+
+          // ─────────── 다이어리 보관함(Diary Archive) 탭 ───────────
+          DiaryTab(
+            showNewButton: false,
+            onEdit: (DiaryEntry entry) async {
+              final updated = await Navigator.push<DiaryEntry?>(
+                context,
+                MaterialPageRoute(builder: (_) => NewDiaryScreen(initial: entry)),
+              );
+              if (!mounted) return;
+              if (updated != null) {
+                await context.read<JourneyState>().refreshDiaries();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('다이어리를 수정했어요.')),
                 );
               }
-              if (snap.hasError || !snap.hasData) {
-                return const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text('Failed to load stats'),
-                );
-              }
-              return StatsCard(stats: snap.data!);
             },
-          ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _JourneyTabs(controller: _tab), // 컨트롤러 전달
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: TabBarView(
-              controller: _tab, // 동일 컨트롤러 사용
-              children: [
-                // Timeline
-                FutureBuilder<List<Schedule>>(
-                  future: _schedulesF,
-                  builder: _scheduleBuilder(),
-                ),
-                // Active
-                FutureBuilder<List<Schedule>>(
-                  future: _schedulesF,
-                  builder: (context, snap) => _scheduleBuilder(
-                    filter: (s) => s.status == ScheduleStatus.inProgress,
-                  )(context, snap),
-                ),
-                // Planned
-                FutureBuilder<List<Schedule>>(
-                  future: _schedulesF,
-                  builder: (context, snap) => _scheduleBuilder(
-                    filter: (s) => s.status == ScheduleStatus.planned,
-                  )(context, snap),
-                ),
-                // Diary
-                FutureBuilder<List<DiaryEntry>>(
-                  future: _diariesF,
-                  builder: (context, snap) {
-                    if (snap.connectionState != ConnectionState.done) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (snap.hasError || !snap.hasData) {
-                      return const Center(
-                        child: Text('Failed to load diaries.'),
-                      );
-                    }
-                    return DiaryTab(
-                      entries: snap.data!,
-                      onEdit: _handleEdit,
-                      onDelete: _handleDelete,
-                    );
-                  },
-                ),
-              ],
-            ),
+            onDelete: (DiaryEntry entry) async {
+              try {
+                await context.read<JourneyState>().deleteDiary(entry.id!);
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('다이어리를 삭제했어요.')),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('삭제 실패: $e')),
+                );
+              }
+            },
           ),
         ],
       ),
     );
   }
-
-  /// 스케줄 탭 공통 빌더 (필터링 콜백 주입)
-  AsyncWidgetBuilder<List<Schedule>> _scheduleBuilder({
-    bool Function(Schedule s)? filter,
-  }) {
-    return (context, snap) {
-      if (snap.connectionState != ConnectionState.done) {
-        return const Center(child: CircularProgressIndicator());
-      }
-      if (snap.hasError || !snap.hasData) {
-        return const Center(child: Text('Failed to load schedules.'));
-      }
-      final items = filter == null
-          ? snap.data!
-          : snap.data!.where(filter).toList();
-      return ScheduleList(items: items);
-    };
-  }
 }
 
-/// 탭 헤더
-class _JourneyTabs extends StatelessWidget {
-  const _JourneyTabs({super.key, required this.controller});
-
-  final TabController controller;
+// ───────────────────────────────────────────
+// 아주 작고 가벼운 필터 바 (한 줄 유지용)
+// - 글자 굵기 보통, 크기 12
+// - 아이콘 14
+// - 내부 패딩/탭 타깃 최소화 (두 줄로 안 떨어지게)
+// - 칩 간 여백 축소
+// ───────────────────────────────────────────
+class _TripFilterBar extends StatelessWidget {
+  const _TripFilterBar({required this.current, required this.onChanged});
+  final TripFilter current;
+  final ValueChanged<TripFilter> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    const selectedBg = Color(0xFFEBEBEB); // 선택 배경
-    const selectedFg = Color(0xFFEB9C64); // 선택 텍스트
+    Color selectedBg(TripFilter f) {
+      switch (f) {
+        case TripFilter.active:     return const Color(0xFFEFF5FF);
+        case TripFilter.planned:    return const Color(0xFFFFF7EC);
+        case TripFilter.completed:  return const Color(0xFFEFF8F1);
+        case TripFilter.all:
+        default:                    return const Color(0xFFF6F6F8);
+      }
+    }
 
-    return TabBar(
-      controller: controller,
-      isScrollable: false,
-      tabAlignment: TabAlignment.fill,
-      labelPadding: const EdgeInsets.symmetric(vertical: 8),
-      indicatorSize: TabBarIndicatorSize.tab,
+    Color selectedFg(TripFilter f) {
+      switch (f) {
+        case TripFilter.active:     return const Color(0xFF2563EB);
+        case TripFilter.planned:    return const Color(0xFFB45309);
+        case TripFilter.completed:  return const Color(0xFF15803D);
+        case TripFilter.all:
+        default:                    return const Color(0xFF4B5563);
+      }
+    }
 
-      // 눌렀을 때/호버/포커스 overlay 색 커스텀
-      overlayColor: MaterialStateProperty.resolveWith<Color?>((states) {
-        if (states.contains(MaterialState.pressed)) {
-          return selectedBg.withOpacity(0.25); // 눌렀을 때도 지정 색
-        }
-        if (states.contains(MaterialState.hovered) ||
-            states.contains(MaterialState.focused)) {
-          return selectedBg.withOpacity(0.18);
-        }
-        return Colors.transparent;
-      }),
-      // (선택) 리플 없애고 싶다면 주석 해제
-      // splashFactory: NoSplash.splashFactory,
+    Widget pill({
+      required TripFilter value,
+      required String label,
+      required IconData icon,
+    }) {
+      final isSelected = current == value;
+      final fg = isSelected ? selectedFg(value) : const Color(0xFF6B7280);
 
-      // 선택된 탭 배경/글자
-      indicator: BoxDecoration(
-        color: selectedBg.withOpacity(0.25), // indicator와 overlay 톤을 맞추면 깜빡임 없음
-        borderRadius: BorderRadius.circular(12),
+      return ChoiceChip(
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: fg),
+            const SizedBox(width: 4),
+            // 글씨 작고 굵지 않게
+            Text(
+              label,
+              overflow: TextOverflow.clip,
+              softWrap: false,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
+            ),
+          ],
+        ),
+        selected: isSelected,
+        onSelected: (_) => onChanged(value),
+        // 최대한 낮은 높이
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        labelPadding: EdgeInsets.zero,
+        shape: const StadiumBorder(),
+        backgroundColor: const Color(0xFFF7F7FA),
+        selectedColor: selectedBg(value),
+        side: BorderSide(
+          color: isSelected ? fg.withOpacity(.3) : const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Wrap(
+        spacing: 6,    // 칩 사이 가로 간격 더 줄임
+        runSpacing: 6, // 줄바꿈 시 세로 간격
+        children: [
+          pill(value: TripFilter.all,       label: '전체',   icon: Icons.all_inclusive),
+          pill(value: TripFilter.active,    label: '진행 중', icon: Icons.play_circle_outline),
+          pill(value: TripFilter.planned,   label: '예정',   icon: Icons.schedule_outlined),
+          pill(value: TripFilter.completed, label: '완료',   icon: Icons.check_circle_outline),
+        ],
       ),
-      labelColor: selectedFg,
-      unselectedLabelColor: const Color(0xFF9E9E9E),
-
-      tabs: const [
-        Tab(text: 'Timeline'),
-        Tab(text: 'Active'),
-        Tab(text: 'Planned'),
-        Tab(text: 'Diary'),
-      ],
     );
   }
-}
-
-Schedule mapToSchedule(ScheduleResponse res) {
-  return Schedule(
-    id: res.scheduleId,
-    title: res.title,
-    content: res.content,
-    dateFrom: res.dateFrom,
-    dateTo: res.dateTo,
-    createdAt: res.createdAt,
-    updatedAt: res.updatedAt,
-    userId: res.user?.userId ?? 0,
-    location: null, // 서버에 location 없으면 null 처리
-    tags: [], // 서버에 태그 없으면 빈 리스트
-    memoriesCount: 0, // 기본값 0
-    heroImageUrl: null, // null 처리
-  );
 }

@@ -1,6 +1,15 @@
 // lib/features/profile/presentation/account_delete_screen.dart
+//
+// 변경 요약
+// - AuthRepositoryImpl 생성 방식: new AuthRepositoryImpl(context.read<ApiClient>())
+// - deleteMyAccount()는 이제 토큰 인자를 받지 않음(주입된 ApiClient가 Authorization 자동 첨부)
+// - 나머지는 로직 동일(성공 시 토큰 정리 후 라우팅)
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+
+import 'package:heat_trip_flutter/shared/network/api_client.dart';
 import 'package:heat_trip_flutter/features/auth/data/auth_repository_impl.dart';
 import 'package:heat_trip_flutter/features/auth/service/token_storage.dart';
 
@@ -13,22 +22,25 @@ class AccountDeleteScreen extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
-      barrierColor: Colors.black54, // 배경 딤 처리
+      barrierColor: Colors.black54,
       builder: (_) => const _DeleteConfirmDialog(),
     );
 
     if (ok != true || !context.mounted) return;
 
-    final repo = AuthRepositoryImpl();
-    final token = await TokenStorage.getToken();
+    // [J] ApiClient 주입형으로 생성 (중요!)
+    final repo = AuthRepositoryImpl(context.read<ApiClient>());
 
+    // UX: 토큰 없으면 바로 로그인으로 보냄
+    final token = await TokenStorage.getToken();
     if (token == null) {
       await TokenStorage.clearToken();
       if (context.mounted) context.goNamed('login');
       return;
     }
 
-    final success = await repo.deleteMyAccount(token);
+    // [K] 토큰 인자 제거된 deleteMyAccount() 호출
+    final success = await repo.deleteMyAccount();
 
     if (!context.mounted) return;
 
@@ -63,7 +75,7 @@ class AccountDeleteScreen extends StatelessWidget {
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kDanger,
-                  foregroundColor: Colors.white, // 텍스트/아이콘 흰색
+                  foregroundColor: Colors.white,
                 ),
                 onPressed: () => _confirmDelete(context),
                 child: const Text('정말로 탈퇴하기'),
@@ -98,7 +110,7 @@ class _DeleteConfirmDialog extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: const BoxDecoration(
-                color: Color(0x1AF44336), // 연한 레드 배경
+                color: Color(0x1AF44336),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.warning_rounded, color: kDanger, size: 36),
@@ -123,7 +135,6 @@ class _DeleteConfirmDialog extends StatelessWidget {
 
             Row(
               children: [
-                // 취소(외곽)
                 Expanded(
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
@@ -138,12 +149,11 @@ class _DeleteConfirmDialog extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                // 탈퇴(위험)
                 Expanded(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kDanger,
-                      foregroundColor: Colors.white, // 텍스트/아이콘 흰색
+                      foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -162,3 +172,10 @@ class _DeleteConfirmDialog extends StatelessWidget {
     );
   }
 }
+
+/* ─────────────────────────── 각주 ───────────────────────────
+- 기존 에러(“1 positional argument expected …” / “Too many positional …”)는
+  AuthRepositoryImpl 생성자/메서드 시그니처 변경과 화면 코드가 일치하지 않아 발생.
+- ApiClient를 Provider로 주입받아 AuthRepositoryImpl을 만들고,
+  deleteMyAccount() 에 토큰을 넘기지 않는 형태로 정리해 해결함.
+────────────────────────────────────────────────────────── */

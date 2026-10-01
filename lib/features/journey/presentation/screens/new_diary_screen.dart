@@ -1,15 +1,21 @@
+// lib/features/journey/presentation/screens/new_diary_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:heat_trip_flutter/features/journey/data/journey_repository_impl.dart';
+import 'package:provider/provider.dart';
+
+import 'package:heat_trip_flutter/shared/media/media.dart'; // MediaGridField, UploadCategory
 import '../../domain/models.dart';
-import 'dart:io';
-import 'package:image_picker/image_picker.dart';
+import '../../state/journey_state.dart';
 
 class NewDiaryScreen extends StatefulWidget {
-  const NewDiaryScreen({super.key, this.scheduleId});
+  const NewDiaryScreen({super.key, this.scheduleId, this.initial});
 
-  /// 스케줄 연동이면 값 존재, Diary 탭에서 진입 시 null
+  /// 스케줄에서 바로 쓰기
   final int? scheduleId;
+
+  /// 수정 모드일 때 전달 (null이면 생성 모드)
+  final DiaryEntry? initial;
 
   @override
   State<NewDiaryScreen> createState() => _NewDiaryScreenState();
@@ -17,38 +23,52 @@ class NewDiaryScreen extends StatefulWidget {
 
 class _NewDiaryScreenState extends State<NewDiaryScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _title = TextEditingController();
-  final _location = TextEditingController();
-  final _weather = TextEditingController();
-  final _body = TextEditingController();
-  DateTime _date = DateTime.now();
-  final ImagePicker _picker = ImagePicker();
-
-  final List<File> _imageFiles = [];
+  late final TextEditingController _title;
+  late final TextEditingController _location;
+  late final TextEditingController _weather;
+  late final TextEditingController _body;
+  late DateTime _date;
 
   final _moods = const [
-    ('😀', 'Happy'),
-    ('😊', 'Delighted'),
-    ('😌', 'Calm'),
-    ('😮', 'Amazed'),
-    ('😢', 'Sad'),
-    ('😡', 'Angry'),
+    ('😊','기쁨'),
+    ('😢','슬픔'),
+    ('😰','불안'),
+    ('😡','분노'),
+    ('😌','평온'),
+    ('✨','설렘'),
   ];
   int _moodIndex = 0;
 
-  Future<void> _addPhotoFromDevice() async {
-    final List<XFile>? pickedFiles = await _picker.pickMultiImage();
-    if (pickedFiles != null && pickedFiles.isNotEmpty) {
-      setState(() {
-        _imageFiles.addAll(pickedFiles.map((xfile) => File(xfile.path)));
-      });
+  /// 업로드/기존 사진 URL
+  late List<String> _photos;
+
+  bool get _isEdit => widget.initial != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final init = widget.initial;
+
+    _title = TextEditingController(text: init?.title ?? '');
+    _location = TextEditingController(text: init?.location ?? '');
+    _weather = TextEditingController(text: init?.weatherLabel ?? '');
+    _body = TextEditingController(text: init?.body ?? '');
+    _date = init?.date ?? DateTime.now();
+
+    _photos = List<String>.from(init?.photos ?? const []);
+    if (init != null) {
+      final idx = _moods.indexWhere((m) => m.$2 == init.moodLabel);
+      _moodIndex = idx >= 0 ? idx : 0;
     }
   }
 
-  void _removePhoto(int idx) {
-    setState(() {
-      _imageFiles.removeAt(idx);
-    });
+  @override
+  void dispose() {
+    _title.dispose();
+    _location.dispose();
+    _weather.dispose();
+    _body.dispose();
+    super.dispose();
   }
 
   Future<void> _pickDate() async {
@@ -61,126 +81,50 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
       helpText: 'Select date',
       confirmText: 'Save',
       cancelText: 'Cancel',
-      initialEntryMode: DatePickerEntryMode.calendar,
-      builder: (context, child) {
-        final base = Theme.of(context);
-        const seed = Color(0xFF0B0B14);
-
-        return Theme(
-          data: base.copyWith(
-            useMaterial3: true,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: seed,
-              brightness: base.brightness,
-            ),
-            datePickerTheme: base.datePickerTheme.copyWith(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28),
-              ),
-              backgroundColor: Colors.white,
-              surfaceTintColor: Colors.transparent,
-              elevation: 0,
-              headerBackgroundColor: Colors.white,
-              headerForegroundColor: Colors.black87,
-              headerHeadlineStyle: const TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 20,
-              ),
-              headerHelpStyle: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Colors.black54,
-              ),
-              dayShape: const WidgetStatePropertyAll<OutlinedBorder>(
-                CircleBorder(),
-              ),
-              dayForegroundColor: WidgetStateProperty.resolveWith<Color?>(
-                (states) =>
-                    states.contains(WidgetState.selected) ? Colors.white : null,
-              ),
-              dayBackgroundColor: WidgetStateProperty.resolveWith<Color?>(
-                (states) => states.contains(WidgetState.selected) ? seed : null,
-              ),
-              dayOverlayColor: const WidgetStatePropertyAll<Color>(
-                Colors.black12,
-              ),
-              todayForegroundColor: const WidgetStatePropertyAll<Color>(
-                Colors.black87,
-              ),
-              todayBackgroundColor: const WidgetStatePropertyAll<Color>(
-                Colors.transparent,
-              ),
-              yearForegroundColor: WidgetStateProperty.resolveWith<Color?>(
-                (states) =>
-                    states.contains(WidgetState.selected) ? Colors.white : null,
-              ),
-              yearBackgroundColor: WidgetStateProperty.resolveWith<Color?>(
-                (states) => states.contains(WidgetState.selected) ? seed : null,
-              ),
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: seed,
-                textStyle: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-            dialogTheme: base.dialogTheme.copyWith(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28),
-              ),
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
-
     if (picked != null) setState(() => _date = picked);
   }
 
-  void _submit() async {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     final moodLabel = _moods[_moodIndex].$2;
 
     final entry = DiaryEntry(
-      scheduleId: widget.scheduleId,
-      authorInitials: 'ME',
+      id: widget.initial?.id, // 수정 모드면 id 유지
+      scheduleId: widget.scheduleId ?? widget.initial?.scheduleId,
+      authorInitials: widget.initial?.authorInitials ?? 'ME',
       title: _title.text.trim(),
       date: _date,
       location: _location.text.trim().isEmpty ? '—' : _location.text.trim(),
       moodLabel: moodLabel,
       weatherLabel: _weather.text.trim().isEmpty ? '—' : _weather.text.trim(),
-      photos: [], // 서버에서 반환된 URL로 교체됨
+      photos: List<String>.from(_photos),
       body: _body.text.trim(),
     );
 
-    final repo = JourneyRepositoryImpl();
-    final error = await repo.postDiaryWithImages(
-      entry: entry,
-      images: _imageFiles,
-    );
+    final state = context.read<JourneyState>();
+
+    // ✅ 수정/생성 분기 — 둘 다 String? error 패턴
+    String? error;
+    if (_isEdit) {
+      error = await state.updateDiary(entry);
+    } else {
+      error = await state.createDiary(entry);
+    }
 
     if (error != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('저장 실패: $error')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save: $error')),
+      );
       return;
     }
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('저장 완료!')));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Diary saved')));
     Navigator.pop(context, entry);
-  }
-
-  @override
-  void dispose() {
-    _title.dispose();
-    _location.dispose();
-    _weather.dispose();
-    _body.dispose();
-    super.dispose();
   }
 
   @override
@@ -190,7 +134,7 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: const BackButton(),
-        title: const Text('New Diary Entry'),
+        title: Text(_isEdit ? '다이어리 수정' : '다이어리 쓰기'),
         actions: [TextButton(onPressed: _submit, child: const Text('Save'))],
       ),
       body: SingleChildScrollView(
@@ -203,10 +147,8 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF1F2F5),
                       borderRadius: BorderRadius.circular(999),
@@ -214,14 +156,13 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                     child: Text(
                       'Schedule #${widget.scheduleId}',
                       style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
+                          fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
               if (widget.scheduleId != null) const SizedBox(height: 12),
 
+              // ───────────────── Basic ─────────────────
               _Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,12 +174,13 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                       child: TextFormField(
                         controller: _title,
                         decoration: const InputDecoration(
-                          hintText: 'e.g. Magical Morning at Tsukiji',
+                          hintText: '예) 00여행기',
                           border: OutlineInputBorder(),
                         ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Title is required'
-                            : null,
+                        validator: (v) =>
+                            (v == null || v.trim().isEmpty)
+                                ? 'Title is required'
+                                : null,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -264,7 +206,7 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                       child: TextField(
                         controller: _location,
                         decoration: const InputDecoration(
-                          hintText: 'e.g. Tsukiji, Tokyo',
+                          hintText: '예) 00해변',
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -275,6 +217,7 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
 
               const SizedBox(height: 12),
 
+              // ─────────────── Mood & Weather ───────────────
               _Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,10 +235,8 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                             label: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  _moods[i].$1,
-                                  style: const TextStyle(fontSize: 16),
-                                ),
+                                Text(_moods[i].$1,
+                                    style: const TextStyle(fontSize: 16)),
                                 const SizedBox(width: 6),
                                 Text(_moods[i].$2),
                               ],
@@ -320,7 +261,7 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                       child: TextField(
                         controller: _weather,
                         decoration: const InputDecoration(
-                          hintText: 'e.g. Partly cloudy, 12°C',
+                          hintText: '예) 맑음, 22도',
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -331,37 +272,81 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
 
               const SizedBox(height: 12),
 
+              // ───────────────── Photos ─────────────────
               _Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const _SectionTitle('Photos'),
                     const SizedBox(height: 8),
-                    if (_imageFiles.isEmpty)
-                      Text(
-                        'No photos selected. Add some!',
-                        style: TextStyle(color: subtle),
-                      ),
-                    if (_imageFiles.isNotEmpty)
-                      _PhotoFileGrid(
-                        files: _imageFiles,
-                        onRemove: _removePhoto,
-                      ),
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: OutlinedButton.icon(
-                        onPressed: _addPhotoFromDevice,
-                        icon: const Icon(Icons.add_a_photo),
-                        label: const Text('Add Photo'),
-                      ),
+
+                    // 업로드 UI (정의된 시그니처만 사용)
+                    MediaGridField(
+                      category: UploadCategory.JOURNEY_IMAGE,
+                      onUploaded: (items) {
+                        setState(() {
+                          _photos.addAll(items.map((e) => e.url));
+                        });
+                      },
                     ),
+
+                    // 기존/업로드된 사진 미리보기 + 삭제
+                    if (_photos.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _photos.map((url) {
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  url,
+                                  width: 96,
+                                  height: 96,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    width: 96,
+                                    height: 96,
+                                    color: const Color(0xFFF3F3F3),
+                                    alignment: Alignment.center,
+                                    child: const Icon(Icons.image_not_supported),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                right: -6,
+                                top: -6,
+                                child: InkWell(
+                                  onTap: () => setState(() {
+                                    _photos.remove(url);
+                                  }),
+                                  child: Container(
+                                    width: 22,
+                                    height: 22,
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(.7),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.close,
+                                        size: 14, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ],
                 ),
               ),
 
               const SizedBox(height: 12),
 
+              // ───────────────── Story ─────────────────
               _Card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -373,7 +358,7 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
                       minLines: 6,
                       maxLines: 12,
                       decoration: const InputDecoration(
-                        hintText: 'Write your story...',
+                        hintText: '일기를 작성해 보세요...',
                         border: OutlineInputBorder(),
                       ),
                       validator: (v) => (v == null || v.trim().isEmpty)
@@ -385,22 +370,20 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
               ),
 
               const SizedBox(height: 16),
-
               SizedBox(
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton.icon(
                   onPressed: _submit,
                   icon: const Icon(Icons.check, color: Colors.white),
-                  label: const Text(
-                    'Save Diary',
-                    style: TextStyle(color: Colors.white),
+                  label: Text(
+                    _isEdit ? 'Update Diary' : 'Save Diary',
+                    style: const TextStyle(color: Colors.white),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0B0B14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                        borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
                 ),
@@ -413,7 +396,6 @@ class _NewDiaryScreenState extends State<NewDiaryScreen> {
   }
 }
 
-/// 라벨 + 위젯 묶음
 class _Labeled extends StatelessWidget {
   const _Labeled({required this.label, required this.child});
   final String label;
@@ -433,70 +415,17 @@ class _Labeled extends StatelessWidget {
   }
 }
 
-class _PhotoFileGrid extends StatelessWidget {
-  const _PhotoFileGrid({required this.files, required this.onRemove});
-  final List<File> files;
-  final void Function(int index) onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      itemCount: files.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-      ),
-      itemBuilder: (_, i) {
-        return Stack(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: Image.file(files[i], fit: BoxFit.cover),
-              ),
-            ),
-            Positioned(
-              right: 4,
-              top: 4,
-              child: InkWell(
-                onTap: () => onRemove(i),
-                borderRadius: BorderRadius.circular(999),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(.5),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  padding: const EdgeInsets.all(4),
-                  child: const Icon(Icons.close, size: 14, color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-/// 섹션 타이틀
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.text);
   final String text;
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-    );
+    return Text(text,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800));
   }
 }
 
-/// 흰색 카드 컨테이너
 class _Card extends StatelessWidget {
   const _Card({required this.child});
   final Widget child;
@@ -516,72 +445,9 @@ class _Card extends StatelessWidget {
   }
 }
 
-/// URL 썸네일 그리드
-class _PhotoGrid extends StatelessWidget {
-  const _PhotoGrid({required this.urls, required this.onRemove});
-  final List<String> urls;
-  final void Function(int index) onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      itemCount: urls.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-      ),
-      itemBuilder: (_, i) {
-        return Stack(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: Image.network(
-                  urls[i],
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: Colors.grey.shade200,
-                    alignment: Alignment.center,
-                    child: const Icon(
-                      Icons.broken_image_outlined,
-                      color: Colors.black26,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              right: 4,
-              top: 4,
-              child: InkWell(
-                onTap: () => onRemove(i),
-                borderRadius: BorderRadius.circular(999),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(.5),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  padding: const EdgeInsets.all(4),
-                  child: const Icon(Icons.close, size: 14, color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-/// 라우트 편의용: pathParameters에서 id 읽어와 NewDiaryScreen 생성
 class NewDiaryForScheduleRoute extends StatelessWidget {
   const NewDiaryForScheduleRoute({super.key, required this.state});
   final GoRouterState state;
-
   @override
   Widget build(BuildContext context) {
     final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
